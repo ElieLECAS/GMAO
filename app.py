@@ -7,6 +7,9 @@ import openpyxl
 import qrcode
 from io import BytesIO
 from PIL import Image
+import cv2
+from pyzbar.pyzbar import decode
+import numpy as np
 
 # Configuration de la page
 st.set_page_config(page_title="GMAO - Gestion de Stock", layout="wide")
@@ -92,6 +95,53 @@ action = st.sidebar.selectbox(
     ]
 )
 
+# Fonction pour scanner le QR code
+def scan_qr_code():
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        st.error("Impossible d'accéder à la caméra")
+        return None
+    
+    stframe = st.empty()
+    stop_button = st.button("Arrêter le scan")
+    
+    while not stop_button:
+        ret, frame = cap.read()
+        if not ret:
+            st.error("Erreur lors de la lecture de la caméra")
+            break
+            
+        # Détection des QR codes
+        decoded_objects = decode(frame)
+        for obj in decoded_objects:
+            # Dessiner un rectangle autour du QR code
+            points = obj.polygon
+            if len(points) > 4:
+                hull = cv2.convexHull(np.array([point for point in points], dtype=np.float32))
+                cv2.polylines(frame, [hull], True, (0, 255, 0), 2)
+            else:
+                cv2.polylines(frame, [np.array(points, dtype=np.int32)], True, (0, 255, 0), 2)
+            
+            # Afficher le code
+            code = obj.data.decode('utf-8')
+            cv2.putText(frame, code, (points[0][0], points[0][1] - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            
+            # Convertir l'image pour Streamlit
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            stframe.image(frame_rgb)
+            
+            # Libérer la caméra et retourner le code
+            cap.release()
+            return code
+        
+        # Convertir l'image pour Streamlit
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        stframe.image(frame_rgb)
+    
+    cap.release()
+    return None
+
 if action == "Voir l'inventaire":
     st.header("Inventaire actuel")
     if not df.empty:
@@ -153,9 +203,20 @@ elif action == "Modifier un produit":
 elif action == "Rechercher un produit":
     st.header("Rechercher un produit")
     
-    search_type = st.radio("Type de recherche", ["Par référence", "Par nom"])
+    search_type = st.radio("Type de recherche", ["Par référence", "Par nom", "Scanner QR Code"])
     
-    if search_type == "Par référence":
+    if search_type == "Scanner QR Code":
+        st.write("Présentez le QR code devant la caméra")
+        if st.button("Démarrer le scan"):
+            code = scan_qr_code()
+            if code:
+                result = df[df['Reference'] == code]
+                if not result.empty:
+                    st.success(f"Produit trouvé : {result['Produits'].iloc[0]}")
+                    st.dataframe(result)
+                else:
+                    st.warning("Aucun produit trouvé avec cette référence.")
+    elif search_type == "Par référence":
         reference = st.text_input("Entrez la référence du produit")
         if reference:
             result = df[df['Reference'] == reference]
@@ -175,7 +236,20 @@ elif action == "Rechercher un produit":
 elif action == "Entrée de stock":
     st.header("Entrée de stock")
     if not df.empty:
-        produit_select = st.selectbox("Sélectionnez un produit", df['Produits'].unique(), key="entree")
+        search_type = st.radio("Méthode de sélection", ["Liste déroulante", "Scanner QR Code"])
+        
+        if search_type == "Scanner QR Code":
+            st.write("Présentez le QR code devant la caméra")
+            if st.button("Démarrer le scan"):
+                code = scan_qr_code()
+                if code:
+                    produit_select = df[df['Reference'] == code]['Produits'].iloc[0]
+                    st.session_state['produit_entree'] = produit_select
+                    st.experimental_rerun()
+        
+        produit_select = st.selectbox("Sélectionnez un produit", df['Produits'].unique(), 
+                                    key="entree", 
+                                    index=df['Produits'].tolist().index(st.session_state.get('produit_entree', df['Produits'].iloc[0])) if st.session_state.get('produit_entree') in df['Produits'].tolist() else 0)
         quantite_actuelle = int(df[df['Produits'] == produit_select]['Quantite'].iloc[0])
         st.write(f"Quantité actuelle : **{quantite_actuelle}**")
         quantite_ajout = st.number_input("Quantité à ajouter", min_value=1, step=1, key="ajout")
@@ -192,7 +266,20 @@ elif action == "Entrée de stock":
 elif action == "Sortie de stock":
     st.header("Sortie de stock")
     if not df.empty:
-        produit_select = st.selectbox("Sélectionnez un produit", df['Produits'].unique(), key="sortie")
+        search_type = st.radio("Méthode de sélection", ["Liste déroulante", "Scanner QR Code"])
+        
+        if search_type == "Scanner QR Code":
+            st.write("Présentez le QR code devant la caméra")
+            if st.button("Démarrer le scan"):
+                code = scan_qr_code()
+                if code:
+                    produit_select = df[df['Reference'] == code]['Produits'].iloc[0]
+                    st.session_state['produit_sortie'] = produit_select
+                    st.experimental_rerun()
+        
+        produit_select = st.selectbox("Sélectionnez un produit", df['Produits'].unique(), 
+                                    key="sortie",
+                                    index=df['Produits'].tolist().index(st.session_state.get('produit_sortie', df['Produits'].iloc[0])) if st.session_state.get('produit_sortie') in df['Produits'].tolist() else 0)
         quantite_actuelle = int(df[df['Produits'] == produit_select]['Quantite'].iloc[0])
         st.write(f"Quantité actuelle : **{quantite_actuelle}**")
         quantite_retrait = st.number_input("Quantité à retirer", min_value=1, step=1, key="retrait")
@@ -212,7 +299,20 @@ elif action == "Sortie de stock":
 elif action == "Inventaire":
     st.header("Ajustement d'inventaire")
     if not df.empty:
-        produit_select = st.selectbox("Sélectionnez un produit", df['Produits'].unique(), key="inventaire")
+        search_type = st.radio("Méthode de sélection", ["Liste déroulante", "Scanner QR Code"])
+        
+        if search_type == "Scanner QR Code":
+            st.write("Présentez le QR code devant la caméra")
+            if st.button("Démarrer le scan"):
+                code = scan_qr_code()
+                if code:
+                    produit_select = df[df['Reference'] == code]['Produits'].iloc[0]
+                    st.session_state['produit_inventaire'] = produit_select
+                    st.experimental_rerun()
+        
+        produit_select = st.selectbox("Sélectionnez un produit", df['Produits'].unique(), 
+                                    key="inventaire",
+                                    index=df['Produits'].tolist().index(st.session_state.get('produit_inventaire', df['Produits'].iloc[0])) if st.session_state.get('produit_inventaire') in df['Produits'].tolist() else 0)
         quantite_actuelle = int(df[df['Produits'] == produit_select]['Quantite'].iloc[0])
         st.write(f"Quantité actuelle : **{quantite_actuelle}**")
         nouvelle_quantite = st.number_input("Nouvelle quantité (après inventaire)", min_value=0, value=quantite_actuelle, step=1, key="nv_inventaire")
