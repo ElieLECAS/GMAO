@@ -4,5 +4,7 @@ openpyxl==3.1.2
 plotly==5.19.0
 numpy==1.26.4
 qrcode[pil]==7.4.2
-opencv-python==4.9.0.80
-pyzbar==0.1.9 
+
+# Dépendances optionnelles pour la caméra (commentées car non nécessaires sur Streamlit Cloud)
+# opencv-python==4.9.0.80
+# pyzbar==0.1.9 
