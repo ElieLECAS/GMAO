@@ -7,9 +7,23 @@ import openpyxl
 import qrcode
 from io import BytesIO
 from PIL import Image
-import cv2
-from pyzbar.pyzbar import decode
-import numpy as np
+import platform
+import sys
+
+# Vérifier si nous sommes sur Streamlit Cloud
+IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_SERVER_HEADLESS', 'false').lower() == 'true'
+
+# Importer les modules de caméra seulement si nous ne sommes pas sur Streamlit Cloud
+if not IS_STREAMLIT_CLOUD:
+    try:
+        import cv2
+        from pyzbar.pyzbar import decode
+        import numpy as np
+        CAMERA_AVAILABLE = True
+    except ImportError:
+        CAMERA_AVAILABLE = False
+else:
+    CAMERA_AVAILABLE = False
 
 # Configuration de la page
 st.set_page_config(page_title="GMAO - Gestion de Stock", layout="wide")
@@ -97,6 +111,10 @@ action = st.sidebar.selectbox(
 
 # Fonction pour scanner le QR code
 def scan_qr_code():
+    if not CAMERA_AVAILABLE:
+        st.warning("La caméra n'est pas disponible dans cet environnement.")
+        return None
+        
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         st.error("Impossible d'accéder à la caméra")
@@ -203,9 +221,12 @@ elif action == "Modifier un produit":
 elif action == "Rechercher un produit":
     st.header("Rechercher un produit")
     
-    search_type = st.radio("Type de recherche", ["Par référence", "Par nom", "Scanner QR Code"])
+    if CAMERA_AVAILABLE:
+        search_type = st.radio("Type de recherche", ["Par référence", "Par nom", "Scanner QR Code"])
+    else:
+        search_type = st.radio("Type de recherche", ["Par référence", "Par nom"])
     
-    if search_type == "Scanner QR Code":
+    if search_type == "Scanner QR Code" and CAMERA_AVAILABLE:
         st.write("Présentez le QR code devant la caméra")
         if st.button("Démarrer le scan"):
             code = scan_qr_code()
@@ -236,9 +257,12 @@ elif action == "Rechercher un produit":
 elif action == "Entrée de stock":
     st.header("Entrée de stock")
     if not df.empty:
-        search_type = st.radio("Méthode de sélection", ["Liste déroulante", "Scanner QR Code"])
+        if CAMERA_AVAILABLE:
+            search_type = st.radio("Méthode de sélection", ["Liste déroulante", "Scanner QR Code"])
+        else:
+            search_type = "Liste déroulante"
         
-        if search_type == "Scanner QR Code":
+        if search_type == "Scanner QR Code" and CAMERA_AVAILABLE:
             st.write("Présentez le QR code devant la caméra")
             if st.button("Démarrer le scan"):
                 code = scan_qr_code()
@@ -266,9 +290,12 @@ elif action == "Entrée de stock":
 elif action == "Sortie de stock":
     st.header("Sortie de stock")
     if not df.empty:
-        search_type = st.radio("Méthode de sélection", ["Liste déroulante", "Scanner QR Code"])
+        if CAMERA_AVAILABLE:
+            search_type = st.radio("Méthode de sélection", ["Liste déroulante", "Scanner QR Code"])
+        else:
+            search_type = "Liste déroulante"
         
-        if search_type == "Scanner QR Code":
+        if search_type == "Scanner QR Code" and CAMERA_AVAILABLE:
             st.write("Présentez le QR code devant la caméra")
             if st.button("Démarrer le scan"):
                 code = scan_qr_code()
@@ -299,9 +326,12 @@ elif action == "Sortie de stock":
 elif action == "Inventaire":
     st.header("Ajustement d'inventaire")
     if not df.empty:
-        search_type = st.radio("Méthode de sélection", ["Liste déroulante", "Scanner QR Code"])
+        if CAMERA_AVAILABLE:
+            search_type = st.radio("Méthode de sélection", ["Liste déroulante", "Scanner QR Code"])
+        else:
+            search_type = "Liste déroulante"
         
-        if search_type == "Scanner QR Code":
+        if search_type == "Scanner QR Code" and CAMERA_AVAILABLE:
             st.write("Présentez le QR code devant la caméra")
             if st.button("Démarrer le scan"):
                 code = scan_qr_code()

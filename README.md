@@ -76,3 +76,4 @@ L'application utilise un fichier Excel (`data/inventaire.xlsx`) pour stocker les
 -   Fournisseur : Fournisseur du produit
 -   Date_Entree : Date d'entrée en stock
 -   Prix_Unitaire : Prix unitaire du produit
+ 
