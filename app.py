@@ -167,8 +167,8 @@ def rechercher_produit(df, mode="selection"):
                     produit_trouve = result.iloc[0]
                     if mode == "affichage":
                         st.dataframe(result)
-                    else:
-                        st.success(f"Produit trouvé : {produit_trouve['Produits']}")
+                    # else:
+                    #     st.success(f"Produit trouvé : {produit_trouve['Produits']}")
                 else:
                     st.warning("Aucun produit trouvé avec cette référence.")
     
@@ -180,8 +180,8 @@ def rechercher_produit(df, mode="selection"):
                 produit_trouve = result.iloc[0]
                 if mode == "affichage":
                     st.dataframe(result)
-                else:
-                    st.success(f"Produit trouvé : {produit_trouve['Produits']}")
+                # else:
+                #     st.success(f"Produit trouvé : {produit_trouve['Produits']}")
             else:
                 st.warning("Aucun produit trouvé avec cette référence.")
     
@@ -195,7 +195,7 @@ def rechercher_produit(df, mode="selection"):
                     return None  # Pour la recherche d'affichage, on ne retourne pas de produit spécifique
                 elif len(result) == 1:
                     produit_trouve = result.iloc[0]
-                    st.success(f"Produit trouvé : {produit_trouve['Produits']}")
+                    # st.success(f"Produit trouvé : {produit_trouve['Produits']}")
                 else:
                     st.info(f"{len(result)} produits trouvés:")
                     st.dataframe(result[['Produits', 'Reference', 'Quantite']])
@@ -380,74 +380,87 @@ elif action == "Demande de matériel":
             if 'panier_demande' not in st.session_state:
                 st.session_state.panier_demande = {}
             
-            # Interface de sélection des produits
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.write("**Produits disponibles :**")
-                for idx, produit in df_disponible.iterrows():
-                    with st.container():
-                        col_info, col_qty, col_btn = st.columns([3, 1, 1])
+            # Section de recherche rapide
+            with st.expander("🔍 Recherche rapide de produits", expanded=False):
+                st.info("💡 Recherchez un produit spécifique pour l'ajouter rapidement à votre demande")
+                
+                produit_trouve = rechercher_produit(df_disponible, mode="selection")
+                
+                if produit_trouve is not None:
+                    # Affichage du produit trouvé avec option d'ajout
+                    # st.success(f"**Produit trouvé :** {produit_trouve['Produits']}")
+                    
+                    # Informations du produit
+                    col_info, col_action = st.columns([2, 1])
+                    
+                    with col_info:
+                        # Statut de stock avec couleur
+                        if produit_trouve['Quantite'] < produit_trouve['Stock_Min']:
+                            statut = "🔴 Stock critique"
+                        elif produit_trouve['Quantite'] <= produit_trouve['Stock_Min'] + (produit_trouve['Stock_Max'] - produit_trouve['Stock_Min']) * 0.3:
+                            statut = "🟠 Stock faible"
+                        else:
+                            statut = "🟢 Disponible"
                         
-                        with col_info:
-                            # Statut de stock avec couleur
-                            if produit['Quantite'] < produit['Stock_Min']:
-                                statut = "🔴 Stock critique"
-                            elif produit['Quantite'] <= produit['Stock_Min'] + (produit['Stock_Max'] - produit['Stock_Min']) * 0.3:
-                                statut = "🟠 Stock faible"
-                            else:
-                                statut = "🟢 Disponible"
-                            
-                            st.write(f"**{produit['Produits']}** - Réf: {produit['Reference']}")
-                            st.write(f"Stock: {produit['Quantite']} - {statut} - Emplacement: {produit['Emplacement']}")
-                        
-                        with col_qty:
-                            quantite_demande = st.number_input(
+                        st.write(f"**{produit_trouve['Produits']}**")
+                        st.write(f"**Référence :** {produit_trouve['Reference']}")
+                        st.write(f"**Stock :** {produit_trouve['Quantite']} - {statut}")
+                        st.write(f"**Emplacement :** {produit_trouve['Emplacement']}")
+                    
+                    with col_action:
+                        # Formulaire d'ajout au panier
+                        with st.container():
+                            quantite_recherche = st.number_input(
                                 "Quantité", 
-                                min_value=0, 
-                                max_value=int(produit['Quantite']), 
-                                value=0,
+                                min_value=1, 
+                                max_value=int(produit_trouve['Quantite']), 
+                                value=1,
                                 step=1,
-                                key=f"qty_{produit['Reference']}"
+                                key=f"qty_search_{produit_trouve['Reference']}"
                             )
-                        
-                        with col_btn:
-                            if st.button(f"Ajouter", key=f"add_{produit['Reference']}"):
-                                if quantite_demande > 0:
-                                    st.session_state.panier_demande[produit['Reference']] = {
-                                        'produit': produit['Produits'],
-                                        'quantite': quantite_demande,
-                                        'emplacement': produit['Emplacement']
-                                    }
-                                    st.success(f"✅ {quantite_demande} x {produit['Produits']} ajouté(s)")
-                                    st.experimental_rerun()
-                        
-                        st.divider()
+                            
+                            if st.button("➕ Ajouter au panier", key=f"add_search_{produit_trouve['Reference']}", use_container_width=True):
+                                st.session_state.panier_demande[produit_trouve['Reference']] = {
+                                    'produit': produit_trouve['Produits'],
+                                    'quantite': quantite_recherche,
+                                    'emplacement': produit_trouve['Emplacement']
+                                }
+                                st.success(f"✅ {quantite_recherche} x {produit_trouve['Produits']} ajouté(s) au panier")
+                                st.experimental_rerun()
             
-            with col2:
-                st.write("**🛒 Votre demande :**")
-                if st.session_state.panier_demande:
-                    total_articles = 0
-                    for ref, item in st.session_state.panier_demande.items():
-                        st.write(f"• **{item['produit']}**")
-                        st.write(f"  Qté: {item['quantite']} - {item['emplacement']}")
-                        total_articles += item['quantite']
-                        
-                        # Bouton pour retirer du panier
-                        if st.button(f"❌ Retirer", key=f"remove_{ref}"):
+            st.divider()
+            
+            # Affichage du panier
+            st.subheader("🛒 Votre panier")
+            if st.session_state.panier_demande:
+                total_articles = 0
+                for ref, item in st.session_state.panier_demande.items():
+                    col_item, col_qty, col_remove = st.columns([3, 1, 1])
+                    
+                    with col_item:
+                        st.write(f"**{item['produit']}**")
+                        st.write(f"Réf: {ref} - Emplacement: {item['emplacement']}")
+                    
+                    with col_qty:
+                        st.write(f"**Quantité: {item['quantite']}**")
+                    
+                    with col_remove:
+                        if st.button(f"❌ Retirer", key=f"remove_{ref}", use_container_width=True):
                             del st.session_state.panier_demande[ref]
                             st.experimental_rerun()
-                        st.write("---")
                     
-                    st.write(f"**Total: {total_articles} article(s)**")
-                    
-                    # Bouton pour vider le panier
-                    if st.button("🗑️ Vider le panier"):
+                    st.divider()
+                    total_articles += item['quantite']
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total articles", total_articles)
+                with col2:
+                    if st.button("🗑️ Vider le panier", use_container_width=True):
                         st.session_state.panier_demande = {}
                         st.experimental_rerun()
-                        
-                else:
-                    st.info("Panier vide")
+            else:
+                st.info("Votre panier est vide. Utilisez la recherche ci-dessus pour ajouter des produits.")
         
         # Finalisation de la demande
         if st.session_state.panier_demande:
@@ -623,7 +636,7 @@ elif action == "Gestion des demandes":
                                         statut_apres = "❌ Stock insuffisant"
                                         couleur_apres = "error"
                                     elif stock_apres_demande < stock_min:
-                                        statut_apres = "�� Deviendra critique"
+                                        statut_apres = "🟠 Deviendra critique"
                                         couleur_apres = "error"
                                     elif stock_apres_demande <= stock_min + (stock_max - stock_min) * 0.3:
                                         statut_apres = "🟠 Deviendra faible"
@@ -675,79 +688,137 @@ elif action == "Gestion des demandes":
                 if demande['Statut'] == 'En attente':
                     st.write("**⚙️ Actions :**")
                     
-                    # Formulaire d'approbation
-                    with st.form(key=f"form_approve_{demande['ID_Demande']}"):
-                        st.write("**✅ Approuver la demande**")
-                        magasinier_approve = st.text_input("Votre nom (magasinier)", key=f"mag_approve_{demande['ID_Demande']}")
-                        approve_submitted = st.form_submit_button("✅ Approuver")
-                        
-                        if approve_submitted and magasinier_approve:
-                            # Mettre à jour les stocks
-                            try:
-                                import ast
-                                produits_data = ast.literal_eval(demande['Produits_Demandes'])
-                                if 'produits' in produits_data:
-                                    for ref, item in produits_data['produits'].items():
-                                        produit_stock = df[df['Reference'] == ref]
-                                        if not produit_stock.empty:
-                                            stock_actuel = int(produit_stock.iloc[0]['Quantite'])
-                                            quantite_demandee = item['quantite']
-                                            
-                                            if stock_actuel >= quantite_demandee:
-                                                nouvelle_quantite = stock_actuel - quantite_demandee
-                                                df.loc[df['Reference'] == ref, 'Quantite'] = nouvelle_quantite
-                                                
-                                                # Log du mouvement
-                                                log_mouvement(
-                                                    item['produit'],
-                                                    f"Sortie - Demande {demande['ID_Demande']}",
-                                                    quantite_demandee,
-                                                    nouvelle_quantite,
-                                                    stock_actuel
-                                                )
-                                
-                                # Sauvegarder les stocks mis à jour
-                                save_data(df)
-                                
-                                # Mettre à jour le statut de la demande
-                                mettre_a_jour_demande(demande['ID_Demande'], 'Approuvée', magasinier_approve, "Demande approuvée et stock mis à jour")
-                                st.success("✅ Demande approuvée et stock mis à jour")
-                                st.experimental_rerun()
-                                
-                            except Exception as e:
-                                st.error(f"Erreur lors du traitement : {str(e)}")
-                        elif approve_submitted and not magasinier_approve:
-                            st.error("Veuillez saisir votre nom")
+                    # Boutons d'action côte à côte
+                    col1, col2, col3 = st.columns(3)
                     
-                    # Formulaire de refus
-                    with st.form(key=f"form_refuse_{demande['ID_Demande']}"):
-                        st.write("**❌ Refuser la demande**")
-                        magasinier_refuse = st.text_input("Votre nom (magasinier)", key=f"mag_refuse_{demande['ID_Demande']}")
-                        motif_refus = st.text_area("Motif du refus", key=f"motif_{demande['ID_Demande']}")
-                        refuse_submitted = st.form_submit_button("❌ Refuser")
-                        
-                        if refuse_submitted and magasinier_refuse and motif_refus:
-                            mettre_a_jour_demande(demande['ID_Demande'], 'Refusée', magasinier_refuse, motif_refus)
-                            st.success("❌ Demande refusée")
-                            st.experimental_rerun()
-                        elif refuse_submitted:
-                            if not magasinier_refuse:
-                                st.error("Veuillez saisir votre nom")
-                            if not motif_refus:
-                                st.error("Veuillez indiquer le motif du refus")
+                    with col1:
+                        if st.button("✅ Approuver", key=f"btn_approve_{demande['ID_Demande']}", use_container_width=True):
+                            st.session_state[f"action_{demande['ID_Demande']}"] = "approve"
                     
-                    # Formulaire de mise en attente
-                    with st.form(key=f"form_hold_{demande['ID_Demande']}"):
-                        st.write("**⏸️ Mettre en attente**")
-                        magasinier_hold = st.text_input("Votre nom (magasinier)", key=f"mag_hold_{demande['ID_Demande']}")
-                        commentaire = st.text_area("Commentaire", key=f"comment_{demande['ID_Demande']}")
-                        hold_submitted = st.form_submit_button("⏸️ Mettre en attente")
+                    with col2:
+                        if st.button("❌ Refuser", key=f"btn_refuse_{demande['ID_Demande']}", use_container_width=True):
+                            st.session_state[f"action_{demande['ID_Demande']}"] = "refuse"
+                    
+                    with col3:
+                        if st.button("⏸️ Mettre en attente", key=f"btn_hold_{demande['ID_Demande']}", use_container_width=True):
+                            st.session_state[f"action_{demande['ID_Demande']}"] = "hold"
+                    
+                    # Affichage conditionnel des formulaires selon l'action sélectionnée
+                    action_key = f"action_{demande['ID_Demande']}"
+                    
+                    if action_key in st.session_state:
+                        st.write("---")
                         
-                        if hold_submitted and magasinier_hold:
-                            mettre_a_jour_demande(demande['ID_Demande'], 'En attente', magasinier_hold, commentaire)
-                            st.success("⏸️ Demande mise à jour")
-                            st.experimental_rerun()
-                            st.experimental_rerun()
+                        if st.session_state[action_key] == "approve":
+                            # Formulaire d'approbation
+                            with st.form(key=f"form_approve_{demande['ID_Demande']}"):
+                                st.write("**✅ Approuver la demande**")
+                                magasinier_approve = st.text_input("Votre nom (magasinier)", key=f"mag_approve_{demande['ID_Demande']}")
+                                
+                                col_submit, col_cancel = st.columns([1, 1])
+                                with col_submit:
+                                    approve_submitted = st.form_submit_button("✅ Confirmer l'approbation", use_container_width=True)
+                                with col_cancel:
+                                    if st.form_submit_button("❌ Annuler", use_container_width=True):
+                                        del st.session_state[action_key]
+                                        st.experimental_rerun()
+                                
+                                if approve_submitted and magasinier_approve:
+                                    # Mettre à jour les stocks
+                                    try:
+                                        import ast
+                                        produits_data = ast.literal_eval(demande['Produits_Demandes'])
+                                        if 'produits' in produits_data:
+                                            for ref, item in produits_data['produits'].items():
+                                                produit_stock = df[df['Reference'] == ref]
+                                                if not produit_stock.empty:
+                                                    stock_actuel = int(produit_stock.iloc[0]['Quantite'])
+                                                    quantite_demandee = item['quantite']
+                                                    
+                                                    if stock_actuel >= quantite_demandee:
+                                                        nouvelle_quantite = stock_actuel - quantite_demandee
+                                                        df.loc[df['Reference'] == ref, 'Quantite'] = nouvelle_quantite
+                                                        
+                                                        # Log du mouvement
+                                                        log_mouvement(
+                                                            item['produit'],
+                                                            f"Sortie - Demande {demande['ID_Demande']}",
+                                                            quantite_demandee,
+                                                            nouvelle_quantite,
+                                                            stock_actuel
+                                                        )
+                                        
+                                        # Sauvegarder les stocks mis à jour
+                                        save_data(df)
+                                        
+                                        # Mettre à jour le statut de la demande
+                                        mettre_a_jour_demande(demande['ID_Demande'], 'Approuvée', magasinier_approve, "Demande approuvée et stock mis à jour")
+                                        
+                                        # Nettoyer la session
+                                        del st.session_state[action_key]
+                                        
+                                        st.success("✅ Demande approuvée et stock mis à jour")
+                                        st.experimental_rerun()
+                                        
+                                    except Exception as e:
+                                        st.error(f"Erreur lors du traitement : {str(e)}")
+                                elif approve_submitted and not magasinier_approve:
+                                    st.error("Veuillez saisir votre nom")
+                        
+                        elif st.session_state[action_key] == "refuse":
+                            # Formulaire de refus
+                            with st.form(key=f"form_refuse_{demande['ID_Demande']}"):
+                                st.write("**❌ Refuser la demande**")
+                                magasinier_refuse = st.text_input("Votre nom (magasinier)", key=f"mag_refuse_{demande['ID_Demande']}")
+                                motif_refus = st.text_area("Motif du refus", key=f"motif_{demande['ID_Demande']}", placeholder="Expliquez pourquoi cette demande est refusée...")
+                                
+                                col_submit, col_cancel = st.columns([1, 1])
+                                with col_submit:
+                                    refuse_submitted = st.form_submit_button("❌ Confirmer le refus", use_container_width=True)
+                                with col_cancel:
+                                    if st.form_submit_button("❌ Annuler", use_container_width=True):
+                                        del st.session_state[action_key]
+                                        st.experimental_rerun()
+                                
+                                if refuse_submitted and magasinier_refuse and motif_refus:
+                                    mettre_a_jour_demande(demande['ID_Demande'], 'Refusée', magasinier_refuse, motif_refus)
+                                    
+                                    # Nettoyer la session
+                                    del st.session_state[action_key]
+                                    
+                                    st.success("❌ Demande refusée")
+                                    st.experimental_rerun()
+                                elif refuse_submitted:
+                                    if not magasinier_refuse:
+                                        st.error("Veuillez saisir votre nom")
+                                    if not motif_refus:
+                                        st.error("Veuillez indiquer le motif du refus")
+                        
+                        elif st.session_state[action_key] == "hold":
+                            # Formulaire de mise en attente
+                            with st.form(key=f"form_hold_{demande['ID_Demande']}"):
+                                st.write("**⏸️ Mettre en attente**")
+                                magasinier_hold = st.text_input("Votre nom (magasinier)", key=f"mag_hold_{demande['ID_Demande']}")
+                                commentaire = st.text_area("Commentaire (optionnel)", key=f"comment_{demande['ID_Demande']}", placeholder="Ajoutez un commentaire sur cette mise en attente...")
+                                
+                                col_submit, col_cancel = st.columns([1, 1])
+                                with col_submit:
+                                    hold_submitted = st.form_submit_button("⏸️ Confirmer la mise en attente", use_container_width=True)
+                                with col_cancel:
+                                    if st.form_submit_button("❌ Annuler", use_container_width=True):
+                                        del st.session_state[action_key]
+                                        st.experimental_rerun()
+                                
+                                if hold_submitted and magasinier_hold:
+                                    mettre_a_jour_demande(demande['ID_Demande'], 'En attente', magasinier_hold, commentaire)
+                                    
+                                    # Nettoyer la session
+                                    del st.session_state[action_key]
+                                    
+                                    st.success("⏸️ Demande mise à jour")
+                                    st.experimental_rerun()
+                                elif hold_submitted and not magasinier_hold:
+                                    st.error("Veuillez saisir votre nom")
     
     else:
         st.info("Aucune demande de matériel pour le moment.")
