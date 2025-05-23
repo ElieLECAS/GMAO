@@ -189,7 +189,7 @@ st.sidebar.title("Actions")
 action = st.sidebar.selectbox(
     "Choisir une action",
     [
-        "Voir l'inventaire",
+        "Magasin",
         "Ajouter un produit",
         "Modifier un produit",
         "Rechercher un produit",
@@ -249,14 +249,17 @@ def scan_qr_code():
     cap.release()
     return None
 
-if action == "Voir l'inventaire":
-    st.header("Inventaire actuel")
+if action == "Magasin":
+    st.header("Stock actuel")
     if not df.empty:
         # Ajouter une colonne de statut de stock avec la même logique que les alertes
         df_display = df.copy()
         
         # Calcul du seuil d'alerte (même logique que dans les alertes)
         seuil_alerte = df['Stock_Min'] + (df['Stock_Max'] - df['Stock_Min']) * 0.3
+        
+        # Calcul de la valeur du stock
+        df_display['Valeur_Stock'] = df_display['Quantite'] * df_display['Prix_Unitaire']
         
         df_display['Statut_Stock'] = df_display.apply(
             lambda row: "🔴 Critique" if row['Quantite'] < row['Stock_Min'] 
@@ -265,12 +268,8 @@ if action == "Voir l'inventaire":
             else "🟢 Normal", axis=1
         )
         
-
-        
-
-        
         # Statistiques rapides
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
             alertes_min = len(df[df['Quantite'] < df['Stock_Min']])
             st.metric("Produits en stock critique", alertes_min)
@@ -283,10 +282,13 @@ if action == "Voir l'inventaire":
         with col4:
             stock_normal = len(df[(df['Quantite'] >= df['Stock_Min']) & (df['Quantite'] <= df['Stock_Max']) & (df['Quantite'] > seuil_alerte)])
             st.metric("Produits en stock normal", stock_normal)
+        with col5:
+            valeur_totale = df_display['Valeur_Stock'].sum()
+            st.metric("💰 Valeur totale du stock", f"{valeur_totale:,.2f} €")
             
         # Réorganiser les colonnes pour l'affichage
-        colonnes_affichage = ['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Stock_Max', 'Statut_Stock', 'Emplacement', 'Fournisseur', 'Date_Entree', 'Prix_Unitaire']
-        st.dataframe(df_display[colonnes_affichage])
+        colonnes_affichage = ['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Stock_Max', 'Prix_Unitaire', 'Valeur_Stock', 'Statut_Stock', 'Emplacement', 'Fournisseur', 'Date_Entree']
+        st.dataframe(df_display[colonnes_affichage].round(2))
 
         # Graphique de la répartition des stocks
         fig = px.bar(df, x='Produits', y='Quantite', title='Répartition des stocks par produit')
