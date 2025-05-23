@@ -599,14 +599,74 @@ elif action == "Gestion des demandes":
                                 produit_stock = df[df['Reference'] == ref]
                                 if not produit_stock.empty:
                                     stock_actuel = int(produit_stock.iloc[0]['Quantite'])
+                                    stock_min = int(produit_stock.iloc[0]['Stock_Min'])
+                                    stock_max = int(produit_stock.iloc[0]['Stock_Max'])
                                     quantite_demandee = item['quantite']
                                     
-                                    if stock_actuel >= quantite_demandee:
-                                        st.success(f"✅ {item['produit']} : {quantite_demandee}/{stock_actuel} disponible")
+                                    # Calcul de l'état du stock actuel
+                                    if stock_actuel < stock_min:
+                                        statut_actuel = "🔴 Stock critique"
+                                        couleur_statut = "error"
+                                    elif stock_actuel > stock_max:
+                                        statut_actuel = "🟡 Surstock"
+                                        couleur_statut = "warning"
+                                    elif stock_actuel <= stock_min + (stock_max - stock_min) * 0.3:
+                                        statut_actuel = "🟠 Stock faible"
+                                        couleur_statut = "warning"
                                     else:
-                                        st.error(f"❌ {item['produit']} : {quantite_demandee} demandés mais seulement {stock_actuel} disponible(s)")
+                                        statut_actuel = "🟢 Stock normal"
+                                        couleur_statut = "success"
+                                    
+                                    # Calcul de l'état après la demande
+                                    stock_apres_demande = stock_actuel - quantite_demandee
+                                    if stock_apres_demande < 0:
+                                        statut_apres = "❌ Stock insuffisant"
+                                        couleur_apres = "error"
+                                    elif stock_apres_demande < stock_min:
+                                        statut_apres = "�� Deviendra critique"
+                                        couleur_apres = "error"
+                                    elif stock_apres_demande <= stock_min + (stock_max - stock_min) * 0.3:
+                                        statut_apres = "🟠 Deviendra faible"
+                                        couleur_apres = "warning"
+                                    else:
+                                        statut_apres = "🟢 Restera normal"
+                                        couleur_apres = "success"
+                                    
+                                    # Affichage avec informations détaillées
+                                    with st.container():
+                                        st.write(f"**{item['produit']}** (Réf: {ref})")
+                                        
+                                        col1, col2 = st.columns(2)
+                                        with col1:
+                                            if couleur_statut == "error":
+                                                st.error(f"État actuel : {statut_actuel} ({stock_actuel}/{stock_min}-{stock_max})")
+                                            elif couleur_statut == "warning":
+                                                st.warning(f"État actuel : {statut_actuel} ({stock_actuel}/{stock_min}-{stock_max})")
+                                            else:
+                                                st.success(f"État actuel : {statut_actuel} ({stock_actuel}/{stock_min}-{stock_max})")
+                                        
+                                        with col2:
+                                            if stock_actuel >= quantite_demandee:
+                                                if couleur_apres == "error":
+                                                    st.error(f"Après demande : {statut_apres} ({stock_apres_demande})")
+                                                elif couleur_apres == "warning":
+                                                    st.warning(f"Après demande : {statut_apres} ({stock_apres_demande})")
+                                                else:
+                                                    st.success(f"Après demande : {statut_apres} ({stock_apres_demande})")
+                                            else:
+                                                st.error(f"❌ IMPOSSIBLE : {quantite_demandee} demandés mais seulement {stock_actuel} disponible(s)")
+                                        
+                                        # Recommandations pour le magasinier
+                                        if stock_actuel < quantite_demandee:
+                                            st.info(f"💡 **Recommandation :** Refuser la demande ou proposer {stock_actuel} unité(s) maximum")
+                                        elif stock_apres_demande < stock_min:
+                                            st.info(f"💡 **Attention :** Approbation possible mais le stock deviendra critique. Prévoir un réapprovisionnement urgent.")
+                                        elif stock_actuel < stock_min:
+                                            st.info(f"💡 **Attention :** Stock déjà critique. Approbation déconseillée sans réapprovisionnement.")
+                                        
+                                        st.divider()
                                 else:
-                                    st.warning(f"⚠️ {item['produit']} : Produit non trouvé dans le stock")
+                                    st.error(f"⚠️ {item['produit']} : Produit non trouvé dans le stock")
                 
                 except Exception as e:
                     st.write(demande['Produits_Demandes'])
