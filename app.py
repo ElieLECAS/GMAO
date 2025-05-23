@@ -616,7 +616,7 @@ elif action == "Demande de matériel":
             
             col1, col2 = st.columns(2)
             with col1:
-                urgence = st.text_input("Niveau d'urgence", placeholder="Normal, Urgent, Très urgent...")
+                urgence = st.radio("Niveau d'urgence", ["Normal", "Urgent", "Très urgent"], index=0)
             with col2:
                 date_souhaitee = st.date_input("Date souhaitée", datetime.now().date())
             
@@ -638,7 +638,7 @@ elif action == "Demande de matériel":
                     # Préparer les données de la demande
                     demande_data = {
                         'chantier': chantier,
-                        'urgence': urgence if urgence else "Normal",
+                        'urgence': urgence,
                         'date_souhaitee': date_souhaitee.strftime("%Y-%m-%d"),
                         'produits': st.session_state.panier_demande
                     }
@@ -659,7 +659,7 @@ elif action == "Demande de matériel":
                     with st.expander("📄 Récapitulatif de votre demande"):
                         st.write(f"**Demandeur :** {demandeur}")
                         st.write(f"**Chantier :** {chantier}")
-                        st.write(f"**Urgence :** {urgence if urgence else 'Normal'}")
+                        st.write(f"**Urgence :** {urgence}")
                         st.write(f"**Date souhaitée :** {date_souhaitee}")
                         st.write(f"**Motif :** {motif}")
                         st.write("**Produits demandés :**")
