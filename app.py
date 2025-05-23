@@ -16,15 +16,24 @@ st.title("📦 Système de Gestion de Stock")
 
 # Données initiales
 INITIAL_DATA = {
-    'Produits': ['Tournevis cruciforme', 'Marteau 500g', 'Perceuse sans fil', 'Vis 6x50mm', 'Clé à molette'],
-    'Reference': ['TS001', 'MH001', 'PS001', 'V001', 'CM001'],
-    'Quantite': [50, 30, 15, 1000, 25],
-    'Stock_Min': [10, 5, 2, 100, 5],
-    'Stock_Max': [100, 50, 20, 2000, 50],
-    'Emplacement': ['Atelier A', 'Atelier B', 'Atelier A', 'Stockage', 'Atelier B'],
-    'Fournisseur': ['Fournisseur A', 'Fournisseur B', 'Fournisseur C', 'Fournisseur A', 'Fournisseur B'],
-    'Date_Entree': ['2024-03-15', '2024-03-14', '2024-03-13', '2024-03-12', '2024-03-11'],
-    'Prix_Unitaire': [15.99, 25.50, 89.99, 0.15, 12.75]
+    'Produits': ['Tournevis cruciforme', 'Marteau 500g', 'Perceuse sans fil', 'Vis 6x50mm', 'Clé à molette', 
+                 'Scie circulaire', 'Ponceuse', 'Niveau à bulle', 'Mètre ruban', 'Pince coupante',
+                 'Tournevis plat', 'Marteau 1kg', 'Perceuse filaire', 'Vis 8x60mm', 'Clé à pipe'],
+    'Reference': ['8473926150', '2938475610', '9182736450', '5647382910', '1928374650', '6574839201', '3847562910', '4758392016', '8392017465', '7465839201',
+                 '2837465910', '9384756201', '4758392016', '6574839201', '3847562910'],
+    'Quantite': [50, 30, 15, 1000, 25, 20, 35, 40, 60, 45, 55, 30, 25, 800, 35],
+    'Stock_Min': [10, 5, 2, 100, 5, 5, 10, 8, 15, 10, 12, 5, 3, 80, 8],
+    'Stock_Max': [100, 50, 20, 2000, 50, 40, 70, 80, 120, 90, 110, 60, 50, 1600, 70],
+    'Emplacement': ['Atelier A', 'Atelier B', 'Atelier A', 'Stockage', 'Atelier B', 'Atelier A', 'Atelier B', 
+                    'Atelier A', 'Stockage', 'Atelier B', 'Atelier A', 'Atelier B', 'Atelier A', 'Stockage', 'Atelier B'],
+    'Fournisseur': ['Fournisseur A', 'Fournisseur B', 'Fournisseur C', 'Fournisseur A', 'Fournisseur B',
+                    'Fournisseur C', 'Fournisseur A', 'Fournisseur B', 'Fournisseur C', 'Fournisseur A',
+                    'Fournisseur B', 'Fournisseur C', 'Fournisseur A', 'Fournisseur B', 'Fournisseur C'],
+    'Date_Entree': ['2024-03-15', '2024-03-14', '2024-03-13', '2024-03-12', '2024-03-11', '2024-03-10', 
+                    '2024-03-09', '2024-03-08', '2024-03-07', '2024-03-06', '2024-03-05', '2024-03-04',
+                    '2024-03-03', '2024-03-02', '2024-03-01'],
+    'Prix_Unitaire': [15.99, 25.50, 89.99, 0.15, 12.75, 129.99, 79.99, 8.99, 5.99, 14.99,
+                     12.99, 28.50, 69.99, 0.20, 15.75]
 }
 
 # Chargement des données
@@ -176,7 +185,7 @@ def rechercher_produit(df, mode="selection"):
             
             if len(code_scanne) > 0:
                 # Rechercher d'abord par référence exacte
-                result = df[df['Reference'] == code_scanne]
+                result = df[df['Reference'].astype(str) == code_scanne]
                 
                 if not result.empty:
                     produit_trouve = result.iloc[0]
@@ -200,9 +209,9 @@ def rechercher_produit(df, mode="selection"):
                         else:
                             st.info(f"🔍 {len(result_nom)} produits trouvés par nom:")
                             st.dataframe(result_nom[['Produits', 'Reference', 'Quantite']])
-                            reference_choisie = st.selectbox("Choisissez la référence:", result_nom['Reference'].tolist())
+                            reference_choisie = st.selectbox("Choisissez la référence:", result_nom['Reference'].astype(str).tolist())
                             if reference_choisie:
-                                produit_trouve = result_nom[result_nom['Reference'] == reference_choisie].iloc[0]
+                                produit_trouve = result_nom[result_nom['Reference'].astype(str) == reference_choisie].iloc[0]
                     else:
                         st.warning(f"❌ Aucun produit trouvé avec le code : '{code_scanne}'")
                         st.info("💡 Vérifiez que :")
@@ -213,7 +222,7 @@ def rechercher_produit(df, mode="selection"):
     elif search_type == "Par référence":
         reference = st.text_input("Entrez la référence du produit")
         if reference:
-            result = df[df['Reference'] == reference]
+            result = df[df['Reference'].astype(str) == reference]
             if not result.empty:
                 produit_trouve = result.iloc[0]
                 if mode == "affichage":
@@ -237,9 +246,9 @@ def rechercher_produit(df, mode="selection"):
                 else:
                     st.info(f"{len(result)} produits trouvés:")
                     st.dataframe(result[['Produits', 'Reference', 'Quantite']])
-                    reference_choisie = st.selectbox("Choisissez la référence:", result['Reference'].tolist())
+                    reference_choisie = st.selectbox("Choisissez la référence:", result['Reference'].astype(str).tolist())
                     if reference_choisie:
-                        produit_trouve = result[result['Reference'] == reference_choisie].iloc[0]
+                        produit_trouve = result[result['Reference'].astype(str) == reference_choisie].iloc[0]
             else:
                 st.warning("Aucun produit trouvé avec ce nom.")
     
@@ -390,10 +399,18 @@ elif action == "Demande de matériel":
             with col1:
                 demandeur = st.text_input("Nom du demandeur *", placeholder="Prénom NOM")
             with col2:
-                chantier = st.selectbox("Chantier/Atelier *", ["Atelier A", "Atelier B", "Chantier 1", "Chantier 2", "Maintenance"])
+                chantier = st.text_input("Chantier/Atelier *", placeholder="Nom du chantier ou atelier")
         
-        # Sélection des produits
-        st.subheader("🛠️ Sélection des produits")
+        # Initialiser le panier dans la session
+        if 'panier_demande' not in st.session_state:
+            st.session_state.panier_demande = {}
+        
+        # Initialiser le compteur pour les clés uniques
+        if 'add_counter' not in st.session_state:
+            st.session_state.add_counter = 0
+        
+        # Sélection rapide des produits
+        st.subheader("🛠️ Ajout rapide de produits")
         
         # Afficher les produits disponibles en stock
         df_disponible = df[df['Quantite'] > 0].copy()
@@ -401,57 +418,144 @@ elif action == "Demande de matériel":
         if df_disponible.empty:
             st.warning("Aucun produit en stock actuellement.")
         else:
-            # Initialiser le panier dans la session
-            if 'panier_demande' not in st.session_state:
-                st.session_state.panier_demande = {}
+            # Interface simplifiée de recherche et ajout
+            col_search, col_qty, col_add = st.columns([3, 1, 1])
             
-            # Section de recherche rapide
-            with st.expander("🔍 Recherche rapide de produits", expanded=False):
-                st.info("💡 Recherchez un produit spécifique pour l'ajouter rapidement à votre demande")
+            with col_search:
+                # Recherche en temps réel
+                search_term = st.text_input(
+                    "🔍 Rechercher un produit", 
+                    placeholder="Tapez le nom ou la référence du produit...",
+                    key=f"search_input_{st.session_state.add_counter}"
+                )
+            
+            # Filtrer les produits en fonction de la recherche
+            if search_term:
+                search_results = df_disponible[
+                    df_disponible['Produits'].str.contains(search_term, case=False, na=False) |
+                    df_disponible['Reference'].astype(str).str.contains(search_term, case=False, na=False)
+                ]
+            else:
+                search_results = df_disponible
+            
+            # Afficher les résultats de recherche de manière compacte
+            if not search_results.empty and search_term:
+                st.write("**Résultats de recherche :**")
                 
-                produit_trouve = rechercher_produit(df_disponible, mode="selection")
+                # Limiter l'affichage aux 5 premiers résultats pour éviter l'encombrement
+                for idx, produit in search_results.head(5).iterrows():
+                    # Statut de stock avec couleur
+                    if produit['Quantite'] < produit['Stock_Min']:
+                        statut_icon = "🔴"
+                        statut_text = "Stock critique"
+                    elif produit['Quantite'] <= produit['Stock_Min'] + (produit['Stock_Max'] - produit['Stock_Min']) * 0.3:
+                        statut_icon = "🟠"
+                        statut_text = "Stock faible"
+                    else:
+                        statut_icon = "🟢"
+                        statut_text = "Disponible"
+                    
+                    # Affichage compact du produit
+                    col_prod, col_stock, col_qty_prod, col_add_prod = st.columns([2, 1, 1, 1])
+                    
+                    with col_prod:
+                        st.write(f"**{produit['Produits']}**")
+                        st.caption(f"Réf: {produit['Reference']} | {produit['Emplacement']}")
+                    
+                    with col_stock:
+                        st.write(f"{statut_icon} {produit['Quantite']}")
+                        st.caption(statut_text)
+                    
+                    with col_qty_prod:
+                        qty_key = f"qty_{produit['Reference']}_{st.session_state.add_counter}"
+                        quantite_prod = st.number_input(
+                            "Qté", 
+                            min_value=1, 
+                            max_value=int(produit['Quantite']), 
+                            value=1,
+                            step=1,
+                            key=qty_key,
+                            label_visibility="collapsed"
+                        )
+                    
+                    with col_add_prod:
+                        add_key = f"add_{produit['Reference']}_{st.session_state.add_counter}"
+                        if st.button("➕", key=add_key, help=f"Ajouter {produit['Produits']}", use_container_width=True):
+                            st.session_state.panier_demande[produit['Reference']] = {
+                                'produit': produit['Produits'],
+                                'quantite': quantite_prod,
+                                'emplacement': produit['Emplacement']
+                            }
+                            st.success(f"✅ {quantite_prod} x {produit['Produits']} ajouté(s)")
+                            # Incrémenter le compteur pour reset les inputs
+                            st.session_state.add_counter += 1
+                            st.experimental_rerun()
+                    
+                    st.divider()
                 
-                if produit_trouve is not None:
-                    # Affichage du produit trouvé avec option d'ajout
-                    # st.success(f"**Produit trouvé :** {produit_trouve['Produits']}")
+                if len(search_results) > 5:
+                    st.info(f"+ {len(search_results) - 5} autres produits trouvés. Affinez votre recherche pour plus de précision.")
+            
+            elif search_term and search_results.empty:
+                st.warning(f"Aucun produit trouvé pour '{search_term}'")
+            
+            # Mode scanner externe
+            st.divider()
+            with st.expander("📱 Scanner externe", expanded=False):
+                st.info("🔍 **Scanner externe connecté**")
+                st.write("💡 Utilisez votre scanner USB/Bluetooth pour scanner le code-barres ou QR code")
+                
+                # Champ d'input qui recevra automatiquement les données du scanner
+                scanner_key = f"scanner_input_{st.session_state.add_counter}"
+                code_scanne = st.text_input(
+                    "📄 Code scanné", 
+                    placeholder="Positionnez le curseur ici et scannez votre code...",
+                    help="Le scanner USB tapera automatiquement le code dans ce champ",
+                    key=scanner_key
+                )
+                
+                if code_scanne:
+                    # Nettoyer le code
+                    code_scanne = code_scanne.strip()
                     
-                    # Informations du produit
-                    col_info, col_action = st.columns([2, 1])
-                    
-                    with col_info:
-                        # Statut de stock avec couleur
-                        if produit_trouve['Quantite'] < produit_trouve['Stock_Min']:
-                            statut = "🔴 Stock critique"
-                        elif produit_trouve['Quantite'] <= produit_trouve['Stock_Min'] + (produit_trouve['Stock_Max'] - produit_trouve['Stock_Min']) * 0.3:
-                            statut = "🟠 Stock faible"
-                        else:
-                            statut = "🟢 Disponible"
+                    if len(code_scanne) > 0:
+                        # Rechercher par référence exacte
+                        result = df_disponible[df_disponible['Reference'].astype(str) == code_scanne]
                         
-                        st.write(f"**{produit_trouve['Produits']}**")
-                        st.write(f"**Référence :** {produit_trouve['Reference']}")
-                        st.write(f"**Stock :** {produit_trouve['Quantite']} - {statut}")
-                        st.write(f"**Emplacement :** {produit_trouve['Emplacement']}")
-                    
-                    with col_action:
-                        # Formulaire d'ajout au panier
-                        with st.container():
-                            quantite_recherche = st.number_input(
-                                "Quantité", 
-                                min_value=1, 
-                                max_value=int(produit_trouve['Quantite']), 
-                                value=1,
-                                step=1,
-                                key=f"qty_search_{produit_trouve['Reference']}"
-                            )
+                        if not result.empty:
+                            produit_scanner = result.iloc[0]
                             
-                            if st.button("➕ Ajouter au panier", key=f"add_search_{produit_trouve['Reference']}", use_container_width=True):
-                                st.session_state.panier_demande[produit_trouve['Reference']] = {
-                                    'produit': produit_trouve['Produits'],
-                                    'quantite': quantite_recherche,
-                                    'emplacement': produit_trouve['Emplacement']
-                                }
-                                st.success(f"✅ {quantite_recherche} x {produit_trouve['Produits']} ajouté(s) au panier")
-                                st.experimental_rerun()
+                            col_scan_info, col_scan_qty, col_scan_add = st.columns([2, 1, 1])
+                            
+                            with col_scan_info:
+                                st.success(f"✅ **{produit_scanner['Produits']}**")
+                                st.write(f"Stock: {produit_scanner['Quantite']} | {produit_scanner['Emplacement']}")
+                            
+                            with col_scan_qty:
+                                qty_scanner_key = f"qty_scanner_{st.session_state.add_counter}"
+                                quantite_scanner = st.number_input(
+                                    "Quantité", 
+                                    min_value=1, 
+                                    max_value=int(produit_scanner['Quantite']), 
+                                    value=1,
+                                    step=1,
+                                    key=qty_scanner_key
+                                )
+                            
+                            with col_scan_add:
+                                add_scanner_key = f"add_scanner_{st.session_state.add_counter}"
+                                if st.button("➕ Ajouter", key=add_scanner_key, use_container_width=True):
+                                    st.session_state.panier_demande[produit_scanner['Reference']] = {
+                                        'produit': produit_scanner['Produits'],
+                                        'quantite': quantite_scanner,
+                                        'emplacement': produit_scanner['Emplacement']
+                                    }
+                                    st.success(f"✅ {quantite_scanner} x {produit_scanner['Produits']} ajouté(s)")
+                                    # Incrémenter le compteur pour reset les inputs
+                                    st.session_state.add_counter += 1
+                                    st.experimental_rerun()
+                        else:
+                            st.warning(f"❌ Aucun produit trouvé avec le code : '{code_scanne}'")
             
             st.divider()
             
@@ -459,33 +563,52 @@ elif action == "Demande de matériel":
             st.subheader("🛒 Votre panier")
             if st.session_state.panier_demande:
                 total_articles = 0
+                
+                # En-tête du panier
+                col_header1, col_header2, col_header3, col_header4 = st.columns([3, 1, 1, 1])
+                with col_header1:
+                    st.write("**Produit**")
+                with col_header2:
+                    st.write("**Quantité**")
+                with col_header3:
+                    st.write("**Emplacement**")
+                with col_header4:
+                    st.write("**Action**")
+                
+                st.divider()
+                
                 for ref, item in st.session_state.panier_demande.items():
-                    col_item, col_qty, col_remove = st.columns([3, 1, 1])
+                    col_item, col_qty, col_location, col_remove = st.columns([3, 1, 1, 1])
                     
                     with col_item:
                         st.write(f"**{item['produit']}**")
-                        st.write(f"Réf: {ref} - Emplacement: {item['emplacement']}")
+                        st.caption(f"Réf: {ref}")
                     
                     with col_qty:
-                        st.write(f"**Quantité: {item['quantite']}**")
+                        st.write(f"**{item['quantite']}**")
+                    
+                    with col_location:
+                        st.write(f"{item['emplacement']}")
                     
                     with col_remove:
-                        if st.button(f"❌ Retirer", key=f"remove_{ref}", use_container_width=True):
+                        if st.button(f"🗑️", key=f"remove_{ref}", help="Retirer du panier", use_container_width=True):
                             del st.session_state.panier_demande[ref]
                             st.experimental_rerun()
                     
-                    st.divider()
                     total_articles += item['quantite']
                 
+                st.divider()
+                
+                # Résumé du panier
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.metric("Total articles", total_articles)
+                    st.metric("📦 Total articles", total_articles)
                 with col2:
                     if st.button("🗑️ Vider le panier", use_container_width=True):
                         st.session_state.panier_demande = {}
                         st.experimental_rerun()
             else:
-                st.info("Votre panier est vide. Utilisez la recherche ci-dessus pour ajouter des produits.")
+                st.info("Votre panier est vide. Recherchez et ajoutez des produits ci-dessus.")
         
         # Finalisation de la demande
         if st.session_state.panier_demande:
@@ -493,7 +616,7 @@ elif action == "Demande de matériel":
             
             col1, col2 = st.columns(2)
             with col1:
-                urgence = st.selectbox("Niveau d'urgence", ["Normal", "Urgent", "Très urgent"])
+                urgence = st.text_input("Niveau d'urgence", placeholder="Normal, Urgent, Très urgent...")
             with col2:
                 date_souhaitee = st.date_input("Date souhaitée", datetime.now().date())
             
@@ -504,16 +627,18 @@ elif action == "Demande de matériel":
             )
             
             # Vérifications avant soumission
-            if st.button("📤 Soumettre la demande", type="primary"):
+            if st.button("📤 Soumettre la demande", type="primary", use_container_width=True):
                 if not demandeur:
                     st.error("❌ Veuillez saisir votre nom")
+                elif not chantier:
+                    st.error("❌ Veuillez indiquer le chantier/atelier")
                 elif not motif:
                     st.error("❌ Veuillez indiquer le motif de votre demande")
                 else:
                     # Préparer les données de la demande
                     demande_data = {
                         'chantier': chantier,
-                        'urgence': urgence,
+                        'urgence': urgence if urgence else "Normal",
                         'date_souhaitee': date_souhaitee.strftime("%Y-%m-%d"),
                         'produits': st.session_state.panier_demande
                     }
@@ -526,14 +651,15 @@ elif action == "Demande de matériel":
                     st.info(f"**Numéro de demande :** {demande_id}")
                     st.info("Le magasinier traitera votre demande dans les plus brefs délais.")
                     
-                    # Vider le panier
+                    # Vider le panier et reset les compteurs
                     st.session_state.panier_demande = {}
+                    st.session_state.add_counter = 0
                     
                     # Afficher un récapitulatif
                     with st.expander("📄 Récapitulatif de votre demande"):
                         st.write(f"**Demandeur :** {demandeur}")
                         st.write(f"**Chantier :** {chantier}")
-                        st.write(f"**Urgence :** {urgence}")
+                        st.write(f"**Urgence :** {urgence if urgence else 'Normal'}")
                         st.write(f"**Date souhaitée :** {date_souhaitee}")
                         st.write(f"**Motif :** {motif}")
                         st.write("**Produits demandés :**")
