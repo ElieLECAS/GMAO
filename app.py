@@ -88,6 +88,61 @@ def log_mouvement(produit, nature, quantite_mouvement, quantite_apres, quantite_
         df_hist = pd.DataFrame([new_row])
     df_hist.to_excel(file_path, index=False, engine='openpyxl')
 
+def sauvegarder_demande(demandeur, produits_demandes, motif):
+    """Sauvegarde une nouvelle demande de matériel"""
+    os.makedirs("data", exist_ok=True)
+    file_path = "data/demandes.xlsx"
+    
+    # Créer un ID unique pour la demande
+    demande_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    new_row = {
+        'ID_Demande': demande_id,
+        'Date_Demande': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'Demandeur': demandeur,
+        'Produits_Demandes': str(produits_demandes),  # Convertir le dict en string
+        'Motif': motif,
+        'Statut': 'En attente',
+        'Date_Traitement': '',
+        'Traite_Par': '',
+        'Commentaires': ''
+    }
+    
+    if os.path.exists(file_path):
+        df_demandes = pd.read_excel(file_path, engine='openpyxl')
+        df_demandes = pd.concat([df_demandes, pd.DataFrame([new_row])], ignore_index=True)
+    else:
+        df_demandes = pd.DataFrame([new_row])
+    
+    df_demandes.to_excel(file_path, index=False, engine='openpyxl')
+    return demande_id
+
+def charger_demandes():
+    """Charge toutes les demandes depuis le fichier Excel"""
+    file_path = "data/demandes.xlsx"
+    if os.path.exists(file_path):
+        try:
+            return pd.read_excel(file_path, engine='openpyxl')
+        except Exception as e:
+            st.error(f"Erreur lors du chargement des demandes: {str(e)}")
+            return pd.DataFrame()
+    else:
+        return pd.DataFrame()
+
+def mettre_a_jour_demande(demande_id, nouveau_statut, traite_par, commentaires=""):
+    """Met à jour le statut d'une demande"""
+    file_path = "data/demandes.xlsx"
+    if os.path.exists(file_path):
+        df_demandes = pd.read_excel(file_path, engine='openpyxl')
+        mask = df_demandes['ID_Demande'] == demande_id
+        df_demandes.loc[mask, 'Statut'] = nouveau_statut
+        df_demandes.loc[mask, 'Date_Traitement'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        df_demandes.loc[mask, 'Traite_Par'] = traite_par
+        df_demandes.loc[mask, 'Commentaires'] = commentaires
+        df_demandes.to_excel(file_path, index=False, engine='openpyxl')
+        return True
+    return False
+
 # Fonction réutilisable pour la recherche de produits
 def rechercher_produit(df, mode="selection"):
     """
@@ -190,6 +245,8 @@ action = st.sidebar.selectbox(
     "Choisir une action",
     [
         "Magasin",
+        "Demande de matériel",
+        "Gestion des demandes",
         "Ajouter un produit",
         "Modifier un produit",
         "Rechercher un produit",
@@ -296,6 +353,344 @@ if action == "Magasin":
 
     else:
         st.warning("Aucune donnée disponible dans l'inventaire.")
+
+elif action == "Demande de matériel":
+    st.header("📋 Demande de Matériel")
+    st.info("💡 Remplissez ce formulaire pour demander du matériel au magasinier")
+    
+    if not df.empty:
+        # Informations du demandeur
+        with st.expander("👤 Informations du demandeur", expanded=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                demandeur = st.text_input("Nom du demandeur *", placeholder="Prénom NOM")
+            with col2:
+                chantier = st.selectbox("Chantier/Atelier *", ["Atelier A", "Atelier B", "Chantier 1", "Chantier 2", "Maintenance"])
+        
+        # Sélection des produits
+        st.subheader("🛠️ Sélection des produits")
+        
+        # Afficher les produits disponibles en stock
+        df_disponible = df[df['Quantite'] > 0].copy()
+        
+        if df_disponible.empty:
+            st.warning("Aucun produit en stock actuellement.")
+        else:
+            # Initialiser le panier dans la session
+            if 'panier_demande' not in st.session_state:
+                st.session_state.panier_demande = {}
+            
+            # Interface de sélection des produits
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.write("**Produits disponibles :**")
+                for idx, produit in df_disponible.iterrows():
+                    with st.container():
+                        col_info, col_qty, col_btn = st.columns([3, 1, 1])
+                        
+                        with col_info:
+                            # Statut de stock avec couleur
+                            if produit['Quantite'] < produit['Stock_Min']:
+                                statut = "🔴 Stock critique"
+                            elif produit['Quantite'] <= produit['Stock_Min'] + (produit['Stock_Max'] - produit['Stock_Min']) * 0.3:
+                                statut = "🟠 Stock faible"
+                            else:
+                                statut = "🟢 Disponible"
+                            
+                            st.write(f"**{produit['Produits']}** - Réf: {produit['Reference']}")
+                            st.write(f"Stock: {produit['Quantite']} - {statut} - Emplacement: {produit['Emplacement']}")
+                        
+                        with col_qty:
+                            quantite_demande = st.number_input(
+                                "Quantité", 
+                                min_value=0, 
+                                max_value=int(produit['Quantite']), 
+                                value=0,
+                                step=1,
+                                key=f"qty_{produit['Reference']}"
+                            )
+                        
+                        with col_btn:
+                            if st.button(f"Ajouter", key=f"add_{produit['Reference']}"):
+                                if quantite_demande > 0:
+                                    st.session_state.panier_demande[produit['Reference']] = {
+                                        'produit': produit['Produits'],
+                                        'quantite': quantite_demande,
+                                        'emplacement': produit['Emplacement']
+                                    }
+                                    st.success(f"✅ {quantite_demande} x {produit['Produits']} ajouté(s)")
+                                    st.experimental_rerun()
+                        
+                        st.divider()
+            
+            with col2:
+                st.write("**🛒 Votre demande :**")
+                if st.session_state.panier_demande:
+                    total_articles = 0
+                    for ref, item in st.session_state.panier_demande.items():
+                        st.write(f"• **{item['produit']}**")
+                        st.write(f"  Qté: {item['quantite']} - {item['emplacement']}")
+                        total_articles += item['quantite']
+                        
+                        # Bouton pour retirer du panier
+                        if st.button(f"❌ Retirer", key=f"remove_{ref}"):
+                            del st.session_state.panier_demande[ref]
+                            st.experimental_rerun()
+                        st.write("---")
+                    
+                    st.write(f"**Total: {total_articles} article(s)**")
+                    
+                    # Bouton pour vider le panier
+                    if st.button("🗑️ Vider le panier"):
+                        st.session_state.panier_demande = {}
+                        st.experimental_rerun()
+                        
+                else:
+                    st.info("Panier vide")
+        
+        # Finalisation de la demande
+        if st.session_state.panier_demande:
+            st.subheader("📝 Finalisation de la demande")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                urgence = st.selectbox("Niveau d'urgence", ["Normal", "Urgent", "Très urgent"])
+            with col2:
+                date_souhaitee = st.date_input("Date souhaitée", datetime.now().date())
+            
+            motif = st.text_area(
+                "Motif de la demande *", 
+                placeholder="Décrivez l'utilisation prévue du matériel...",
+                help="Expliquez pourquoi vous avez besoin de ce matériel"
+            )
+            
+            # Vérifications avant soumission
+            if st.button("📤 Soumettre la demande", type="primary"):
+                if not demandeur:
+                    st.error("❌ Veuillez saisir votre nom")
+                elif not motif:
+                    st.error("❌ Veuillez indiquer le motif de votre demande")
+                else:
+                    # Préparer les données de la demande
+                    demande_data = {
+                        'chantier': chantier,
+                        'urgence': urgence,
+                        'date_souhaitee': date_souhaitee.strftime("%Y-%m-%d"),
+                        'produits': st.session_state.panier_demande
+                    }
+                    
+                    # Sauvegarder la demande
+                    demande_id = sauvegarder_demande(demandeur, demande_data, motif)
+                    
+                    # Confirmation
+                    st.success(f"✅ Demande soumise avec succès !")
+                    st.info(f"**Numéro de demande :** {demande_id}")
+                    st.info("Le magasinier traitera votre demande dans les plus brefs délais.")
+                    
+                    # Vider le panier
+                    st.session_state.panier_demande = {}
+                    
+                    # Afficher un récapitulatif
+                    with st.expander("📄 Récapitulatif de votre demande"):
+                        st.write(f"**Demandeur :** {demandeur}")
+                        st.write(f"**Chantier :** {chantier}")
+                        st.write(f"**Urgence :** {urgence}")
+                        st.write(f"**Date souhaitée :** {date_souhaitee}")
+                        st.write(f"**Motif :** {motif}")
+                        st.write("**Produits demandés :**")
+                        for ref, item in demande_data['produits'].items():
+                            st.write(f"- {item['quantite']} x {item['produit']}")
+    else:
+        st.warning("Aucun produit disponible dans l'inventaire.")
+
+elif action == "Gestion des demandes":
+    st.header("📋 Gestion des Demandes de Matériel")
+    st.info("👥 Interface magasinier pour traiter les demandes")
+    
+    # Charger les demandes
+    df_demandes = charger_demandes()
+    
+    if not df_demandes.empty:
+        # Statistiques rapides
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            en_attente = len(df_demandes[df_demandes['Statut'] == 'En attente'])
+            st.metric("🕐 En attente", en_attente)
+        with col2:
+            approuvees = len(df_demandes[df_demandes['Statut'] == 'Approuvée'])
+            st.metric("✅ Approuvées", approuvees)
+        with col3:
+            refusees = len(df_demandes[df_demandes['Statut'] == 'Refusée'])
+            st.metric("❌ Refusées", refusees)
+        with col4:
+            totales = len(df_demandes)
+            st.metric("📊 Total", totales)
+        
+        # Filtres
+        col1, col2 = st.columns(2)
+        with col1:
+            statuts = ["Tous"] + sorted(df_demandes['Statut'].unique().tolist())
+            filtre_statut = st.selectbox("Filtrer par statut", statuts)
+        with col2:
+            demandeurs = ["Tous"] + sorted(df_demandes['Demandeur'].unique().tolist())
+            filtre_demandeur = st.selectbox("Filtrer par demandeur", demandeurs)
+        
+        # Application des filtres
+        df_filtre = df_demandes.copy()
+        if filtre_statut != "Tous":
+            df_filtre = df_filtre[df_filtre['Statut'] == filtre_statut]
+        if filtre_demandeur != "Tous":
+            df_filtre = df_filtre[df_filtre['Demandeur'] == filtre_demandeur]
+        
+        # Tri par date de demande (plus récent en premier)
+        df_filtre = df_filtre.sort_values('Date_Demande', ascending=False)
+        
+        # Affichage des demandes
+        for idx, demande in df_filtre.iterrows():
+            with st.expander(f"🗂️ Demande {demande['ID_Demande']} - {demande['Demandeur']} - {demande['Statut']}"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write(f"**📅 Date de demande :** {demande['Date_Demande']}")
+                    st.write(f"**👤 Demandeur :** {demande['Demandeur']}")
+                    st.write(f"**📍 Statut :** {demande['Statut']}")
+                    if demande['Date_Traitement']:
+                        st.write(f"**⏰ Traité le :** {demande['Date_Traitement']}")
+                        st.write(f"**👨‍💼 Traité par :** {demande['Traite_Par']}")
+                
+                with col2:
+                    st.write(f"**📝 Motif :** {demande['Motif']}")
+                    if demande['Commentaires']:
+                        st.write(f"**💬 Commentaires :** {demande['Commentaires']}")
+                
+                # Détail des produits demandés
+                st.write("**🛠️ Produits demandés :**")
+                try:
+                    import ast
+                    produits_data = ast.literal_eval(demande['Produits_Demandes'])
+                    
+                    # Affichage des informations additionnelles si disponibles
+                    if isinstance(produits_data, dict):
+                        if 'chantier' in produits_data:
+                            st.write(f"**🏗️ Chantier :** {produits_data['chantier']}")
+                        if 'urgence' in produits_data:
+                            st.write(f"**⚡ Urgence :** {produits_data['urgence']}")
+                        if 'date_souhaitee' in produits_data:
+                            st.write(f"**📅 Date souhaitée :** {produits_data['date_souhaitee']}")
+                        
+                        # Affichage des produits
+                        if 'produits' in produits_data:
+                            produits_list = []
+                            for ref, item in produits_data['produits'].items():
+                                produits_list.append({
+                                    'Référence': ref,
+                                    'Produit': item['produit'],
+                                    'Quantité': item['quantite'],
+                                    'Emplacement': item['emplacement']
+                                })
+                            
+                            df_produits = pd.DataFrame(produits_list)
+                            st.dataframe(df_produits)
+                            
+                            # Vérification de la disponibilité
+                            st.write("**📦 Vérification de disponibilité :**")
+                            for ref, item in produits_data['produits'].items():
+                                produit_stock = df[df['Reference'] == ref]
+                                if not produit_stock.empty:
+                                    stock_actuel = int(produit_stock.iloc[0]['Quantite'])
+                                    quantite_demandee = item['quantite']
+                                    
+                                    if stock_actuel >= quantite_demandee:
+                                        st.success(f"✅ {item['produit']} : {quantite_demandee}/{stock_actuel} disponible")
+                                    else:
+                                        st.error(f"❌ {item['produit']} : {quantite_demandee} demandés mais seulement {stock_actuel} disponible(s)")
+                                else:
+                                    st.warning(f"⚠️ {item['produit']} : Produit non trouvé dans le stock")
+                
+                except Exception as e:
+                    st.write(demande['Produits_Demandes'])
+                
+                # Actions pour traiter la demande
+                if demande['Statut'] == 'En attente':
+                    st.write("**⚙️ Actions :**")
+                    
+                    # Formulaire d'approbation
+                    with st.form(key=f"form_approve_{demande['ID_Demande']}"):
+                        st.write("**✅ Approuver la demande**")
+                        magasinier_approve = st.text_input("Votre nom (magasinier)", key=f"mag_approve_{demande['ID_Demande']}")
+                        approve_submitted = st.form_submit_button("✅ Approuver")
+                        
+                        if approve_submitted and magasinier_approve:
+                            # Mettre à jour les stocks
+                            try:
+                                import ast
+                                produits_data = ast.literal_eval(demande['Produits_Demandes'])
+                                if 'produits' in produits_data:
+                                    for ref, item in produits_data['produits'].items():
+                                        produit_stock = df[df['Reference'] == ref]
+                                        if not produit_stock.empty:
+                                            stock_actuel = int(produit_stock.iloc[0]['Quantite'])
+                                            quantite_demandee = item['quantite']
+                                            
+                                            if stock_actuel >= quantite_demandee:
+                                                nouvelle_quantite = stock_actuel - quantite_demandee
+                                                df.loc[df['Reference'] == ref, 'Quantite'] = nouvelle_quantite
+                                                
+                                                # Log du mouvement
+                                                log_mouvement(
+                                                    item['produit'],
+                                                    f"Sortie - Demande {demande['ID_Demande']}",
+                                                    quantite_demandee,
+                                                    nouvelle_quantite,
+                                                    stock_actuel
+                                                )
+                                
+                                # Sauvegarder les stocks mis à jour
+                                save_data(df)
+                                
+                                # Mettre à jour le statut de la demande
+                                mettre_a_jour_demande(demande['ID_Demande'], 'Approuvée', magasinier_approve, "Demande approuvée et stock mis à jour")
+                                st.success("✅ Demande approuvée et stock mis à jour")
+                                st.experimental_rerun()
+                                
+                            except Exception as e:
+                                st.error(f"Erreur lors du traitement : {str(e)}")
+                        elif approve_submitted and not magasinier_approve:
+                            st.error("Veuillez saisir votre nom")
+                    
+                    # Formulaire de refus
+                    with st.form(key=f"form_refuse_{demande['ID_Demande']}"):
+                        st.write("**❌ Refuser la demande**")
+                        magasinier_refuse = st.text_input("Votre nom (magasinier)", key=f"mag_refuse_{demande['ID_Demande']}")
+                        motif_refus = st.text_area("Motif du refus", key=f"motif_{demande['ID_Demande']}")
+                        refuse_submitted = st.form_submit_button("❌ Refuser")
+                        
+                        if refuse_submitted and magasinier_refuse and motif_refus:
+                            mettre_a_jour_demande(demande['ID_Demande'], 'Refusée', magasinier_refuse, motif_refus)
+                            st.success("❌ Demande refusée")
+                            st.experimental_rerun()
+                        elif refuse_submitted:
+                            if not magasinier_refuse:
+                                st.error("Veuillez saisir votre nom")
+                            if not motif_refus:
+                                st.error("Veuillez indiquer le motif du refus")
+                    
+                    # Formulaire de mise en attente
+                    with st.form(key=f"form_hold_{demande['ID_Demande']}"):
+                        st.write("**⏸️ Mettre en attente**")
+                        magasinier_hold = st.text_input("Votre nom (magasinier)", key=f"mag_hold_{demande['ID_Demande']}")
+                        commentaire = st.text_area("Commentaire", key=f"comment_{demande['ID_Demande']}")
+                        hold_submitted = st.form_submit_button("⏸️ Mettre en attente")
+                        
+                        if hold_submitted and magasinier_hold:
+                            mettre_a_jour_demande(demande['ID_Demande'], 'En attente', magasinier_hold, commentaire)
+                            st.success("⏸️ Demande mise à jour")
+                            st.experimental_rerun()
+                            st.experimental_rerun()
+    
+    else:
+        st.info("Aucune demande de matériel pour le moment.")
 
 elif action == "Ajouter un produit":
     st.header("Ajouter un nouveau produit")
