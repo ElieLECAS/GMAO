@@ -306,6 +306,17 @@ def scan_qr_code():
     cap.release()
     return None
 
+def get_statut_icon(statut):
+    """Retourne l'icône appropriée selon le statut de la demande"""
+    if statut == 'En attente':
+        return '⏳'
+    elif statut == 'Approuvée':
+        return '✅'
+    elif statut == 'Refusée':
+        return '❌'
+    else:
+        return '📋'  # Icône par défaut
+
 if action == "Magasin":
     st.header("Stock actuel")
     if not df.empty:
@@ -561,13 +572,24 @@ elif action == "Gestion des demandes":
         
         # Affichage des demandes
         for idx, demande in df_filtre.iterrows():
-            with st.expander(f"🗂️ Demande {demande['ID_Demande']} - {demande['Demandeur']} - {demande['Statut']}"):
+            statut_icon = get_statut_icon(demande['Statut'])
+            with st.expander(f"{statut_icon} Demande {demande['ID_Demande']} - {demande['Demandeur']} - {demande['Statut']}"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     st.write(f"**📅 Date de demande :** {demande['Date_Demande']}")
                     st.write(f"**👤 Demandeur :** {demande['Demandeur']}")
-                    st.write(f"**📍 Statut :** {demande['Statut']}")
+                    
+                    # Affichage du statut avec icône et couleur
+                    if demande['Statut'] == 'En attente':
+                        st.warning(f"**{statut_icon} Statut :** {demande['Statut']}")
+                    elif demande['Statut'] == 'Approuvée':
+                        st.success(f"**{statut_icon} Statut :** {demande['Statut']}")
+                    elif demande['Statut'] == 'Refusée':
+                        st.error(f"**{statut_icon} Statut :** {demande['Statut']}")
+                    else:
+                        st.info(f"**{statut_icon} Statut :** {demande['Statut']}")
+                    
                     if demande['Date_Traitement']:
                         st.write(f"**⏰ Traité le :** {demande['Date_Traitement']}")
                         st.write(f"**👨‍💼 Traité par :** {demande['Traite_Par']}")
