@@ -7,9 +7,6 @@ import openpyxl
 import qrcode
 from io import BytesIO
 from PIL import Image
-import cv2
-from pyzbar.pyzbar import decode
-import numpy as np
 
 # Configuration de la page
 st.set_page_config(page_title="GMAO - Gestion de Stock", layout="wide")
@@ -153,24 +150,65 @@ def rechercher_produit(df, mode="selection"):
     Returns:
         produit trouvé (Series) ou None si aucun produit trouvé
     """
-    search_type = st.radio("Type de recherche", ["Par référence", "Par nom", "Scanner QR Code"])
+    search_type = st.radio("Type de recherche", ["Par référence", "Par nom", "Scanner externe"])
     
     produit_trouve = None
     
-    if search_type == "Scanner QR Code":
-        st.write("Présentez le QR code devant la caméra")
-        if st.button("Démarrer le scan"):
-            code = scan_qr_code()
-            if code:
-                result = df[df['Reference'] == code]
+    if search_type == "Scanner externe":
+        st.info("🔍 **Scanner externe connecté**")
+        st.write("💡 Utilisez votre scanner USB/Bluetooth pour scanner le code-barres ou QR code")
+        st.write("📋 Types de scanners recommandés :")
+        st.write("- 🔲 **Scanner 2D** (pour QR codes et codes-barres)")
+        st.write("- 🔍 **Douchette 2D USB** (branchement plug-and-play)")
+        st.write("- 📱 **Scanner Bluetooth** (connexion sans fil)")
+        
+        # Champ d'input qui recevra automatiquement les données du scanner
+        code_scanne = st.text_input(
+            "📄 Code scanné", 
+            placeholder="Positionnez le curseur ici et scannez votre code...",
+            help="Le scanner USB tapera automatiquement le code dans ce champ",
+            key="scanner_input"
+        )
+        
+        if code_scanne:
+            # Nettoyer le code (supprimer les espaces, retours à la ligne, etc.)
+            code_scanne = code_scanne.strip()
+            
+            if len(code_scanne) > 0:
+                # Rechercher d'abord par référence exacte
+                result = df[df['Reference'] == code_scanne]
+                
                 if not result.empty:
                     produit_trouve = result.iloc[0]
                     if mode == "affichage":
+                        st.success(f"✅ Produit trouvé par référence : **{produit_trouve['Produits']}**")
                         st.dataframe(result)
-                    # else:
-                    #     st.success(f"Produit trouvé : {produit_trouve['Produits']}")
+                    else:
+                        st.success(f"✅ Produit trouvé : **{produit_trouve['Produits']}**")
                 else:
-                    st.warning("Aucun produit trouvé avec cette référence.")
+                    # Si pas trouvé par référence, essayer par code-barres (si différent)
+                    # ou recherche dans le nom du produit
+                    result_nom = df[df['Produits'].str.contains(code_scanne, case=False, na=False)]
+                    
+                    if not result_nom.empty:
+                        if mode == "affichage":
+                            st.info(f"🔍 Produit(s) trouvé(s) par nom contenant '{code_scanne}':")
+                            st.dataframe(result_nom)
+                        elif len(result_nom) == 1:
+                            produit_trouve = result_nom.iloc[0]
+                            st.success(f"✅ Produit trouvé par nom : **{produit_trouve['Produits']}**")
+                        else:
+                            st.info(f"🔍 {len(result_nom)} produits trouvés par nom:")
+                            st.dataframe(result_nom[['Produits', 'Reference', 'Quantite']])
+                            reference_choisie = st.selectbox("Choisissez la référence:", result_nom['Reference'].tolist())
+                            if reference_choisie:
+                                produit_trouve = result_nom[result_nom['Reference'] == reference_choisie].iloc[0]
+                    else:
+                        st.warning(f"❌ Aucun produit trouvé avec le code : '{code_scanne}'")
+                        st.info("💡 Vérifiez que :")
+                        st.write("- Le produit existe dans votre inventaire")
+                        st.write("- La référence est correcte")
+                        st.write("- Le scanner fonctionne correctement")
     
     elif search_type == "Par référence":
         reference = st.text_input("Entrez la référence du produit")
@@ -239,6 +277,29 @@ df = load_data()
 # Affichage des alertes de stock dans la sidebar
 afficher_alertes_stock(df)
 
+# Section d'aide pour les scanners
+st.sidebar.markdown("---")
+with st.sidebar.expander("🔍 Guide Scanners", expanded=False):
+    st.markdown("### Scanners recommandés")
+    st.write("**📱 Pour QR codes + codes-barres :**")
+    st.write("- Scanner 2D USB (HID)")
+    st.write("- Douchette 2D Bluetooth")
+    st.write("- Scanner portable 2D")
+    
+    st.write("**⚠️ Non compatible :**")
+    st.write("- Scanner laser classique")
+    st.write("- Scanner 1D uniquement")
+    
+    st.markdown("### Installation")
+    st.write("1. 🔌 Branchez le scanner USB")
+    st.write("2. 📱 Ou appairez en Bluetooth") 
+    st.write("3. ✅ Prêt à l'emploi !")
+    
+    st.markdown("### Utilisation")
+    st.write("1. 📍 Cliquez dans le champ")
+    st.write("2. 🔍 Scannez le code")
+    st.write("3. ⚡ Le code apparaît automatiquement")
+
 # Sidebar pour les actions
 st.sidebar.title("Actions")
 action = st.sidebar.selectbox(
@@ -258,53 +319,6 @@ action = st.sidebar.selectbox(
         "QR Code produit"
     ]
 )
-
-# Fonction pour scanner le QR code
-def scan_qr_code():
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        st.error("Impossible d'accéder à la caméra")
-        return None
-    
-    stframe = st.empty()
-    stop_button = st.button("Arrêter le scan")
-    
-    while not stop_button:
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Erreur lors de la lecture de la caméra")
-            break
-            
-        # Détection des QR codes
-        decoded_objects = decode(frame)
-        for obj in decoded_objects:
-            # Dessiner un rectangle autour du QR code
-            points = obj.polygon
-            if len(points) > 4:
-                hull = cv2.convexHull(np.array([point for point in points], dtype=np.float32))
-                cv2.polylines(frame, [hull], True, (0, 255, 0), 2)
-            else:
-                cv2.polylines(frame, [np.array(points, dtype=np.int32)], True, (0, 255, 0), 2)
-            
-            # Afficher le code
-            code = obj.data.decode('utf-8')
-            cv2.putText(frame, code, (points[0][0], points[0][1] - 10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            
-            # Convertir l'image pour Streamlit
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            stframe.image(frame_rgb)
-            
-            # Libérer la caméra et retourner le code
-            cap.release()
-            return code
-        
-        # Convertir l'image pour Streamlit
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        stframe.image(frame_rgb)
-    
-    cap.release()
-    return None
 
 def get_statut_icon(statut):
     """Retourne l'icône appropriée selon le statut de la demande"""
