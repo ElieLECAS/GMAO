@@ -131,65 +131,149 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Données initiales
-INITIAL_DATA = {
-    'Produits': ['Tournevis cruciforme', 'Marteau 500g', 'Perceuse sans fil', 'Vis 6x50mm', 'Clé à molette', 
-                 'Scie circulaire', 'Ponceuse', 'Niveau à bulle', 'Mètre ruban', 'Pince coupante',
-                 'Tournevis plat', 'Marteau 1kg', 'Perceuse filaire', 'Vis 8x60mm', 'Clé à pipe'],
-    'Reference': ['8473926150', '2938475610', '9182736450', '5647382910', '1928374650', '6574839201', '3847562910', '4758392016', '8392017465', '7465839201',
-                 '2837465910', '9384756201', '2938475611', '6574839202', '3847562911'],
-    'Quantite': [50, 30, 15, 1000, 25, 20, 35, 40, 60, 45, 55, 30, 25, 800, 35],
-    'Stock_Min': [10, 5, 2, 100, 5, 5, 10, 8, 15, 10, 12, 5, 3, 80, 8],
-    'Stock_Max': [100, 50, 20, 2000, 50, 40, 70, 80, 120, 90, 110, 60, 50, 1600, 70],
-    'Emplacement': ['Atelier A', 'Atelier B', 'Atelier A', 'Stockage', 'Atelier B', 'Atelier A', 'Atelier B', 
-                    'Atelier A', 'Stockage', 'Atelier B', 'Atelier A', 'Atelier B', 'Atelier A', 'Stockage', 'Atelier B'],
-    'Fournisseur': ['Fournisseur A', 'Fournisseur B', 'Fournisseur C', 'Fournisseur A', 'Fournisseur B',
-                    'Fournisseur C', 'Fournisseur A', 'Fournisseur B', 'Fournisseur C', 'Fournisseur A',
-                    'Fournisseur B', 'Fournisseur C', 'Fournisseur A', 'Fournisseur B', 'Fournisseur C'],
-    'Date_Entree': ['2024-03-15', '2024-03-14', '2024-03-13', '2024-03-12', '2024-03-11', '2024-03-10', 
-                    '2024-03-09', '2024-03-08', '2024-03-07', '2024-03-06', '2024-03-05', '2024-03-04',
-                    '2024-03-03', '2024-03-02', '2024-03-01'],
-    'Prix_Unitaire': [15.99, 25.50, 89.99, 0.15, 12.75, 129.99, 79.99, 8.99, 5.99, 14.99,
-                     12.99, 28.50, 69.99, 0.20, 15.75]
-}
+# Fonction pour générer une référence unique pour les QR codes
+def generer_reference_qr(code, designation):
+    """Génère une référence unique de 10 chiffres basée sur le code et la désignation"""
+    import hashlib
+    import random
+    
+    # Créer un hash unique basé sur le code et la désignation
+    text = f"{code}_{designation}"
+    hash_obj = hashlib.md5(text.encode())
+    hash_hex = hash_obj.hexdigest()
+    
+    # Convertir en nombre et prendre les 10 premiers chiffres
+    hash_int = int(hash_hex, 16)
+    reference_numerique = str(hash_int)[:10]
+    
+    # S'assurer qu'on a exactement 10 chiffres
+    if len(reference_numerique) < 10:
+        # Compléter avec des chiffres aléatoires si nécessaire
+        reference_numerique = reference_numerique + ''.join([str(random.randint(0, 9)) for _ in range(10 - len(reference_numerique))])
+    
+    return reference_numerique[:10]
 
 # Chargement des données
 def load_data():
     # Créer le dossier data s'il n'existe pas
     os.makedirs("data", exist_ok=True)
     
-    file_path = "data/inventaire.xlsx"
+    # Vérifier d'abord si le fichier enrichi existe
+    fichier_enrichi = "data/inventaire_avec_references.xlsx"
+    fichier_original = "data/exemple  Boschat Faille et SFS pour essai ACCESS.xlsx"
     
-    # Si le fichier n'existe pas, créer un nouveau fichier avec les données initiales
-    if not os.path.exists(file_path):
-        df = pd.DataFrame(INITIAL_DATA)
-        df.to_excel(file_path, index=False, engine='openpyxl')
-        return df
+    # Utiliser le fichier enrichi s'il existe, sinon le fichier original
+    if os.path.exists(fichier_enrichi):
+        file_path = fichier_enrichi
+        # st.info("📂 Utilisation du fichier d'inventaire enrichi existant")
+    else:
+        file_path = fichier_original
+        # st.info("📂 Première utilisation - enrichissement du fichier d'inventaire en cours...")
     
     try:
-        df = pd.read_excel(file_path, engine='openpyxl')
+        # Lire le fichier Excel existant avec gestion d'erreur robuste
+        try:
+            df = pd.read_excel(file_path, engine='openpyxl')
+        except Exception as excel_error:
+            st.warning(f"⚠️ Erreur avec openpyxl: {str(excel_error)}")
+            # Essayer avec xlrd comme alternative
+            try:
+                df = pd.read_excel(file_path, engine='xlrd')
+                st.info("✅ Lecture réussie avec xlrd")
+            except Exception as xlrd_error:
+                st.error(f"❌ Erreur avec xlrd: {str(xlrd_error)}")
+                # Si les deux échouent, essayer de recréer depuis le fichier original
+                if file_path == fichier_enrichi:
+                    st.info("🔄 Tentative de lecture du fichier original...")
+                    df = pd.read_excel(fichier_original, engine='openpyxl')
+                    st.success("✅ Lecture du fichier original réussie")
+                else:
+                    raise excel_error
         
-        # Migration : ajouter les colonnes Stock_Min et Stock_Max si elles n'existent pas
-        if 'Stock_Min' not in df.columns:
-            df['Stock_Min'] = 10  # Valeur par défaut
-        if 'Stock_Max' not in df.columns:
-            df['Stock_Max'] = 100  # Valeur par défaut
+        # Renommer les colonnes pour correspondre à l'application
+        column_mapping = {
+            'Code': 'Code',
+            'Référence fournisseur': 'Reference_Fournisseur', 
+            'Désignation': 'Produits',
+            'Unité de stockage': 'Unite_Stockage',
+            'Unite Commande': 'Unite_Commande',
+            'Min': 'Stock_Min',
+            'Max': 'Stock_Max',
+            'Site': 'Site',
+            'Lieu': 'Lieu',
+            'Emplacement': 'Emplacement',
+            'Fournisseur Standard': 'Fournisseur',
+            'Prix': 'Prix_Unitaire',
+            'Catégorie': 'Categorie',
+            'Secteur': 'Secteur'
+        }
+        
+        # Renommer les colonnes
+        df = df.rename(columns=column_mapping)
+        
+        # Variable pour savoir si on doit sauvegarder les modifications
+        modifications_apportees = False
+        
+        # Ajouter une colonne Reference pour les QR codes si elle n'existe pas
+        if 'Reference' not in df.columns:
+            df['Reference'] = df.apply(lambda row: generer_reference_qr(row['Code'], row['Produits']), axis=1)
+            modifications_apportees = True
+        
+        # S'assurer que la colonne Reference est de type string
+        df['Reference'] = df['Reference'].astype(str)
+        
+        # S'assurer que les colonnes Min et Max sont numériques
+        df['Stock_Min'] = pd.to_numeric(df['Stock_Min'], errors='coerce').fillna(0)
+        df['Stock_Max'] = pd.to_numeric(df['Stock_Max'], errors='coerce').fillna(100)
+        df['Prix_Unitaire'] = pd.to_numeric(df['Prix_Unitaire'], errors='coerce').fillna(0)
+        
+        # Ajouter une colonne Quantite avec des valeurs aléatoires si elle n'existe pas
+        if 'Quantite' not in df.columns:
+            import random
+            # Générer des quantités aléatoires basées sur les stocks min/max pour simuler un état vivant
+            df['Quantite'] = df.apply(lambda row: random.randint(
+                max(0, int(row['Stock_Min']) - 5),  # Peut être en dessous du minimum
+                int(row['Stock_Max']) + random.randint(0, 20)  # Peut dépasser le maximum
+            ), axis=1)
+            modifications_apportees = True
+        else:
+            df['Quantite'] = pd.to_numeric(df['Quantite'], errors='coerce').fillna(0)
             
-        # Sauvegarder le fichier mis à jour
-        df.to_excel(file_path, index=False, engine='openpyxl')
+        # Ajouter une colonne Date_Entree si elle n'existe pas
+        if 'Date_Entree' not in df.columns:
+            df['Date_Entree'] = datetime.now().strftime("%Y-%m-%d")
+            modifications_apportees = True
+        
+        # Sauvegarder le fichier avec les nouvelles colonnes si des modifications ont été apportées
+        if modifications_apportees:
+            try:
+                # Créer un nouveau fichier avec les données enrichies
+                nouveau_fichier = "data/inventaire_avec_references.xlsx"
+                df.to_excel(nouveau_fichier, index=False, engine='openpyxl')
+                st.success(f"✅ Fichier enrichi sauvegardé : {nouveau_fichier}")
+            except Exception as e:
+                st.warning(f"⚠️ Impossible de sauvegarder le fichier enrichi : {str(e)}")
+        
         return df
         
     except Exception as e:
         st.error(f"Erreur lors de la lecture du fichier Excel: {str(e)}")
-        # En cas d'erreur, créer un nouveau fichier avec les données initiales
-        df = pd.DataFrame(INITIAL_DATA)
-        df.to_excel(file_path, index=False, engine='openpyxl')
+        # En cas d'erreur, créer un DataFrame vide avec les colonnes nécessaires
+        df = pd.DataFrame(columns=['Code', 'Reference_Fournisseur', 'Produits', 'Unite_Stockage', 
+                                 'Unite_Commande', 'Stock_Min', 'Stock_Max', 'Site', 'Lieu', 
+                                 'Emplacement', 'Fournisseur', 'Prix_Unitaire', 'Categorie', 
+                                 'Secteur', 'Reference', 'Quantite', 'Date_Entree'])
         return df
 
 # Fonction pour sauvegarder les données
 def save_data(df):
     try:
-        df.to_excel("data/inventaire.xlsx", index=False, engine='openpyxl')
+        # Sauvegarder dans le fichier enrichi pour maintenir la persistance
+        fichier_enrichi = "data/inventaire_avec_references.xlsx"
+        df.to_excel(fichier_enrichi, index=False, engine='openpyxl')
+        
+        # Aussi sauvegarder une copie de sauvegarde
+        df.to_excel("data/inventaire_sauvegarde.xlsx", index=False, engine='openpyxl')
     except Exception as e:
         st.error(f"Erreur lors de la sauvegarde du fichier Excel: {str(e)}")
 
@@ -539,6 +623,9 @@ if st.sidebar.button("📤 Sortie", use_container_width=True, help="Sortie de st
 if st.sidebar.button("📊 Inventaire", use_container_width=True, help="Ajustement d'inventaire"):
     st.session_state.action = "Inventaire"
 
+if st.sidebar.button("🔍 Rechercher", use_container_width=True):
+    st.session_state.action = "Rechercher un produit"
+
 # Section QR Codes - Outils mobiles
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 **QR Codes**")
@@ -556,9 +643,6 @@ with st.sidebar.expander("⚙️ **Administration**"):
     
     if st.button("✏️ Modifier produit", use_container_width=True):
         st.session_state.action = "Modifier un produit"
-    
-    if st.button("🔍 Rechercher", use_container_width=True):
-        st.session_state.action = "Rechercher un produit"
     
     if st.button("📋 Gérer tables", use_container_width=True):
         st.session_state.action = "Gérer les tables"
