@@ -413,6 +413,139 @@ def ajouter_table_atelier(id_table, nom_table, type_atelier, emplacement, respon
     else:
         return False, "Erreur lors de la sauvegarde"
 
+def charger_fournisseurs():
+    """Charge tous les fournisseurs depuis le fichier Excel"""
+    file_path = "data/fournisseurs.xlsx"
+    if os.path.exists(file_path):
+        try:
+            return pd.read_excel(file_path, engine='openpyxl')
+        except Exception as e:
+            st.error(f"Erreur lors du chargement des fournisseurs: {str(e)}")
+            return pd.DataFrame()
+    else:
+        # Créer le fichier avec les fournisseurs extraits de l'inventaire
+        return creer_fichier_fournisseurs_initial()
+
+def creer_fichier_fournisseurs_initial():
+    """Crée le fichier initial des fournisseurs basé sur l'inventaire existant"""
+    global df
+    
+    if df.empty or 'Fournisseur' not in df.columns:
+        # Créer des fournisseurs par défaut
+        fournisseurs_initiaux = {
+            'ID_Fournisseur': ['FOUR001', 'FOUR002', 'FOUR003'],
+            'Nom_Fournisseur': ['Fournisseur A', 'Fournisseur B', 'Fournisseur C'],
+            'Contact_Principal': ['Jean Martin', 'Marie Dubois', 'Pierre Leroy'],
+            'Email': ['contact@fournisseur-a.fr', 'info@fournisseur-b.fr', 'commandes@fournisseur-c.fr'],
+            'Telephone': ['01 23 45 67 89', '01 98 76 54 32', '01 11 22 33 44'],
+            'Adresse': ['123 Rue de la Paix, 75001 Paris', '456 Avenue des Champs, 69000 Lyon', '789 Boulevard Central, 13000 Marseille'],
+            'Statut': ['Actif', 'Actif', 'Actif'],
+            'Date_Creation': ['2024-01-01', '2024-01-01', '2024-01-01'],
+            'Nb_Produits': [0, 0, 0],
+            'Valeur_Stock_Total': [0.0, 0.0, 0.0]
+        }
+    else:
+        # Extraire les fournisseurs uniques de l'inventaire
+        fournisseurs_uniques = df['Fournisseur'].dropna().unique()
+        
+        fournisseurs_initiaux = {
+            'ID_Fournisseur': [f"FOUR{str(i+1).zfill(3)}" for i in range(len(fournisseurs_uniques))],
+            'Nom_Fournisseur': fournisseurs_uniques.tolist(),
+            'Contact_Principal': ['À définir'] * len(fournisseurs_uniques),
+            'Email': [''] * len(fournisseurs_uniques),
+            'Telephone': [''] * len(fournisseurs_uniques),
+            'Adresse': [''] * len(fournisseurs_uniques),
+            'Statut': ['Actif'] * len(fournisseurs_uniques),
+            'Date_Creation': [datetime.now().strftime("%Y-%m-%d")] * len(fournisseurs_uniques),
+            'Nb_Produits': [0] * len(fournisseurs_uniques),
+            'Valeur_Stock_Total': [0.0] * len(fournisseurs_uniques)
+        }
+        
+        # Calculer le nombre de produits et la valeur du stock pour chaque fournisseur
+        for i, fournisseur in enumerate(fournisseurs_uniques):
+            produits_fournisseur = df[df['Fournisseur'] == fournisseur]
+            fournisseurs_initiaux['Nb_Produits'][i] = len(produits_fournisseur)
+            fournisseurs_initiaux['Valeur_Stock_Total'][i] = (produits_fournisseur['Quantite'] * produits_fournisseur['Prix_Unitaire']).sum()
+    
+    df_fournisseurs = pd.DataFrame(fournisseurs_initiaux)
+    os.makedirs("data", exist_ok=True)
+    df_fournisseurs.to_excel("data/fournisseurs.xlsx", index=False, engine='openpyxl')
+    return df_fournisseurs
+
+def sauvegarder_fournisseurs(df_fournisseurs):
+    """Sauvegarde les fournisseurs dans le fichier Excel"""
+    try:
+        df_fournisseurs.to_excel("data/fournisseurs.xlsx", index=False, engine='openpyxl')
+        return True
+    except Exception as e:
+        st.error(f"Erreur lors de la sauvegarde des fournisseurs: {str(e)}")
+        return False
+
+def ajouter_fournisseur(nom_fournisseur, contact_principal, email, telephone, adresse):
+    """Ajoute un nouveau fournisseur"""
+    df_fournisseurs = charger_fournisseurs()
+    
+    # Vérifier si le nom existe déjà
+    if nom_fournisseur in df_fournisseurs['Nom_Fournisseur'].values:
+        return False, "Ce nom de fournisseur existe déjà"
+    
+    # Générer un nouvel ID
+    if not df_fournisseurs.empty:
+        dernier_id = df_fournisseurs['ID_Fournisseur'].str.extract(r'(\d+)').astype(int).max().iloc[0]
+        nouvel_id = f"FOUR{str(dernier_id + 1).zfill(3)}"
+    else:
+        nouvel_id = "FOUR001"
+    
+    nouveau_fournisseur = {
+        'ID_Fournisseur': nouvel_id,
+        'Nom_Fournisseur': nom_fournisseur,
+        'Contact_Principal': contact_principal,
+        'Email': email,
+        'Telephone': telephone,
+        'Adresse': adresse,
+        'Statut': 'Actif',
+        'Date_Creation': datetime.now().strftime("%Y-%m-%d"),
+        'Nb_Produits': 0,
+        'Valeur_Stock_Total': 0.0
+    }
+    
+    df_fournisseurs = pd.concat([df_fournisseurs, pd.DataFrame([nouveau_fournisseur])], ignore_index=True)
+    
+    if sauvegarder_fournisseurs(df_fournisseurs):
+        return True, "Fournisseur ajouté avec succès"
+    else:
+        return False, "Erreur lors de la sauvegarde"
+
+def mettre_a_jour_statistiques_fournisseurs():
+    """Met à jour les statistiques des fournisseurs basées sur l'inventaire actuel"""
+    global df
+    df_fournisseurs = charger_fournisseurs()
+    
+    if df.empty or df_fournisseurs.empty:
+        return df_fournisseurs
+    
+    # Réinitialiser les statistiques
+    df_fournisseurs['Nb_Produits'] = 0
+    df_fournisseurs['Valeur_Stock_Total'] = 0.0
+    
+    # Calculer les nouvelles statistiques
+    for idx, fournisseur_row in df_fournisseurs.iterrows():
+        nom_fournisseur = fournisseur_row['Nom_Fournisseur']
+        
+        # Trouver les produits de ce fournisseur
+        produits_fournisseur = df[df['Fournisseur'] == nom_fournisseur]
+        
+        if not produits_fournisseur.empty:
+            nb_produits = len(produits_fournisseur)
+            valeur_stock = (produits_fournisseur['Quantite'] * produits_fournisseur['Prix_Unitaire']).sum()
+            
+            df_fournisseurs.loc[idx, 'Nb_Produits'] = nb_produits
+            df_fournisseurs.loc[idx, 'Valeur_Stock_Total'] = valeur_stock
+    
+    # Sauvegarder les statistiques mises à jour
+    sauvegarder_fournisseurs(df_fournisseurs)
+    return df_fournisseurs
+
 def mobile_quantity_selector(label, min_value=1, max_value=100, default_value=1, key_prefix="qty"):
     """
     Sélecteur de quantité optimisé pour mobile avec gros boutons + et -
@@ -646,6 +779,9 @@ with st.sidebar.expander("⚙️ **Administration**"):
     
     if st.button("📋 Gérer tables", use_container_width=True):
         st.session_state.action = "Gérer les tables"
+    
+    if st.button("🏪 Fournisseurs", use_container_width=True):
+        st.session_state.action = "Fournisseurs"
 
 # Section rapports - Moins fréquent
 with st.sidebar.expander("📊 **Rapports**"):
@@ -1736,8 +1872,6 @@ elif action == "Rechercher un produit":
             
             st.caption("💡 Scannez ce code avec votre smartphone ou scanner pour identifier rapidement ce produit")
     
-    else:
-        st.info("🔍 Recherchez un produit ci-dessus pour voir ses informations détaillées")
 
 elif action == "Entrée de stock":
     st.header("Entrée de stock")
@@ -2510,4 +2644,302 @@ elif action == "Gérer les tables":
                         st.error("❌ Erreur lors de la sauvegarde")
         else:
             st.warning("Aucune table d'atelier à modifier.")
+
+elif action == "Fournisseurs":
+    st.header("🏪 Gestion des Fournisseurs")
+    st.info("💡 Gérez vos fournisseurs et consultez leurs statistiques")
+    
+    # Charger et mettre à jour les fournisseurs
+    df_fournisseurs = mettre_a_jour_statistiques_fournisseurs()
+    
+    # Onglets pour différentes actions
+    tab1, tab2, tab3, tab4 = st.tabs(["📋 Liste des fournisseurs", "➕ Ajouter un fournisseur", "✏️ Modifier un fournisseur", "📊 Statistiques détaillées"])
+    
+    with tab1:
+        st.subheader("📋 Liste des fournisseurs")
+        
+        if not df_fournisseurs.empty:
+            # Filtres
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                statuts = ["Tous"] + sorted(df_fournisseurs['Statut'].unique().tolist())
+                filtre_statut = st.selectbox("Filtrer par statut", statuts, key="filtre_statut_fournisseur")
+            with col2:
+                # Filtre par nombre de produits
+                min_produits = st.number_input("Nombre minimum de produits", min_value=0, value=0, key="min_produits")
+            with col3:
+                # Bouton pour actualiser les statistiques
+                if st.button("🔄 Actualiser les statistiques", use_container_width=True):
+                    df_fournisseurs = mettre_a_jour_statistiques_fournisseurs()
+                    st.success("✅ Statistiques mises à jour")
+                    st.experimental_rerun()
+            
+            # Application des filtres
+            df_filtre = df_fournisseurs.copy()
+            if filtre_statut != "Tous":
+                df_filtre = df_filtre[df_filtre['Statut'] == filtre_statut]
+            if min_produits > 0:
+                df_filtre = df_filtre[df_filtre['Nb_Produits'] >= min_produits]
+            
+            # Affichage du tableau avec formatage
+            df_display = df_filtre.copy()
+            df_display['Valeur_Stock_Total'] = df_display['Valeur_Stock_Total'].apply(lambda x: f"{x:,.2f} €")
+            
+            st.dataframe(df_display, use_container_width=True)
+            
+            # Statistiques globales
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("📊 Total fournisseurs", len(df_filtre))
+            with col2:
+                actifs = len(df_filtre[df_filtre['Statut'] == 'Actif'])
+                st.metric("✅ Fournisseurs actifs", actifs)
+            with col3:
+                total_produits = df_filtre['Nb_Produits'].sum()
+                st.metric("📦 Total produits", total_produits)
+            with col4:
+                valeur_totale = df_filtre['Valeur_Stock_Total'].sum()
+                st.metric("💰 Valeur totale", f"{valeur_totale:,.2f} €")
+            
+            # Graphiques de répartition
+            if len(df_filtre) > 0:
+                st.markdown("---")
+                st.subheader("📊 Répartition par fournisseur")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Graphique nombre de produits par fournisseur
+                    fig_produits = px.bar(
+                        df_filtre, 
+                        x='Nom_Fournisseur', 
+                        y='Nb_Produits',
+                        title='Nombre de produits par fournisseur',
+                        labels={'Nb_Produits': 'Nombre de produits', 'Nom_Fournisseur': 'Fournisseur'}
+                    )
+                    fig_produits.update_layout(xaxis_tickangle=45)
+                    st.plotly_chart(fig_produits, use_container_width=True)
+                
+                with col2:
+                    # Graphique valeur du stock par fournisseur
+                    fig_valeur = px.bar(
+                        df_filtre, 
+                        x='Nom_Fournisseur', 
+                        y='Valeur_Stock_Total',
+                        title='Valeur du stock par fournisseur',
+                        labels={'Valeur_Stock_Total': 'Valeur du stock (€)', 'Nom_Fournisseur': 'Fournisseur'}
+                    )
+                    fig_valeur.update_layout(xaxis_tickangle=45)
+                    st.plotly_chart(fig_valeur, use_container_width=True)
+        else:
+            st.warning("Aucun fournisseur enregistré.")
+    
+    with tab2:
+        st.subheader("➕ Ajouter un nouveau fournisseur")
+        
+        with st.form("ajouter_fournisseur"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                nom_fournisseur = st.text_input(
+                    "Nom du fournisseur *", 
+                    placeholder="Ex: Entreprise ABC"
+                )
+                
+                contact_principal = st.text_input(
+                    "Contact principal *", 
+                    placeholder="Ex: Jean Dupont"
+                )
+                
+                email = st.text_input(
+                    "Email", 
+                    placeholder="Ex: contact@entreprise-abc.fr"
+                )
+            
+            with col2:
+                telephone = st.text_input(
+                    "Téléphone", 
+                    placeholder="Ex: 01 23 45 67 89"
+                )
+                
+                adresse = st.text_area(
+                    "Adresse", 
+                    placeholder="Ex: 123 Rue de la Paix, 75001 Paris"
+                )
+            
+            submitted = st.form_submit_button("➕ Ajouter le fournisseur", use_container_width=True)
+            
+            if submitted:
+                if not all([nom_fournisseur, contact_principal]):
+                    st.error("❌ Veuillez remplir au minimum le nom du fournisseur et le contact principal")
+                else:
+                    success, message = ajouter_fournisseur(nom_fournisseur, contact_principal, email, telephone, adresse)
+                    if success:
+                        st.success(f"✅ {message}")
+                        st.experimental_rerun()
+                    else:
+                        st.error(f"❌ {message}")
+    
+    with tab3:
+        st.subheader("✏️ Modifier un fournisseur")
+        
+        if not df_fournisseurs.empty:
+            fournisseur_a_modifier = st.selectbox(
+                "Sélectionnez le fournisseur à modifier", 
+                df_fournisseurs['Nom_Fournisseur'].unique(),
+                key="select_fournisseur_modifier"
+            )
+            
+            fournisseur_data = df_fournisseurs[df_fournisseurs['Nom_Fournisseur'] == fournisseur_a_modifier].iloc[0]
+            
+            with st.form("modifier_fournisseur"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    nouveau_nom = st.text_input("Nom du fournisseur", value=fournisseur_data['Nom_Fournisseur'])
+                    nouveau_contact = st.text_input("Contact principal", value=fournisseur_data['Contact_Principal'])
+                    nouvel_email = st.text_input("Email", value=fournisseur_data['Email'])
+                
+                with col2:
+                    nouveau_telephone = st.text_input("Téléphone", value=fournisseur_data['Telephone'])
+                    nouvelle_adresse = st.text_area("Adresse", value=fournisseur_data['Adresse'])
+                    nouveau_statut = st.selectbox(
+                        "Statut", 
+                        ["Actif", "Inactif", "Suspendu"],
+                        index=["Actif", "Inactif", "Suspendu"].index(fournisseur_data['Statut']) if fournisseur_data['Statut'] in ["Actif", "Inactif", "Suspendu"] else 0
+                    )
+                
+                submitted_modif = st.form_submit_button("✏️ Mettre à jour", use_container_width=True)
+                
+                if submitted_modif:
+                    # Mettre à jour les données
+                    df_fournisseurs.loc[df_fournisseurs['Nom_Fournisseur'] == fournisseur_a_modifier, 'Nom_Fournisseur'] = nouveau_nom
+                    df_fournisseurs.loc[df_fournisseurs['Nom_Fournisseur'] == fournisseur_a_modifier, 'Contact_Principal'] = nouveau_contact
+                    df_fournisseurs.loc[df_fournisseurs['Nom_Fournisseur'] == fournisseur_a_modifier, 'Email'] = nouvel_email
+                    df_fournisseurs.loc[df_fournisseurs['Nom_Fournisseur'] == fournisseur_a_modifier, 'Telephone'] = nouveau_telephone
+                    df_fournisseurs.loc[df_fournisseurs['Nom_Fournisseur'] == fournisseur_a_modifier, 'Adresse'] = nouvelle_adresse
+                    df_fournisseurs.loc[df_fournisseurs['Nom_Fournisseur'] == fournisseur_a_modifier, 'Statut'] = nouveau_statut
+                    
+                    if sauvegarder_fournisseurs(df_fournisseurs):
+                        st.success("✅ Fournisseur mis à jour avec succès!")
+                        
+                        # Si le nom a changé, mettre à jour aussi l'inventaire
+                        if nouveau_nom != fournisseur_a_modifier:
+                            df.loc[df['Fournisseur'] == fournisseur_a_modifier, 'Fournisseur'] = nouveau_nom
+                            save_data(df)
+                            st.info("📦 Inventaire mis à jour avec le nouveau nom du fournisseur")
+                        
+                        st.experimental_rerun()
+                    else:
+                        st.error("❌ Erreur lors de la sauvegarde")
+        else:
+            st.warning("Aucun fournisseur à modifier.")
+    
+    with tab4:
+        st.subheader("📊 Statistiques détaillées par fournisseur")
+        
+        if not df_fournisseurs.empty and not df.empty:
+            # Sélection du fournisseur pour les détails
+            fournisseur_selectionne = st.selectbox(
+                "Sélectionnez un fournisseur pour voir les détails", 
+                df_fournisseurs['Nom_Fournisseur'].unique(),
+                key="select_fournisseur_stats"
+            )
+            
+            # Informations du fournisseur sélectionné
+            fournisseur_info = df_fournisseurs[df_fournisseurs['Nom_Fournisseur'] == fournisseur_selectionne].iloc[0]
+            
+            # Affichage des informations générales
+            st.markdown("---")
+            st.subheader(f"📋 Informations - {fournisseur_selectionne}")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.info(f"**👤 Contact :** {fournisseur_info['Contact_Principal']}")
+                st.info(f"**📧 Email :** {fournisseur_info['Email']}")
+            with col2:
+                st.info(f"**📞 Téléphone :** {fournisseur_info['Telephone']}")
+                st.info(f"**📅 Depuis :** {fournisseur_info['Date_Creation']}")
+            with col3:
+                st.info(f"**📊 Statut :** {fournisseur_info['Statut']}")
+                st.info(f"**🆔 ID :** {fournisseur_info['ID_Fournisseur']}")
+            
+            if fournisseur_info['Adresse']:
+                st.info(f"**📍 Adresse :** {fournisseur_info['Adresse']}")
+            
+            # Statistiques détaillées
+            st.markdown("---")
+            st.subheader("📊 Statistiques")
+            
+            # Produits de ce fournisseur
+            produits_fournisseur = df[df['Fournisseur'] == fournisseur_selectionne]
+            
+            if not produits_fournisseur.empty:
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("📦 Nombre de produits", len(produits_fournisseur))
+                with col2:
+                    stock_total = produits_fournisseur['Quantite'].sum()
+                    st.metric("📊 Stock total", stock_total)
+                with col3:
+                    valeur_stock = (produits_fournisseur['Quantite'] * produits_fournisseur['Prix_Unitaire']).sum()
+                    st.metric("💰 Valeur du stock", f"{valeur_stock:,.2f} €")
+                with col4:
+                    prix_moyen = produits_fournisseur['Prix_Unitaire'].mean()
+                    st.metric("💵 Prix moyen", f"{prix_moyen:.2f} €")
+                
+                # Liste des produits
+                st.markdown("---")
+                st.subheader("📦 Produits de ce fournisseur")
+                
+                # Ajouter des colonnes calculées pour l'affichage
+                produits_display = produits_fournisseur.copy()
+                produits_display['Valeur_Stock'] = produits_display['Quantite'] * produits_display['Prix_Unitaire']
+                
+                # Statut de stock
+                produits_display['Statut_Stock'] = produits_display.apply(
+                    lambda row: "🔴 Critique" if row['Quantite'] < row['Stock_Min'] 
+                    else "🟡 Surstock" if row['Quantite'] > row['Stock_Max']
+                    else "🟠 Faible" if row['Quantite'] <= row['Stock_Min'] + (row['Stock_Max'] - row['Stock_Min']) * 0.3
+                    else "🟢 Normal", axis=1
+                )
+                
+                # Colonnes à afficher
+                colonnes_produits = ['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Stock_Max', 'Prix_Unitaire', 'Valeur_Stock', 'Statut_Stock', 'Emplacement']
+                st.dataframe(produits_display[colonnes_produits].round(2), use_container_width=True)
+                
+                # Alertes pour ce fournisseur
+                alertes_critique = produits_fournisseur[produits_fournisseur['Quantite'] < produits_fournisseur['Stock_Min']]
+                alertes_surstock = produits_fournisseur[produits_fournisseur['Quantite'] > produits_fournisseur['Stock_Max']]
+                
+                if not alertes_critique.empty or not alertes_surstock.empty:
+                    st.markdown("---")
+                    st.subheader("⚠️ Alertes de stock")
+                    
+                    if not alertes_critique.empty:
+                        st.error(f"🔴 **{len(alertes_critique)} produit(s) en stock critique** nécessitent un réapprovisionnement urgent")
+                        st.dataframe(alertes_critique[['Produits', 'Reference', 'Quantite', 'Stock_Min']], use_container_width=True)
+                    
+                    if not alertes_surstock.empty:
+                        st.warning(f"🟡 **{len(alertes_surstock)} produit(s) en surstock**")
+                        st.dataframe(alertes_surstock[['Produits', 'Reference', 'Quantite', 'Stock_Max']], use_container_width=True)
+                
+                # Graphique de répartition des stocks pour ce fournisseur
+                if len(produits_fournisseur) > 1:
+                    st.markdown("---")
+                    st.subheader("📈 Répartition des stocks")
+                    
+                    fig_stock = px.bar(
+                        produits_fournisseur, 
+                        x='Produits', 
+                        y='Quantite',
+                        title=f'Stock par produit - {fournisseur_selectionne}',
+                        labels={'Quantite': 'Quantité en stock', 'Produits': 'Produits'}
+                    )
+                    fig_stock.update_layout(xaxis_tickangle=45)
+                    st.plotly_chart(fig_stock, use_container_width=True)
+            else:
+                st.warning(f"Aucun produit trouvé pour le fournisseur {fournisseur_selectionne}")
+        else:
+            st.warning("Aucune donnée disponible pour afficher les statistiques.")
 
