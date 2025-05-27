@@ -773,15 +773,14 @@ if st.sidebar.button("📤 Sortie", use_container_width=True, help="Sortie de st
 if st.sidebar.button("📊 Inventaire", use_container_width=True, help="Ajustement d'inventaire"):
     st.session_state.action = "Inventaire"
 
-# if st.sidebar.button("🔍 Rechercher", use_container_width=True):
-#     st.session_state.action = "Rechercher un produit"
+
 
 # Section QR Codes - Outils mobiles
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📱 **QR Codes**")
+# st.sidebar.markdown("---")
+# st.sidebar.markdown("### 📱 **QR Codes**")
 
-if st.sidebar.button("🏭 QR Tables", use_container_width=True, help="QR codes des tables d'atelier"):
-    st.session_state.action = "QR Code tables d'atelier"
+# if st.sidebar.button("🏭 QR Tables", use_container_width=True, help="QR codes des tables d'atelier"):
+#     st.session_state.action = "QR Code tables d'atelier"
 
 # Section administration - Moins fréquent
 with st.sidebar.expander("⚙️ **Administration**"):
@@ -1265,7 +1264,7 @@ elif action == "Gestion des demandes":
         col1, col2 = st.columns(2)
         with col1:
             statuts = ["Tous"] + sorted(df_demandes['Statut'].unique().tolist())
-            filtre_statut = st.selectbox("Filtrer par statut", statuts)
+            filtre_statut = st.selectbox("Filtrer par statut", statuts, key="filtre_statut_demandes")
         with col2:
             demandeurs = ["Tous"] + sorted(df_demandes['Demandeur'].unique().tolist())
             filtre_demandeur = st.selectbox("Filtrer par demandeur", demandeurs)
@@ -2344,10 +2343,10 @@ elif action == "Gestion des produits":
                     # Options d'affichage
                     col1, col2 = st.columns(2)
                     with col1:
-                        taille_qr = st.selectbox("Taille des QR codes", ["Petit (4)", "Moyen (6)", "Grand (8)"], index=1)
+                        taille_qr = st.selectbox("Taille des QR codes", ["Petit (4)", "Moyen (6)", "Grand (8)"], index=1, key="taille_qr_produits")
                         box_size = {"Petit (4)": 4, "Moyen (6)": 6, "Grand (8)": 8}[taille_qr]
                     with col2:
-                        colonnes_par_ligne = st.selectbox("QR codes par ligne", [2, 3, 4, 5], index=1)
+                        colonnes_par_ligne = st.selectbox("QR codes par ligne", [2, 3, 4, 5], index=1, key="colonnes_qr_produits")
                     
                     # Bouton pour générer tous les QR codes
                     if st.button("📱 Générer tous les QR codes", use_container_width=True, type="primary"):
@@ -2737,156 +2736,6 @@ elif action == "Historique des mouvements":
     else:
         st.info("Aucun mouvement enregistré pour le moment.")
 
-elif action == "QR Code tables d'atelier":
-    st.header("🏭 QR Code des Tables d'Atelier")
-    
-    # Charger les tables d'atelier
-    df_tables = charger_tables_atelier()
-    
-    if not df_tables.empty:
-        # Onglets pour différentes options
-        tab1, tab2 = st.tabs(["🔍 QR Code individuel", "🏭 Toutes les tables"])
-        
-        with tab1:
-            st.subheader("🔍 Génération d'un QR code individuel")
-            
-            # Sélection de la table
-            table_select = st.selectbox(
-                "Sélectionnez une table d'atelier", 
-                df_tables['ID_Table'].unique(), 
-                key="qr_table_individual",
-                format_func=lambda x: f"{x} - {df_tables[df_tables['ID_Table'] == x]['Nom_Table'].iloc[0]}"
-            )
-            
-            # Informations de la table sélectionnée
-            table_info = df_tables[df_tables['ID_Table'] == table_select].iloc[0]
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.subheader("📋 Informations de la table")
-                st.write(f"**🆔 ID Table :** {table_info['ID_Table']}")
-                st.write(f"**📛 Nom :** {table_info['Nom_Table']}")
-                st.write(f"**🏭 Type d'atelier :** {table_info['Type_Atelier']}")
-                st.write(f"**📍 Emplacement :** {table_info['Emplacement']}")
-                st.write(f"**👤 Responsable :** {table_info['Responsable']}")
-                st.write(f"**📊 Statut :** {table_info['Statut']}")
-                st.write(f"**📅 Date création :** {table_info['Date_Creation']}")
-            
-            with col2:
-                st.subheader("📱 QR Code")
-                
-                # Génération du QR code avec l'ID de la table
-                qr = qrcode.QRCode(box_size=8, border=4)
-                qr.add_data(table_info['ID_Table'])
-                qr.make(fit=True)
-                
-                # Créer l'image du QR code
-                img = qr.make_image(fill_color="black", back_color="white")
-                buf = BytesIO()
-                img.save(buf, format="PNG")
-                
-                # Afficher le QR code
-                st.image(buf.getvalue(), caption=f"QR Code pour {table_info['Nom_Table']}")
-                
-                # Bouton de téléchargement
-                st.download_button(
-                    label="💾 Télécharger le QR Code",
-                    data=buf.getvalue(),
-                    file_name=f"QR_Table_{table_info['ID_Table']}.png",
-                    mime="image/png",
-                    use_container_width=True
-                )
-        
-        with tab2:
-            st.subheader("🏭 Génération de tous les QR codes")
-            
-            # Filtres pour sélectionner les tables
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                types_atelier = ["Tous"] + sorted(df_tables['Type_Atelier'].unique().tolist())
-                filtre_type = st.selectbox("Filtrer par type d'atelier", types_atelier)
-            with col2:
-                statuts = ["Tous"] + sorted(df_tables['Statut'].unique().tolist())
-                filtre_statut = st.selectbox("Filtrer par statut", statuts)
-            with col3:
-                # Filtre par tables actives uniquement
-                actives_uniquement = st.checkbox("Tables actives uniquement", value=True)
-            
-            # Application des filtres
-            df_filtre = df_tables.copy()
-            if filtre_type != "Tous":
-                df_filtre = df_filtre[df_filtre['Type_Atelier'] == filtre_type]
-            if filtre_statut != "Tous":
-                df_filtre = df_filtre[df_filtre['Statut'] == filtre_statut]
-            if actives_uniquement:
-                df_filtre = df_filtre[df_filtre['Statut'] == 'Actif']
-            
-            # Affichage du nombre de tables sélectionnées
-            st.info(f"🏭 **{len(df_filtre)} table(s) sélectionnée(s)** pour la génération de QR codes")
-            
-            if len(df_filtre) > 0:
-                # Options d'affichage
-                col1, col2 = st.columns(2)
-                with col1:
-                    taille_qr = st.selectbox("Taille des QR codes", ["Petit (4)", "Moyen (6)", "Grand (8)"], index=1, key="taille_table")
-                    box_size = {"Petit (4)": 4, "Moyen (6)": 6, "Grand (8)": 8}[taille_qr]
-                with col2:
-                    colonnes_par_ligne = st.selectbox("QR codes par ligne", [2, 3, 4], index=1, key="colonnes_table")
-                
-                # Bouton pour générer tous les QR codes
-                if st.button("🏭 Générer tous les QR codes", use_container_width=True, type="primary"):
-                    st.subheader("🏭 QR codes de toutes les tables sélectionnées")
-                    
-                    # Barre de progression
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    # Créer une grille pour afficher tous les QR codes
-                    for i in range(0, len(df_filtre), colonnes_par_ligne):
-                        cols = st.columns(colonnes_par_ligne)
-                        
-                        for j in range(colonnes_par_ligne):
-                            if i + j < len(df_filtre):
-                                table_row = df_filtre.iloc[i + j]
-                                
-                                # Mise à jour de la barre de progression
-                                progress = (i + j + 1) / len(df_filtre)
-                                progress_bar.progress(progress)
-                                status_text.text(f"Génération en cours... {i + j + 1}/{len(df_filtre)}")
-                                
-                                with cols[j]:
-                                    # Générer le QR code
-                                    qr = qrcode.QRCode(box_size=box_size, border=2)
-                                    qr.add_data(table_row['ID_Table'])
-                                    qr.make(fit=True)
-                                    img = qr.make_image(fill_color="black", back_color="white")
-                                    buf = BytesIO()
-                                    img.save(buf, format="PNG")
-                                    
-                                    # Afficher avec informations
-                                    st.image(buf.getvalue(), caption=f"**{table_row['ID_Table']}**\n{table_row['Nom_Table']}\n{table_row['Type_Atelier']}\n👤 {table_row['Responsable']}")
-                                    
-                                    # Bouton de téléchargement individuel
-                                    st.download_button(
-                                        label=f"💾 {table_row['ID_Table']}",
-                                        data=buf.getvalue(),
-                                        file_name=f"QR_Table_{table_row['ID_Table']}.png",
-                                        mime="image/png",
-                                        key=f"download_table_{table_row['ID_Table']}",
-                                        use_container_width=True
-                                    )
-                    
-                    # Finalisation
-                    progress_bar.progress(1.0)
-                    status_text.text("✅ Génération terminée !")
-                    st.success(f"🎉 **{len(df_filtre)} QR codes générés avec succès !**")
-                    
-                st.warning("Aucune table ne correspond aux filtres sélectionnés.")
-        
-    else:
-        st.warning("Aucune table d'atelier disponible. Veuillez d'abord créer des tables.")
-
 elif action == "Gérer les tables":
     st.header("📋 Gestion des Tables d'Atelier")
     st.info("💡 Gérez les tables d'atelier et leurs informations")
@@ -2895,7 +2744,7 @@ elif action == "Gérer les tables":
     df_tables = charger_tables_atelier()
     
     # Onglets pour différentes actions
-    tab1, tab2, tab3, tab4 = st.tabs(["📋 Liste des tables", "➕ Ajouter une table", "✏️ Modifier une table", "📊 Statistiques détaillées"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 Liste des tables", "➕ Ajouter une table", "✏️ Modifier une table", "📊 Statistiques détaillées", "📱 QR Codes"])
     
     with tab1:
         st.subheader("📋 Liste des tables d'atelier")
@@ -2905,10 +2754,10 @@ elif action == "Gérer les tables":
             col1, col2, col3 = st.columns(3)
             with col1:
                 types_atelier = ["Tous"] + sorted(df_tables['Type_Atelier'].unique().tolist())
-                filtre_type = st.selectbox("Filtrer par type", types_atelier)
+                filtre_type = st.selectbox("Filtrer par type", types_atelier, key="filtre_type_liste_tables")
             with col2:
                 statuts = ["Tous"] + sorted(df_tables['Statut'].unique().tolist())
-                filtre_statut = st.selectbox("Filtrer par statut", statuts)
+                filtre_statut = st.selectbox("Filtrer par statut", statuts, key="filtre_statut_liste_tables")
             with col3:
                 responsables = ["Tous"] + sorted(df_tables['Responsable'].unique().tolist())
                 filtre_responsable = st.selectbox("Filtrer par responsable", responsables)
@@ -3256,6 +3105,154 @@ elif action == "Gérer les tables":
                 
         else:
             st.warning("Aucune table d'atelier disponible pour afficher les statistiques.")
+    
+    with tab5:
+        st.subheader("📱 QR Code des Tables d'Atelier")
+        
+        if not df_tables.empty:
+            # Onglets pour différentes options
+            sub_tab1, sub_tab2 = st.tabs(["🔍 QR Code individuel", "🏭 Toutes les tables"])
+            
+            with sub_tab1:
+                st.subheader("🔍 Génération d'un QR code individuel")
+                
+                # Sélection de la table
+                table_select = st.selectbox(
+                    "Sélectionnez une table d'atelier", 
+                    df_tables['ID_Table'].unique(), 
+                    key="qr_table_individual",
+                    format_func=lambda x: f"{x} - {df_tables[df_tables['ID_Table'] == x]['Nom_Table'].iloc[0]}"
+                )
+                
+                # Informations de la table sélectionnée
+                table_info = df_tables[df_tables['ID_Table'] == table_select].iloc[0]
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.subheader("📋 Informations de la table")
+                    st.write(f"**🆔 ID Table :** {table_info['ID_Table']}")
+                    st.write(f"**📛 Nom :** {table_info['Nom_Table']}")
+                    st.write(f"**🏭 Type d'atelier :** {table_info['Type_Atelier']}")
+                    st.write(f"**📍 Emplacement :** {table_info['Emplacement']}")
+                    st.write(f"**👤 Responsable :** {table_info['Responsable']}")
+                    st.write(f"**📊 Statut :** {table_info['Statut']}")
+                    st.write(f"**📅 Date création :** {table_info['Date_Creation']}")
+                
+                with col2:
+                    st.subheader("📱 QR Code")
+                    
+                    # Génération du QR code avec l'ID de la table
+                    qr = qrcode.QRCode(box_size=8, border=4)
+                    qr.add_data(table_info['ID_Table'])
+                    qr.make(fit=True)
+                    
+                    # Créer l'image du QR code
+                    img = qr.make_image(fill_color="black", back_color="white")
+                    buf = BytesIO()
+                    img.save(buf, format="PNG")
+                    
+                    # Afficher le QR code
+                    st.image(buf.getvalue(), caption=f"QR Code pour {table_info['Nom_Table']}")
+                    
+                    # Bouton de téléchargement
+                    st.download_button(
+                        label="💾 Télécharger le QR Code",
+                        data=buf.getvalue(),
+                        file_name=f"QR_Table_{table_info['ID_Table']}.png",
+                        mime="image/png",
+                        use_container_width=True
+                    )
+            
+            with sub_tab2:
+                st.subheader("🏭 Génération de tous les QR codes")
+                
+                # Filtres pour sélectionner les tables
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    types_atelier = ["Tous"] + sorted(df_tables['Type_Atelier'].unique().tolist())
+                    filtre_type = st.selectbox("Filtrer par type d'atelier", types_atelier, key="filtre_type_qr_tables")
+                with col2:
+                    statuts = ["Tous"] + sorted(df_tables['Statut'].unique().tolist())
+                    filtre_statut = st.selectbox("Filtrer par statut", statuts, key="filtre_statut_qr_tables")
+                with col3:
+                    # Filtre par tables actives uniquement
+                    actives_uniquement = st.checkbox("Tables actives uniquement", value=True)
+                
+                # Application des filtres
+                df_filtre = df_tables.copy()
+                if filtre_type != "Tous":
+                    df_filtre = df_filtre[df_filtre['Type_Atelier'] == filtre_type]
+                if filtre_statut != "Tous":
+                    df_filtre = df_filtre[df_filtre['Statut'] == filtre_statut]
+                if actives_uniquement:
+                    df_filtre = df_filtre[df_filtre['Statut'] == 'Actif']
+                
+                # Affichage du nombre de tables sélectionnées
+                st.info(f"🏭 **{len(df_filtre)} table(s) sélectionnée(s)** pour la génération de QR codes")
+                
+                if len(df_filtre) > 0:
+                    # Options d'affichage
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        taille_qr = st.selectbox("Taille des QR codes", ["Petit (4)", "Moyen (6)", "Grand (8)"], index=1, key="taille_table")
+                        box_size = {"Petit (4)": 4, "Moyen (6)": 6, "Grand (8)": 8}[taille_qr]
+                    with col2:
+                        colonnes_par_ligne = st.selectbox("QR codes par ligne", [2, 3, 4], index=1, key="colonnes_table")
+                    
+                    # Bouton pour générer tous les QR codes
+                    if st.button("🏭 Générer tous les QR codes", use_container_width=True, type="primary"):
+                        st.subheader("🏭 QR codes de toutes les tables sélectionnées")
+                        
+                        # Barre de progression
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        # Créer une grille pour afficher tous les QR codes
+                        for i in range(0, len(df_filtre), colonnes_par_ligne):
+                            cols = st.columns(colonnes_par_ligne)
+                            
+                            for j in range(colonnes_par_ligne):
+                                if i + j < len(df_filtre):
+                                    table_row = df_filtre.iloc[i + j]
+                                    
+                                    # Mise à jour de la barre de progression
+                                    progress = (i + j + 1) / len(df_filtre)
+                                    progress_bar.progress(progress)
+                                    status_text.text(f"Génération en cours... {i + j + 1}/{len(df_filtre)}")
+                                    
+                                    with cols[j]:
+                                        # Générer le QR code
+                                        qr = qrcode.QRCode(box_size=box_size, border=2)
+                                        qr.add_data(table_row['ID_Table'])
+                                        qr.make(fit=True)
+                                        img = qr.make_image(fill_color="black", back_color="white")
+                                        buf = BytesIO()
+                                        img.save(buf, format="PNG")
+                                        
+                                        # Afficher avec informations
+                                        st.image(buf.getvalue(), caption=f"**{table_row['ID_Table']}**\n{table_row['Nom_Table']}\n{table_row['Type_Atelier']}\n👤 {table_row['Responsable']}")
+                                        
+                                        # Bouton de téléchargement individuel
+                                        st.download_button(
+                                            label=f"💾 {table_row['ID_Table']}",
+                                            data=buf.getvalue(),
+                                            file_name=f"QR_Table_{table_row['ID_Table']}.png",
+                                            mime="image/png",
+                                            key=f"download_table_{table_row['ID_Table']}",
+                                            use_container_width=True
+                                        )
+                        
+                        # Finalisation
+                        progress_bar.progress(1.0)
+                        status_text.text("✅ Génération terminée !")
+                        st.success(f"🎉 **{len(df_filtre)} QR codes générés avec succès !**")
+                        
+                else:
+                    st.warning("Aucune table ne correspond aux filtres sélectionnés.")
+            
+        else:
+            st.warning("Aucune table d'atelier disponible. Veuillez d'abord créer des tables.")
 
 elif action == "Fournisseurs":
     st.header("🏪 Gestion des Fournisseurs")
