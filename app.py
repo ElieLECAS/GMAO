@@ -227,14 +227,10 @@ def load_data():
         df['Stock_Max'] = pd.to_numeric(df['Stock_Max'], errors='coerce').fillna(100)
         df['Prix_Unitaire'] = pd.to_numeric(df['Prix_Unitaire'], errors='coerce').fillna(0)
         
-        # Ajouter une colonne Quantite avec des valeurs aléatoires si elle n'existe pas
+        # Ajouter une colonne Quantite avec la valeur 0 par défaut si elle n'existe pas
         if 'Quantite' not in df.columns:
-            import random
-            # Générer des quantités aléatoires basées sur les stocks min/max pour simuler un état vivant
-            df['Quantite'] = df.apply(lambda row: random.randint(
-                max(0, int(row['Stock_Min']) - 5),  # Peut être en dessous du minimum
-                int(row['Stock_Max']) + random.randint(0, 20)  # Peut dépasser le maximum
-            ), axis=1)
+            # Initialiser toutes les quantités à 0
+            df['Quantite'] = 0
             modifications_apportees = True
         else:
             df['Quantite'] = pd.to_numeric(df['Quantite'], errors='coerce').fillna(0)
@@ -1547,44 +1543,420 @@ elif action == "Gestion des demandes":
         st.info("Aucune demande de matériel pour le moment.")
 
 elif action == "Ajouter un produit":
-    st.header("Ajouter un nouveau produit")
+    st.header("➕ Ajouter des produits")
+    st.info("💡 Ajoutez des produits individuellement ou en masse via un fichier")
     
-    with st.form("ajout_produit"):
-        produit = st.text_input("Nom du produit")
-        reference = st.text_input("Référence (code-barres)")
-        quantite = st.number_input("Quantité", min_value=0)
+    # Onglets pour différentes méthodes d'ajout
+    tab1, tab2 = st.tabs(["➕ Ajout individuel", "📁 Import en masse"])
+    
+    with tab1:
+        st.subheader("➕ Ajouter un produit individuellement")
         
+        with st.form("ajout_produit"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                produit = st.text_input("Nom du produit *")
+                reference = st.text_input("Référence (code-barres)")
+                quantite = st.number_input("Quantité", min_value=0, value=0)
+                stock_min = st.number_input("Stock minimum", min_value=0, value=10)
+                stock_max = st.number_input("Stock maximum", min_value=1, value=100)
+            
+            with col2:
+                # Récupérer les emplacements et fournisseurs existants
+                emplacements_existants = df['Emplacement'].dropna().unique().tolist() if not df.empty else []
+                emplacements_defaut = ["Atelier A", "Atelier B", "Stockage", "Magasin", "Zone de réception"]
+                emplacements_tous = list(set(emplacements_existants + emplacements_defaut))
+                
+                fournisseurs_existants = df['Fournisseur'].dropna().unique().tolist() if not df.empty else []
+                fournisseurs_defaut = ["Fournisseur A", "Fournisseur B", "Fournisseur C"]
+                fournisseurs_tous = list(set(fournisseurs_existants + fournisseurs_defaut))
+                
+                emplacement = st.selectbox("Emplacement", emplacements_tous)
+                fournisseur = st.selectbox("Fournisseur", fournisseurs_tous)
+                prix = st.number_input("Prix unitaire (€)", min_value=0.0, value=0.0, step=0.01)
+                
+                # Champs optionnels
+                reference_fournisseur = st.text_input("Référence fournisseur")
+                unite_stockage = st.text_input("Unité de stockage", value="Unité")
+            
+            submitted = st.form_submit_button("➕ Ajouter le produit", use_container_width=True)
+            
+            if submitted:
+                if not produit:
+                    st.error("❌ Le nom du produit est obligatoire")
+                elif stock_min >= stock_max:
+                    st.error("❌ Le stock minimum doit être inférieur au stock maximum")
+                else:
+                    # Générer une référence automatique si non fournie
+                    if not reference:
+                        reference = generer_reference_qr(produit, produit)
+                    
+                    new_row = pd.DataFrame({
+                        'Code': [reference],
+                        'Reference_Fournisseur': [reference_fournisseur],
+                        'Produits': [produit],
+                        'Unite_Stockage': [unite_stockage],
+                        'Unite_Commande': [unite_stockage],
+                        'Stock_Min': [stock_min],
+                        'Stock_Max': [stock_max],
+                        'Site': ['Site principal'],
+                        'Lieu': [emplacement],
+                        'Emplacement': [emplacement],
+                        'Fournisseur': [fournisseur],
+                        'Prix_Unitaire': [prix],
+                        'Categorie': ['Général'],
+                        'Secteur': ['Général'],
+                        'Reference': [reference],
+                        'Quantite': [quantite],
+                        'Date_Entree': [datetime.now().strftime("%Y-%m-%d")]
+                    })
+                    
+                    df = pd.concat([df, new_row], ignore_index=True)
+                    save_data(df)
+                    log_mouvement(produit, "Ajout produit", quantite, quantite, 0)
+                    st.success(f"✅ Produit '{produit}' ajouté avec succès!")
+                    st.experimental_rerun()
+    
+    with tab2:
+        st.subheader("📁 Import en masse de produits")
+        
+        # Instructions et modèle
+        st.markdown("### 📋 Instructions")
+        st.info("""
+        **Format de fichier accepté :** CSV ou Excel (.xlsx)
+        
+        **Colonnes requises :**
+        - `Désignation` : Nom du produit (obligatoire)
+        
+        **Colonnes recommandées :**
+        - `Code` : Code du produit
+        - `Référence fournisseur` : Référence chez le fournisseur
+        - `Unité de stockage` : Unité de stockage (ex: Unité, Kg, Mètre)
+        - `Unite Commande` : Unité de commande
+        - `Min` : Stock minimum
+        - `Max` : Stock maximum
+        - `Site` : Site de stockage
+        - `Lieu` : Lieu de stockage
+        - `Emplacement` : Emplacement précis
+        - `Fournisseur Standard` : Nom du fournisseur
+        - `Prix` : Prix unitaire en euros
+        - `Catégorie` : Catégorie du produit
+        - `Secteur` : Secteur d'activité
+        
+                 **Colonnes optionnelles :**
+         - `Quantite` : Quantité en stock (défaut: 0 si vide)
+        
+        💡 **Note :** Les noms de colonnes correspondent exactement au fichier Excel original
+        """)
+        
+        # Télécharger le modèle
         col1, col2 = st.columns(2)
+        
         with col1:
-            stock_min = st.number_input("Stock minimum", min_value=0, value=10)
+            st.markdown("### 📥 Télécharger le modèle")
+            
+            # Créer un fichier modèle basé sur les vraies colonnes du fichier Excel
+            modele_data = {
+                'Code': ['VIS001', 'JOINT002', 'ALU003'],
+                'Référence fournisseur': ['VP-4040', 'EP-JOINT01', 'AE-PROF2M'],
+                'Désignation': ['Vis inox 4x40', 'Joint étanchéité', 'Profilé aluminium 2m'],
+                'Unité de stockage': ['Unité', 'Unité', 'Mètre'],
+                'Unite Commande': ['Boîte de 100', 'Unité', 'Barre de 6m'],
+                'Min': [20, 10, 5],
+                'Max': [200, 100, 50],
+                'Site': ['Site principal', 'Site principal', 'Site principal'],
+                'Lieu': ['Atelier A', 'Magasin', 'Stockage'],
+                'Emplacement': ['Étagère A1', 'Armoire B2', 'Rack C3'],
+                'Fournisseur Standard': ['Visserie Pro', 'Étanchéité Plus', 'Alu Expert'],
+                'Prix': [0.15, 2.50, 45.00],
+                'Catégorie': ['Visserie', 'Étanchéité', 'Profilés'],
+                'Secteur': ['Fixation', 'Étanchéité', 'Structure'],
+                'Quantite': [100, 50, 25]
+            }
+            
+            df_modele = pd.DataFrame(modele_data)
+            
+            # Boutons de téléchargement du modèle
+            csv_modele = df_modele.to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="📄 Télécharger modèle CSV",
+                data=csv_modele,
+                file_name="modele_import_produits.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+            
+            # Créer un fichier Excel pour le modèle
+            from io import BytesIO
+            excel_buffer = BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                df_modele.to_excel(writer, index=False, sheet_name='Produits')
+            
+            st.download_button(
+                label="📊 Télécharger modèle Excel",
+                data=excel_buffer.getvalue(),
+                file_name="modele_import_produits.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        
         with col2:
-            stock_max = st.number_input("Stock maximum", min_value=1, value=100)
-        
-        emplacement = st.selectbox("Emplacement", ["Atelier A", "Atelier B", "Stockage"])
-        fournisseur = st.selectbox("Fournisseur", ["Fournisseur A", "Fournisseur B", "Fournisseur C"])
-        prix = st.number_input("Prix unitaire", min_value=0.0)
-        
-        submitted = st.form_submit_button("Ajouter")
-        
-        if submitted:
-            if stock_min >= stock_max:
-                st.error("Le stock minimum doit être inférieur au stock maximum")
-            else:
-                new_row = pd.DataFrame({
-                    'Produits': [produit],
-                    'Reference': [reference],
-                    'Quantite': [quantite],
-                    'Stock_Min': [stock_min],
-                    'Stock_Max': [stock_max],
-                    'Emplacement': [emplacement],
-                    'Fournisseur': [fournisseur],
-                    'Date_Entree': [datetime.now().strftime("%Y-%m-%d")],
-                    'Prix_Unitaire': [prix]
-                })
-                df = pd.concat([df, new_row], ignore_index=True)
-                save_data(df)
-                st.success("Produit ajouté avec succès!")
-                st.experimental_rerun()
+            st.markdown("### 📤 Importer votre fichier")
+            
+            # Upload du fichier
+            uploaded_file = st.file_uploader(
+                "Choisissez votre fichier",
+                type=['csv', 'xlsx'],
+                help="Formats acceptés : CSV, Excel (.xlsx)"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    # Lire le fichier selon son type
+                    if uploaded_file.name.endswith('.csv'):
+                        df_import = pd.read_csv(uploaded_file, encoding='utf-8')
+                    else:
+                        df_import = pd.read_excel(uploaded_file, engine='openpyxl')
+                    
+                    st.success(f"✅ Fichier lu avec succès : {len(df_import)} ligne(s)")
+                    
+                    # Vérification des colonnes obligatoires (basées sur le fichier Excel original)
+                    colonnes_obligatoires = ['Désignation']
+                    colonnes_manquantes = [col for col in colonnes_obligatoires if col not in df_import.columns]
+                    
+                    if colonnes_manquantes:
+                        st.error(f"❌ Colonnes manquantes : {', '.join(colonnes_manquantes)}")
+                    else:
+                        # Prévisualisation des données
+                        st.markdown("### 👀 Prévisualisation des données")
+                        st.dataframe(df_import.head(10), use_container_width=True)
+                        
+                        if len(df_import) > 10:
+                            st.caption(f"Affichage des 10 premières lignes sur {len(df_import)} au total")
+                        
+                        # Validation des données
+                        st.markdown("### ✅ Validation des données")
+                        
+                        erreurs = []
+                        avertissements = []
+                        
+                        # Vérifier les désignations vides
+                        designations_vides = df_import['Désignation'].isna().sum()
+                        if designations_vides > 0:
+                            erreurs.append(f"❌ {designations_vides} ligne(s) avec désignation vide")
+                        
+                        # Vérifier les doublons de désignations
+                        doublons = df_import['Désignation'].duplicated().sum()
+                        if doublons > 0:
+                            avertissements.append(f"⚠️ {doublons} désignation(s) en doublon dans le fichier")
+                        
+                        # Vérifier les stocks min/max (colonnes du fichier Excel original)
+                        if 'Min' in df_import.columns and 'Max' in df_import.columns:
+                            stocks_invalides = (df_import['Min'] >= df_import['Max']).sum()
+                            if stocks_invalides > 0:
+                                erreurs.append(f"❌ {stocks_invalides} ligne(s) avec stock minimum >= stock maximum")
+                        
+                        # Vérifier les quantités négatives
+                        if 'Quantite' in df_import.columns:
+                            quantites_negatives = (df_import['Quantite'] < 0).sum()
+                            if quantites_negatives > 0:
+                                erreurs.append(f"❌ {quantites_negatives} ligne(s) avec quantité négative")
+                        
+                        # Vérifier les prix négatifs (colonne Prix du fichier Excel original)
+                        if 'Prix' in df_import.columns:
+                            prix_negatifs = (df_import['Prix'] < 0).sum()
+                            if prix_negatifs > 0:
+                                erreurs.append(f"❌ {prix_negatifs} ligne(s) avec prix négatif")
+                        
+                        # Afficher les erreurs et avertissements
+                        if erreurs:
+                            for erreur in erreurs:
+                                st.error(erreur)
+                        
+                        if avertissements:
+                            for avertissement in avertissements:
+                                st.warning(avertissement)
+                        
+                        if not erreurs:
+                            st.success("✅ Toutes les validations sont passées")
+                            
+                            # Options d'import
+                            st.markdown("### ⚙️ Options d'import")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                mode_import = st.radio(
+                                    "Mode d'import",
+                                    ["Ajouter uniquement", "Mettre à jour si existe"],
+                                    help="Ajouter uniquement : ignore les produits existants\nMettre à jour : met à jour les produits existants"
+                                )
+                            
+                            with col2:
+                                generer_references = st.checkbox(
+                                    "Générer automatiquement les références manquantes",
+                                    value=True,
+                                    help="Génère des références uniques pour les produits qui n'en ont pas"
+                                )
+                            
+                            # Bouton d'import
+                            if st.button("📥 Importer les produits", type="primary", use_container_width=True):
+                                try:
+                                    # Préparer les données pour l'import
+                                    df_import_clean = df_import.copy()
+                                    
+                                    # Appliquer le mapping des colonnes du fichier Excel vers les colonnes internes
+                                    column_mapping = {
+                                        'Code': 'Code',
+                                        'Référence fournisseur': 'Reference_Fournisseur', 
+                                        'Désignation': 'Produits',
+                                        'Unité de stockage': 'Unite_Stockage',
+                                        'Unite Commande': 'Unite_Commande',
+                                        'Min': 'Stock_Min',
+                                        'Max': 'Stock_Max',
+                                        'Site': 'Site',
+                                        'Lieu': 'Lieu',
+                                        'Emplacement': 'Emplacement',
+                                        'Fournisseur Standard': 'Fournisseur',
+                                        'Prix': 'Prix_Unitaire',
+                                        'Catégorie': 'Categorie',
+                                        'Secteur': 'Secteur'
+                                    }
+                                    
+                                    # Renommer les colonnes selon le mapping
+                                    df_import_clean = df_import_clean.rename(columns=column_mapping)
+                                    
+                                    # Remplir les colonnes manquantes avec des valeurs par défaut
+                                    colonnes_defaut = {
+                                        'Code': '',
+                                        'Reference_Fournisseur': '',
+                                        'Produits': '',
+                                        'Unite_Stockage': 'Unité',
+                                        'Unite_Commande': 'Unité',
+                                        'Stock_Min': 10,
+                                        'Stock_Max': 100,
+                                        'Site': 'Site principal',
+                                        'Lieu': 'Magasin',
+                                        'Emplacement': 'Magasin',
+                                        'Fournisseur': 'À définir',
+                                        'Prix_Unitaire': 0.0,
+                                        'Categorie': 'Général',
+                                        'Secteur': 'Général',
+                                        'Quantite': 0
+                                    }
+                                    
+                                    for col, valeur_defaut in colonnes_defaut.items():
+                                        if col not in df_import_clean.columns:
+                                            df_import_clean[col] = valeur_defaut
+                                        else:
+                                            df_import_clean[col] = df_import_clean[col].fillna(valeur_defaut)
+                                    
+                                    # Générer les codes et références si nécessaire
+                                    for idx, row in df_import_clean.iterrows():
+                                        # Si pas de code, utiliser la désignation pour en générer un
+                                        if pd.isna(row['Code']) or row['Code'] == '':
+                                            df_import_clean.loc[idx, 'Code'] = row['Produits'][:10].upper().replace(' ', '')
+                                    
+                                    # Générer les références pour les QR codes
+                                    if 'Reference' not in df_import_clean.columns or generer_references:
+                                        if 'Reference' not in df_import_clean.columns:
+                                            df_import_clean['Reference'] = ''
+                                        
+                                        for idx, row in df_import_clean.iterrows():
+                                            if pd.isna(row['Reference']) or row['Reference'] == '':
+                                                df_import_clean.loc[idx, 'Reference'] = generer_reference_qr(row['Code'], row['Produits'])
+                                    
+                                    # Ajouter les colonnes système
+                                    df_import_clean['Date_Entree'] = datetime.now().strftime("%Y-%m-%d")
+                                    
+                                    # S'assurer que Lieu est défini
+                                    if 'Lieu' not in df_import_clean.columns or df_import_clean['Lieu'].isna().all():
+                                        df_import_clean['Lieu'] = df_import_clean['Emplacement']
+                                    
+                                    # Statistiques d'import
+                                    produits_ajoutes = 0
+                                    produits_mis_a_jour = 0
+                                    produits_ignores = 0
+                                    
+                                    # Barre de progression
+                                    progress_bar = st.progress(0)
+                                    status_text = st.empty()
+                                    
+                                    for idx, row in df_import_clean.iterrows():
+                                        # Mise à jour de la progression
+                                        progress = (idx + 1) / len(df_import_clean)
+                                        progress_bar.progress(progress)
+                                        status_text.text(f"Traitement en cours... {idx + 1}/{len(df_import_clean)}")
+                                        
+                                        # Vérifier si le produit existe déjà
+                                        produit_existant = df[df['Produits'] == row['Produits']]
+                                        
+                                        if not produit_existant.empty and mode_import == "Mettre à jour si existe":
+                                            # Mettre à jour le produit existant
+                                            for col in df_import_clean.columns:
+                                                if col in df.columns:
+                                                    df.loc[df['Produits'] == row['Produits'], col] = row[col]
+                                            produits_mis_a_jour += 1
+                                            
+                                            # Log du mouvement si la quantité a changé
+                                            ancienne_quantite = produit_existant.iloc[0]['Quantite']
+                                            nouvelle_quantite = row['Quantite']
+                                            if ancienne_quantite != nouvelle_quantite:
+                                                log_mouvement(
+                                                    row['Produits'],
+                                                    "Import - Mise à jour",
+                                                    abs(nouvelle_quantite - ancienne_quantite),
+                                                    nouvelle_quantite,
+                                                    ancienne_quantite
+                                                )
+                                        
+                                        elif produit_existant.empty:
+                                            # Ajouter le nouveau produit
+                                            new_row = pd.DataFrame([row])
+                                            df = pd.concat([df, new_row], ignore_index=True)
+                                            produits_ajoutes += 1
+                                            
+                                            # Log du mouvement
+                                            if row['Quantite'] > 0:
+                                                log_mouvement(
+                                                    row['Produits'],
+                                                    "Import - Nouveau produit",
+                                                    row['Quantite'],
+                                                    row['Quantite'],
+                                                    0
+                                                )
+                                        else:
+                                            # Produit existant mais mode "Ajouter uniquement"
+                                            produits_ignores += 1
+                                    
+                                    # Sauvegarder les données
+                                    save_data(df)
+                                    
+                                    # Finalisation
+                                    progress_bar.progress(1.0)
+                                    status_text.text("✅ Import terminé !")
+                                    
+                                    # Afficher le résumé
+                                    st.success("🎉 Import terminé avec succès !")
+                                    
+                                    col1, col2, col3 = st.columns(3)
+                                    with col1:
+                                        st.metric("➕ Produits ajoutés", produits_ajoutes)
+                                    with col2:
+                                        st.metric("🔄 Produits mis à jour", produits_mis_a_jour)
+                                    with col3:
+                                        st.metric("⏭️ Produits ignorés", produits_ignores)
+                                    
+                                    st.experimental_rerun()
+                                    
+                                except Exception as e:
+                                    st.error(f"❌ Erreur lors de l'import : {str(e)}")
+                        else:
+                            st.error("❌ Veuillez corriger les erreurs avant de procéder à l'import")
+                
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de la lecture du fichier : {str(e)}")
+                    st.info("💡 Vérifiez que votre fichier respecte le format attendu")
 
 elif action == "Modifier un produit":
     st.header("Modifier un produit")
@@ -2270,7 +2642,7 @@ elif action == "QR Code produit":
                 filtre_fournisseur = st.selectbox("Filtrer par fournisseur", fournisseurs)
             with col3:
                 # Filtre par stock (produits en stock uniquement)
-                stock_uniquement = st.checkbox("Produits en stock uniquement", value=True)
+                stock_uniquement = st.checkbox("Produits en stock uniquement", value=False)
             
             # Application des filtres
             df_filtre = df.copy()
@@ -2324,7 +2696,7 @@ elif action == "QR Code produit":
                                     img.save(buf, format="PNG")
                                     
                                     # Afficher avec informations
-                                    st.image(buf.getvalue(), caption=f"**{produit_row['Produits']}**\nRéf: {produit_row['Reference']}\nStock: {produit_row['Quantite']}")
+                                    st.image(buf.getvalue(), caption=f"{produit_row['Produits']}\nRéf: {produit_row['Reference']}")
                                     
                                     # Bouton de téléchargement individuel
                                     st.download_button(
@@ -2502,7 +2874,7 @@ elif action == "Gérer les tables":
     df_tables = charger_tables_atelier()
     
     # Onglets pour différentes actions
-    tab1, tab2, tab3 = st.tabs(["📋 Liste des tables", "➕ Ajouter une table", "✏️ Modifier une table"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📋 Liste des tables", "➕ Ajouter une table", "✏️ Modifier une table", "📊 Statistiques détaillées"])
     
     with tab1:
         st.subheader("📋 Liste des tables d'atelier")
@@ -2644,6 +3016,225 @@ elif action == "Gérer les tables":
                         st.error("❌ Erreur lors de la sauvegarde")
         else:
             st.warning("Aucune table d'atelier à modifier.")
+    
+    with tab4:
+        st.subheader("📊 Statistiques détaillées par table d'atelier")
+        
+        if not df_tables.empty:
+            # Charger les demandes pour analyser l'activité des tables
+            df_demandes = charger_demandes()
+            
+            # Sélection de la table pour les détails
+            table_selectionnee = st.selectbox(
+                "Sélectionnez une table d'atelier pour voir les statistiques", 
+                df_tables['ID_Table'].unique(),
+                key="select_table_stats",
+                format_func=lambda x: f"{x} - {df_tables[df_tables['ID_Table'] == x]['Nom_Table'].iloc[0]}"
+            )
+            
+            # Informations de la table sélectionnée
+            table_info = df_tables[df_tables['ID_Table'] == table_selectionnee].iloc[0]
+            
+            # Affichage des informations générales
+            st.markdown("---")
+            st.subheader(f"📋 Informations - {table_info['Nom_Table']}")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.info(f"**🆔 ID Table :** {table_info['ID_Table']}")
+                st.info(f"**🏭 Type :** {table_info['Type_Atelier']}")
+            with col2:
+                st.info(f"**👤 Responsable :** {table_info['Responsable']}")
+                st.info(f"**📊 Statut :** {table_info['Statut']}")
+            with col3:
+                st.info(f"**📍 Emplacement :** {table_info['Emplacement']}")
+                st.info(f"**📅 Créée le :** {table_info['Date_Creation']}")
+            
+            # Analyse des demandes de matériel
+            st.markdown("---")
+            st.subheader("📦 Activité de demandes de matériel")
+            
+            if not df_demandes.empty:
+                # Filtrer les demandes liées à cette table
+                # On cherche dans les données de demande si le chantier/atelier correspond à la table
+                demandes_table = []
+                
+                for idx, demande in df_demandes.iterrows():
+                    try:
+                        import ast
+                        produits_data = ast.literal_eval(demande['Produits_Demandes'])
+                        
+                        # Vérifier si c'est une demande structurée avec chantier
+                        if isinstance(produits_data, dict) and 'chantier' in produits_data:
+                            chantier = produits_data['chantier']
+                            # Vérifier si le chantier contient l'ID de la table ou le nom de la table
+                            if (table_info['ID_Table'] in chantier or 
+                                table_info['Nom_Table'] in chantier or
+                                table_info['Type_Atelier'] in chantier):
+                                demandes_table.append(demande)
+                        
+                        # Aussi vérifier dans le demandeur si c'est le responsable de la table
+                        elif demande['Demandeur'] == table_info['Responsable']:
+                            demandes_table.append(demande)
+                            
+                    except Exception:
+                        # Si erreur de parsing, vérifier juste le demandeur
+                        if demande['Demandeur'] == table_info['Responsable']:
+                            demandes_table.append(demande)
+                
+                if demandes_table:
+                    df_demandes_table = pd.DataFrame(demandes_table)
+                    
+                    # Statistiques générales
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        total_demandes = len(df_demandes_table)
+                        st.metric("📋 Total demandes", total_demandes)
+                    with col2:
+                        demandes_approuvees = len(df_demandes_table[df_demandes_table['Statut'] == 'Approuvée'])
+                        st.metric("✅ Approuvées", demandes_approuvees)
+                    with col3:
+                        demandes_en_attente = len(df_demandes_table[df_demandes_table['Statut'] == 'En attente'])
+                        st.metric("⏳ En attente", demandes_en_attente)
+                    with col4:
+                        demandes_refusees = len(df_demandes_table[df_demandes_table['Statut'] == 'Refusée'])
+                        st.metric("❌ Refusées", demandes_refusees)
+                    
+                    # Analyse temporelle
+                    st.markdown("### 📈 Évolution des demandes")
+                    
+                    # Convertir les dates et créer un graphique temporel
+                    df_demandes_table['Date_Demande'] = pd.to_datetime(df_demandes_table['Date_Demande'])
+                    df_demandes_table['Mois'] = df_demandes_table['Date_Demande'].dt.to_period('M')
+                    
+                    # Compter les demandes par mois
+                    demandes_par_mois = df_demandes_table.groupby('Mois').size().reset_index(name='Nombre_Demandes')
+                    demandes_par_mois['Mois_Str'] = demandes_par_mois['Mois'].astype(str)
+                    
+                    if len(demandes_par_mois) > 0:
+                        import plotly.express as px
+                        fig_evolution = px.line(
+                            demandes_par_mois, 
+                            x='Mois_Str', 
+                            y='Nombre_Demandes',
+                            title=f'Évolution des demandes - {table_info["Nom_Table"]}',
+                            labels={'Mois_Str': 'Mois', 'Nombre_Demandes': 'Nombre de demandes'}
+                        )
+                        fig_evolution.update_layout(xaxis_tickangle=45)
+                        st.plotly_chart(fig_evolution, use_container_width=True)
+                    
+                    # Analyse des produits les plus demandés
+                    st.markdown("### 🛠️ Produits les plus demandés")
+                    
+                    produits_demandes = {}
+                    for idx, demande in df_demandes_table.iterrows():
+                        try:
+                            import ast
+                            produits_data = ast.literal_eval(demande['Produits_Demandes'])
+                            
+                            if isinstance(produits_data, dict) and 'produits' in produits_data:
+                                for ref, item in produits_data['produits'].items():
+                                    produit_nom = item['produit']
+                                    quantite = item['quantite']
+                                    
+                                    if produit_nom in produits_demandes:
+                                        produits_demandes[produit_nom] += quantite
+                                    else:
+                                        produits_demandes[produit_nom] = quantite
+                        except Exception:
+                            continue
+                    
+                    if produits_demandes:
+                        # Créer un DataFrame des produits demandés
+                        df_produits_stats = pd.DataFrame(
+                            list(produits_demandes.items()), 
+                            columns=['Produit', 'Quantité_Totale']
+                        ).sort_values('Quantité_Totale', ascending=False)
+                        
+                        # Afficher le top 10
+                        st.dataframe(df_produits_stats.head(10), use_container_width=True)
+                        
+                        # Graphique des produits les plus demandés
+                        if len(df_produits_stats) > 0:
+                            fig_produits = px.bar(
+                                df_produits_stats.head(10), 
+                                x='Produit', 
+                                y='Quantité_Totale',
+                                title=f'Top 10 des produits demandés - {table_info["Nom_Table"]}',
+                                labels={'Quantité_Totale': 'Quantité totale demandée', 'Produit': 'Produits'}
+                            )
+                            fig_produits.update_layout(xaxis_tickangle=45)
+                            st.plotly_chart(fig_produits, use_container_width=True)
+                    else:
+                        st.info("Aucun détail de produit trouvé dans les demandes")
+                    
+                    # Liste détaillée des demandes
+                    st.markdown("### 📋 Historique détaillé des demandes")
+                    
+                    # Trier par date (plus récent en premier)
+                    df_demandes_table_sorted = df_demandes_table.sort_values('Date_Demande', ascending=False)
+                    
+                    for idx, demande in df_demandes_table_sorted.iterrows():
+                        statut_icon = get_statut_icon(demande['Statut'])
+                        
+                        with st.expander(f"{statut_icon} {demande['ID_Demande']} - {str(demande['Date_Demande'])[:10]} - {demande['Statut']}"):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.write(f"**📅 Date :** {demande['Date_Demande']}")
+                                st.write(f"**👤 Demandeur :** {demande['Demandeur']}")
+                                st.write(f"**📝 Motif :** {demande['Motif']}")
+                            
+                            with col2:
+                                if demande['Statut'] == 'En attente':
+                                    st.warning(f"**{statut_icon} Statut :** {demande['Statut']}")
+                                elif demande['Statut'] == 'Approuvée':
+                                    st.success(f"**{statut_icon} Statut :** {demande['Statut']}")
+                                elif demande['Statut'] == 'Refusée':
+                                    st.error(f"**{statut_icon} Statut :** {demande['Statut']}")
+                                
+                                if demande['Date_Traitement']:
+                                    st.write(f"**⏰ Traité le :** {demande['Date_Traitement']}")
+                                    st.write(f"**👨‍💼 Traité par :** {demande['Traite_Par']}")
+                            
+                            # Détail des produits demandés
+                            try:
+                                import ast
+                                produits_data = ast.literal_eval(demande['Produits_Demandes'])
+                                
+                                if isinstance(produits_data, dict):
+                                    if 'urgence' in produits_data:
+                                        st.write(f"**⚡ Urgence :** {produits_data['urgence']}")
+                                    if 'date_souhaitee' in produits_data:
+                                        st.write(f"**📅 Date souhaitée :** {produits_data['date_souhaitee']}")
+                                    
+                                    if 'produits' in produits_data:
+                                        st.write("**🛠️ Produits demandés :**")
+                                        produits_list = []
+                                        for ref, item in produits_data['produits'].items():
+                                            produits_list.append({
+                                                'Référence': ref,
+                                                'Produit': item['produit'],
+                                                'Quantité': item['quantite'],
+                                                'Emplacement': item['emplacement']
+                                            })
+                                        
+                                        df_produits_demande = pd.DataFrame(produits_list)
+                                        st.dataframe(df_produits_demande, use_container_width=True)
+                            except Exception:
+                                st.write(f"**📦 Détails :** {demande['Produits_Demandes']}")
+                
+                else:
+                    st.info(f"Aucune demande de matériel trouvée pour la table {table_info['Nom_Table']}")
+                    st.write("💡 **Comment associer des demandes à cette table :**")
+                    st.write("- Le demandeur doit être le responsable de la table")
+                    st.write("- Ou le chantier/atelier doit contenir l'ID ou le nom de la table")
+            
+            else:
+                st.info("Aucune demande de matériel enregistrée dans le système")
+                
+        else:
+            st.warning("Aucune table d'atelier disponible pour afficher les statistiques.")
 
 elif action == "Fournisseurs":
     st.header("🏪 Gestion des Fournisseurs")
