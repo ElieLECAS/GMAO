@@ -2679,8 +2679,9 @@ elif action == "Alertes de stock":
             
             alertes_bientot_display = alertes_bientot.copy()
             alertes_bientot_display['Seuil_Alerte'] = seuil_alerte[alertes_bientot.index].round(1)
+            alertes_bientot_display['Recommandation'] = alertes_bientot_display['Stock_Max'] - alertes_bientot_display['Quantite']
             
-            colonnes_bientot = ['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Seuil_Alerte', 'Stock_Max', 'Fournisseur']
+            colonnes_bientot = ['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Seuil_Alerte', 'Stock_Max', 'Recommandation', 'Fournisseur']
             st.dataframe(alertes_bientot_display[colonnes_bientot])
         
         # Affichage des surstocks
@@ -3521,13 +3522,26 @@ elif action == "Fournisseurs":
                 alertes_critique = produits_fournisseur[produits_fournisseur['Quantite'] < produits_fournisseur['Stock_Min']]
                 alertes_surstock = produits_fournisseur[produits_fournisseur['Quantite'] > produits_fournisseur['Stock_Max']]
                 
-                if not alertes_critique.empty or not alertes_surstock.empty:
+                # Produits bientôt en rupture (entre min et 30% de la plage min-max)
+                seuil_alerte_fournisseur = produits_fournisseur['Stock_Min'] + (produits_fournisseur['Stock_Max'] - produits_fournisseur['Stock_Min']) * 0.3
+                alertes_bientot = produits_fournisseur[(produits_fournisseur['Quantite'] >= produits_fournisseur['Stock_Min']) & (produits_fournisseur['Quantite'] <= seuil_alerte_fournisseur)]
+                
+                if not alertes_critique.empty or not alertes_bientot.empty or not alertes_surstock.empty:
                     st.markdown("---")
                     st.subheader("⚠️ Alertes de stock")
                     
                     if not alertes_critique.empty:
                         st.error(f"🔴 **{len(alertes_critique)} produit(s) en stock critique** nécessitent un réapprovisionnement urgent")
-                        st.dataframe(alertes_critique[['Produits', 'Reference', 'Quantite', 'Stock_Min']], use_container_width=True)
+                        alertes_critique_display = alertes_critique.copy()
+                        alertes_critique_display['Recommandation'] = alertes_critique_display['Stock_Max'] - alertes_critique_display['Quantite']
+                        st.dataframe(alertes_critique_display[['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Stock_Max', 'Recommandation']], use_container_width=True)
+                    
+                    if not alertes_bientot.empty:
+                        st.warning(f"🟠 **{len(alertes_bientot)} produit(s) bientôt en rupture** - réapprovisionnement recommandé")
+                        alertes_bientot_display = alertes_bientot.copy()
+                        alertes_bientot_display['Seuil_Alerte'] = seuil_alerte_fournisseur[alertes_bientot.index].round(1)
+                        alertes_bientot_display['Recommandation'] = alertes_bientot_display['Stock_Max'] - alertes_bientot_display['Quantite']
+                        st.dataframe(alertes_bientot_display[['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Seuil_Alerte', 'Stock_Max', 'Recommandation']], use_container_width=True)
                     
                     if not alertes_surstock.empty:
                         st.warning(f"🟡 **{len(alertes_surstock)} produit(s) en surstock**")
