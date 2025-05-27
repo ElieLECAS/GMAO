@@ -264,6 +264,15 @@ def load_data():
 # Fonction pour sauvegarder les données
 def save_data(df):
     try:
+        # S'assurer que la colonne Reference est de type string avant la sauvegarde
+        if 'Reference' in df.columns:
+            # Traitement spécial pour éviter les .0 sur les nombres entiers
+            df['Reference'] = df['Reference'].apply(lambda x: 
+                str(int(float(x))) if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() and float(x) == int(float(x))
+                else str(x) if pd.notna(x) and str(x) not in ['nan', 'None', ''] 
+                else ''
+            )
+        
         # Sauvegarder dans le fichier enrichi pour maintenir la persistance
         fichier_enrichi = "data/inventaire_avec_references.xlsx"
         df.to_excel(fichier_enrichi, index=False, engine='openpyxl')
@@ -273,11 +282,12 @@ def save_data(df):
     except Exception as e:
         st.error(f"Erreur lors de la sauvegarde du fichier Excel: {str(e)}")
 
-def log_mouvement(produit, nature, quantite_mouvement, quantite_apres, quantite_avant):
+def log_mouvement(produit, nature, quantite_mouvement, quantite_apres, quantite_avant, reference=None):
     os.makedirs("data", exist_ok=True)
     file_path = "data/historique.xlsx"
     new_row = {
         'Date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'Reference': str(reference) if reference else "",
         'Produit': produit,
         'Nature': nature,
         'Quantite_Mouvement': quantite_mouvement,
@@ -286,9 +296,26 @@ def log_mouvement(produit, nature, quantite_mouvement, quantite_apres, quantite_
     }
     if os.path.exists(file_path):
         df_hist = pd.read_excel(file_path, engine='openpyxl')
+        # S'assurer que la colonne Reference existe et est de type string
+        if 'Reference' not in df_hist.columns:
+            df_hist['Reference'] = ""
+        # Traitement spécial pour éviter les .0 sur les nombres entiers
+        df_hist['Reference'] = df_hist['Reference'].apply(lambda x: 
+            str(int(float(x))) if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() and float(x) == int(float(x))
+            else str(x) if pd.notna(x) and str(x) not in ['nan', 'None', ''] 
+            else ''
+        )
         df_hist = pd.concat([df_hist, pd.DataFrame([new_row])], ignore_index=True)
     else:
         df_hist = pd.DataFrame([new_row])
+    
+    # S'assurer que la colonne Reference est de type string avant la sauvegarde
+    # Traitement spécial pour éviter les .0 sur les nombres entiers
+    df_hist['Reference'] = df_hist['Reference'].apply(lambda x: 
+        str(int(float(x))) if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() and float(x) == int(float(x))
+        else str(x) if pd.notna(x) and str(x) not in ['nan', 'None', ''] 
+        else ''
+    )
     df_hist.to_excel(file_path, index=False, engine='openpyxl')
 
 def sauvegarder_demande(demandeur, produits_demandes, motif):
@@ -754,6 +781,14 @@ if st.sidebar.button("🏪 Magasin", use_container_width=True, help="Vue d'ensem
 if st.sidebar.button("📈 Mouvements", use_container_width=True, help="Historique des mouvements"):
     st.session_state.action = "Historique des mouvements"
 
+if st.sidebar.button("🚨 Alertes stock", use_container_width=True):
+    st.session_state.action = "Alertes de stock"
+
+# Section mouvements - Actions courantes
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📦 **Demandes**")
+
+
 if st.sidebar.button("📋 Demande de matériel", use_container_width=True, help="Demander du matériel"):
     st.session_state.action = "Demande de matériel"
 
@@ -784,19 +819,14 @@ if st.sidebar.button("📊 Inventaire", use_container_width=True, help="Ajusteme
 
 # Section administration - Moins fréquent
 with st.sidebar.expander("⚙️ **Administration**"):
-    if st.button("📦 Gestion produits", use_container_width=True):
+    if st.button("📦 Gestion Produits", use_container_width=True):
         st.session_state.action = "Gestion des produits"
     
-    if st.button("📋 Gérer tables", use_container_width=True):
+    if st.button("📋 Gestion Tables", use_container_width=True):
         st.session_state.action = "Gérer les tables"
     
-    if st.button("🏪 Fournisseurs", use_container_width=True):
+    if st.button("🏪 Gestion Fournisseurs", use_container_width=True):
         st.session_state.action = "Fournisseurs"
-
-# Section rapports - Moins fréquent
-with st.sidebar.expander("📊 **Rapports**"):
-    if st.button("🚨 Alertes stock", use_container_width=True):
-        st.session_state.action = "Alertes de stock"
 
 
 # Récupérer l'action actuelle
@@ -1299,13 +1329,19 @@ elif action == "Gestion des demandes":
                     else:
                         st.info(f"**{statut_icon} Statut :** {demande['Statut']}")
                     
-                    if demande['Date_Traitement']:
+                    # Vérifier si Date_Traitement n'est pas nan/null
+                    if pd.notna(demande['Date_Traitement']) and str(demande['Date_Traitement']).lower() != 'nan':
                         st.write(f"**⏰ Traité le :** {demande['Date_Traitement']}")
-                        st.write(f"**👨‍💼 Traité par :** {demande['Traite_Par']}")
+                        # Vérifier si Traite_Par n'est pas nan/null
+                        if pd.notna(demande['Traite_Par']) and str(demande['Traite_Par']).lower() != 'nan':
+                            st.write(f"**👨‍💼 Traité par :** {demande['Traite_Par']}")
                 
                 with col2:
-                    st.write(f"**📝 Motif :** {demande['Motif']}")
-                    if demande['Commentaires']:
+                    # Vérifier si Motif n'est pas nan/null
+                    if pd.notna(demande['Motif']) and str(demande['Motif']).lower() != 'nan':
+                        st.write(f"**📝 Motif :** {demande['Motif']}")
+                    # Vérifier si Commentaires n'est pas nan/null
+                    if pd.notna(demande['Commentaires']) and str(demande['Commentaires']).lower() != 'nan':
                         st.write(f"**💬 Commentaires :** {demande['Commentaires']}")
                 
                 # Détail des produits demandés
@@ -1316,11 +1352,11 @@ elif action == "Gestion des demandes":
                     
                     # Affichage des informations additionnelles si disponibles
                     if isinstance(produits_data, dict):
-                        if 'chantier' in produits_data:
+                        if 'chantier' in produits_data and produits_data['chantier'] and str(produits_data['chantier']).lower() != 'nan':
                             st.write(f"**🏗️ Chantier :** {produits_data['chantier']}")
-                        if 'urgence' in produits_data:
+                        if 'urgence' in produits_data and produits_data['urgence'] and str(produits_data['urgence']).lower() != 'nan':
                             st.write(f"**⚡ Urgence :** {produits_data['urgence']}")
-                        if 'date_souhaitee' in produits_data:
+                        if 'date_souhaitee' in produits_data and produits_data['date_souhaitee'] and str(produits_data['date_souhaitee']).lower() != 'nan':
                             st.write(f"**📅 Date souhaitée :** {produits_data['date_souhaitee']}")
                         
                         # Affichage des produits
@@ -1476,7 +1512,8 @@ elif action == "Gestion des demandes":
                                                             f"Sortie - Demande {demande['ID_Demande']}",
                                                             quantite_demandee,
                                                             nouvelle_quantite,
-                                                            stock_actuel
+                                                            stock_actuel,
+                                                            ref
                                                         )
                                         
                                         # Sauvegarder les stocks mis à jour
@@ -1556,7 +1593,6 @@ elif action == "Gestion des demandes":
 
 elif action == "Gestion des produits":
     st.header("📦 Gestion des Produits")
-    st.info("💡 Gérez vos produits : recherche, ajout, modification et QR codes")
     
     # Onglets pour différentes actions
     tab1, tab2, tab3, tab4 = st.tabs(["🔍 Rechercher", "➕ Ajouter", "✏️ Modifier", "📱 QR Codes"])
@@ -1608,7 +1644,7 @@ elif action == "Gestion des produits":
                 st.metric("💎 Valeur stock", f"{valeur_stock:.2f} €")
             
             # Indicateur visuel de l'état du stock
-            pourcentage_stock = (quantite_actuelle - stock_min) / (stock_max - stock_min) * 100 if stock_max > stock_min else 50
+            pourcentage_stock = (quantite_actuelle / stock_max) * 100 if stock_max > 0 else 0
             
             # Déterminer la couleur et le statut
             if quantite_actuelle < stock_min:
@@ -1636,11 +1672,25 @@ elif action == "Gestion des produits":
             </div>
             """, unsafe_allow_html=True)
             
-            # Barre de progression visuelle
-            if stock_max > stock_min:
+            # Barre de progression visuelle avec repère du stock minimum
+            if stock_max > 0:
                 progress_value = max(0, min(100, pourcentage_stock))
-                st.progress(progress_value / 100)
-                st.caption(f"Position dans la plage de stock : {progress_value:.1f}%")
+                min_position = (stock_min / stock_max) * 100
+                
+                # Barre de progression personnalisée avec repère du minimum
+                progress_html = f"""
+                <div style="position: relative; width: 100%; height: 15px; background-color: #f0f0f0; border-radius: 15px; margin: 10px 0;">
+                    <div style="width: {progress_value}%; height: 100%; background: #2196f3; border-radius: 15px;"></div>
+                    <div style="position: absolute; left: {min_position}%; top: -5px; width: 3px; height: 25px; background-color: #333;"></div>
+                    <div style="position: absolute; left: {max(0, min_position - 2)}%; top: -25px; font-size: 12px; color: #333; font-weight: bold;">MIN</div>
+                    <div style="position: absolute; left: 0; top: 35px; font-size: 11px; color: #666;">0</div>
+                    <div style="position: absolute; right: 0; top: 35px; font-size: 11px; color: #666;">{stock_max}</div> 
+                    <div style="position: absolute; left: {max(0, min_position - 1)}%; top: 35px; font-size: 11px; color: #333; font-weight: bold;">{stock_min}</div>
+                </div>
+                """
+                st.markdown(progress_html, unsafe_allow_html=True)
+                
+                st.caption(f"Position dans la plage de stock : {progress_value:.1f}% • Stock actuel : {quantite_actuelle}/{stock_max}")
             
             # ═══════════════════════════════════════════════════════════════
             # 📈 SECTION 2: HISTORIQUE DES MOUVEMENTS
@@ -1653,8 +1703,23 @@ elif action == "Gestion des produits":
             if os.path.exists(file_path_hist):
                 try:
                     df_hist = pd.read_excel(file_path_hist, engine='openpyxl')
-                    # Filtrer pour le produit actuel
-                    df_hist_produit = df_hist[df_hist['Produit'] == produit_trouve['Produits']].copy()
+                    # S'assurer que la colonne Reference existe (pour la compatibilité avec les anciens fichiers)
+                    if 'Reference' not in df_hist.columns:
+                        df_hist['Reference'] = ""
+                    
+                    # Convertir la colonne Reference en string pour éviter les séparateurs
+                    # Traitement spécial pour éviter les .0 sur les nombres entiers
+                    df_hist['Reference'] = df_hist['Reference'].apply(lambda x: 
+                        str(int(float(x))) if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() and float(x) == int(float(x))
+                        else str(x) if pd.notna(x) and str(x) not in ['nan', 'None', ''] 
+                        else ''
+                    )
+                    
+                    # Filtrer pour le produit actuel (par référence si disponible, sinon par nom)
+                    if produit_trouve['Reference'] and produit_trouve['Reference'] != "":
+                        df_hist_produit = df_hist[df_hist['Reference'] == produit_trouve['Reference']].copy()
+                    else:
+                        df_hist_produit = df_hist[df_hist['Produit'] == produit_trouve['Produits']].copy()
                     
                     if not df_hist_produit.empty:
                         # Trier par date (plus récent en premier)
@@ -1706,6 +1771,10 @@ elif action == "Gestion des produits":
                             except:
                                 date_formatee = str(mouvement['Date'])
                             
+                            # Récupérer la référence si disponible
+                            reference_mouvement = mouvement.get('Reference', '') if 'Reference' in mouvement else ''
+                            reference_text = f"🆔 {reference_mouvement}" if reference_mouvement else ""
+                            
                             # Affichage du mouvement
                             st.markdown(f"""
                             <div style="background: {couleur}; border-left: 4px solid {couleur_bordure}; 
@@ -1714,6 +1783,7 @@ elif action == "Gestion des produits":
                                     <div>
                                         <strong>{icone} {mouvement['Nature']}</strong><br>
                                         <span style="color: #666;">📅 {date_formatee}</span>
+                                        {f'<br><span style="color: #666; font-size: 0.9em;">{reference_text}</span>' if reference_text else ''}
                                     </div>
                                     <div style="text-align: right;">
                                         <strong>Quantité: {mouvement['Quantite_Mouvement']}</strong><br>
@@ -1803,6 +1873,7 @@ elif action == "Gestion des produits":
                     data=buf.getvalue(),
                     file_name=f"QR_Produit_{produit_trouve['Reference']}.png",
                     mime="image/png",
+                    key=f"download_qr_detail_{produit_trouve['Reference']}",
                     use_container_width=True
                 )
             
@@ -1812,11 +1883,9 @@ elif action == "Gestion des produits":
                 # Afficher le QR code
                 st.image(buf.getvalue(), caption=f"QR Code - {produit_trouve['Produits']}")
                 
-                st.caption("💡 Scannez ce code avec votre smartphone ou scanner pour identifier rapidement ce produit")
     
     with tab2:
         st.subheader("➕ Ajouter des produits")
-        st.info("💡 Ajoutez des produits individuellement ou en masse via un fichier")
         
         # Onglets pour différentes méthodes d'ajout
         sub_tab1, sub_tab2 = st.tabs(["➕ Ajout individuel", "📁 Import en masse"])
@@ -1886,7 +1955,7 @@ elif action == "Gestion des produits":
                         
                         df = pd.concat([df, new_row], ignore_index=True)
                         save_data(df)
-                        log_mouvement(produit, "Ajout produit", quantite, quantite, 0)
+                        log_mouvement(produit, "Ajout produit", quantite, quantite, 0, reference)
                         st.success(f"✅ Produit '{produit}' ajouté avec succès!")
                         st.experimental_rerun()
         
@@ -1956,6 +2025,7 @@ elif action == "Gestion des produits":
                     data=csv_modele,
                     file_name="modele_import_produits.csv",
                     mime="text/csv",
+                    key="download_modele_csv",
                     use_container_width=True
                 )
                 
@@ -1970,6 +2040,7 @@ elif action == "Gestion des produits":
                     data=excel_buffer.getvalue(),
                     file_name="modele_import_produits.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="download_modele_excel",
                     use_container_width=True
                 )
             
@@ -2179,7 +2250,8 @@ elif action == "Gestion des produits":
                                                         "Import - Mise à jour",
                                                         abs(nouvelle_quantite - ancienne_quantite),
                                                         nouvelle_quantite,
-                                                        ancienne_quantite
+                                                        ancienne_quantite,
+                                                        row['Reference']
                                                     )
                                             
                                             elif produit_existant.empty:
@@ -2195,7 +2267,8 @@ elif action == "Gestion des produits":
                                                         "Import - Nouveau produit",
                                                         row['Quantite'],
                                                         row['Quantite'],
-                                                        0
+                                                        0,
+                                                        row['Reference']
                                                     )
                                             else:
                                                 # Produit existant mais mode "Ajouter uniquement"
@@ -2237,30 +2310,153 @@ elif action == "Gestion des produits":
             produit_to_edit = st.selectbox("Sélectionner le produit à modifier", df['Produits'].unique())
             produit_data = df[df['Produits'] == produit_to_edit].iloc[0]
             
+            # Affichage des informations actuelles du produit
+            st.markdown("### 📋 Informations actuelles")
+            col_info1, col_info2, col_info3 = st.columns(3)
+            with col_info1:
+                st.info(f"**📦 Quantité actuelle :** {produit_data['Quantite']}")
+                st.info(f"**📍 Emplacement :** {produit_data['Emplacement']}")
+            with col_info2:
+                st.info(f"**🔻 Stock min :** {produit_data['Stock_Min']}")
+                st.info(f"**🔺 Stock max :** {produit_data['Stock_Max']}")
+            with col_info3:
+                st.info(f"**🏪 Fournisseur :** {produit_data['Fournisseur']}")
+                st.info(f"**💰 Prix :** {produit_data['Prix_Unitaire']} €")
+            
+            st.markdown("---")
+            
             with st.form("modifier_produit"):
-                quantite = st.number_input("Nouvelle quantité", value=int(produit_data['Quantite']))
+                st.markdown("### ✏️ Modifications")
                 
+                # Première ligne : Quantité et Prix
+                col1, col2 = st.columns(2)
+                with col1:
+                    quantite = st.number_input("Nouvelle quantité", value=int(produit_data['Quantite']), min_value=0)
+                with col2:
+                    prix_unitaire = st.number_input("Prix unitaire (€)", value=float(produit_data['Prix_Unitaire']), min_value=0.0, step=0.01)
+                
+                # Deuxième ligne : Stock min et max
                 col1, col2 = st.columns(2)
                 with col1:
                     stock_min = st.number_input("Stock minimum", min_value=0, value=int(produit_data['Stock_Min']))
                 with col2:
                     stock_max = st.number_input("Stock maximum", min_value=1, value=int(produit_data['Stock_Max']))
                 
-                emplacement = st.selectbox("Nouvel emplacement", df['Emplacement'].unique(), 
-                                         index=list(df['Emplacement'].unique()).index(produit_data['Emplacement']))
+                # Troisième ligne : Emplacement et Fournisseur
+                col1, col2 = st.columns(2)
+                with col1:
+                    # Liste des emplacements existants
+                    emplacements_existants = sorted(df['Emplacement'].dropna().unique().tolist())
+                    try:
+                        emplacement_index = emplacements_existants.index(produit_data['Emplacement'])
+                    except ValueError:
+                        emplacement_index = 0
+                    
+                    emplacement = st.selectbox(
+                        "Nouvel emplacement", 
+                        emplacements_existants, 
+                        index=emplacement_index
+                    )
                 
-                submitted = st.form_submit_button("Mettre à jour")
+                with col2:
+                    # Liste des fournisseurs existants
+                    fournisseurs_existants = sorted(df['Fournisseur'].dropna().unique().tolist())
+                    try:
+                        fournisseur_index = fournisseurs_existants.index(produit_data['Fournisseur'])
+                    except ValueError:
+                        fournisseur_index = 0
+                    
+                    fournisseur = st.selectbox(
+                        "Nouveau fournisseur", 
+                        fournisseurs_existants, 
+                        index=fournisseur_index,
+                        help="Sélectionnez un fournisseur existant dans la liste"
+                    )
+                
+                # Champs optionnels supplémentaires
+                with st.expander("🔧 Paramètres avancés (optionnel)"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        reference_fournisseur = st.text_input(
+                            "Référence fournisseur", 
+                            value=produit_data.get('Reference_Fournisseur', ''),
+                            help="Référence du produit chez le fournisseur"
+                        )
+                        unite_stockage = st.text_input(
+                            "Unité de stockage", 
+                            value=produit_data.get('Unite_Stockage', 'Unité')
+                        )
+                    with col2:
+                        categorie = st.text_input(
+                            "Catégorie", 
+                            value=produit_data.get('Categorie', 'Général')
+                        )
+                        secteur = st.text_input(
+                            "Secteur", 
+                            value=produit_data.get('Secteur', 'Général')
+                        )
+                
+                submitted = st.form_submit_button("✅ Mettre à jour le produit", type="primary", use_container_width=True)
                 
                 if submitted:
                     if stock_min >= stock_max:
-                        st.error("Le stock minimum doit être inférieur au stock maximum")
+                        st.error("❌ Le stock minimum doit être inférieur au stock maximum")
                     else:
+                        # Mettre à jour toutes les informations
                         df.loc[df['Produits'] == produit_to_edit, 'Quantite'] = quantite
                         df.loc[df['Produits'] == produit_to_edit, 'Stock_Min'] = stock_min
                         df.loc[df['Produits'] == produit_to_edit, 'Stock_Max'] = stock_max
                         df.loc[df['Produits'] == produit_to_edit, 'Emplacement'] = emplacement
+                        df.loc[df['Produits'] == produit_to_edit, 'Fournisseur'] = fournisseur
+                        df.loc[df['Produits'] == produit_to_edit, 'Prix_Unitaire'] = prix_unitaire
+                        
+                        # Mettre à jour les champs optionnels s'ils existent
+                        if 'Reference_Fournisseur' in df.columns:
+                            df.loc[df['Produits'] == produit_to_edit, 'Reference_Fournisseur'] = reference_fournisseur
+                        if 'Unite_Stockage' in df.columns:
+                            df.loc[df['Produits'] == produit_to_edit, 'Unite_Stockage'] = unite_stockage
+                        if 'Categorie' in df.columns:
+                            df.loc[df['Produits'] == produit_to_edit, 'Categorie'] = categorie
+                        if 'Secteur' in df.columns:
+                            df.loc[df['Produits'] == produit_to_edit, 'Secteur'] = secteur
+                        
+                        # Enregistrer les modifications et logger si la quantité a changé
+                        ancienne_quantite = int(produit_data['Quantite'])
+                        if quantite != ancienne_quantite:
+                            log_mouvement(
+                                produit_to_edit,
+                                "Modification - Ajustement quantité",
+                                abs(quantite - ancienne_quantite),
+                                quantite,
+                                ancienne_quantite,
+                                produit_data['Reference']
+                            )
+                        
                         save_data(df)
-                        st.success("Produit mis à jour avec succès!")
+                        st.success("✅ Produit mis à jour avec succès!")
+                        
+                        # Afficher un résumé des modifications
+                        with st.expander("📄 Résumé des modifications"):
+                            modifications = []
+                            if quantite != ancienne_quantite:
+                                modifications.append(f"📦 Quantité : {ancienne_quantite} → {quantite}")
+                            if stock_min != int(produit_data['Stock_Min']):
+                                modifications.append(f"🔻 Stock min : {produit_data['Stock_Min']} → {stock_min}")
+                            if stock_max != int(produit_data['Stock_Max']):
+                                modifications.append(f"🔺 Stock max : {produit_data['Stock_Max']} → {stock_max}")
+                            if emplacement != produit_data['Emplacement']:
+                                modifications.append(f"📍 Emplacement : {produit_data['Emplacement']} → {emplacement}")
+                            if fournisseur != produit_data['Fournisseur']:
+                                modifications.append(f"🏪 Fournisseur : {produit_data['Fournisseur']} → {fournisseur}")
+                            if prix_unitaire != float(produit_data['Prix_Unitaire']):
+                                modifications.append(f"💰 Prix : {produit_data['Prix_Unitaire']} € → {prix_unitaire} €")
+                            
+                            if modifications:
+                                for modif in modifications:
+                                    st.write(f"• {modif}")
+                            else:
+                                st.info("Aucune modification détectée")
+                        
                         st.experimental_rerun()
         else:
             st.warning("Aucun produit disponible pour modification.")
@@ -2273,7 +2469,6 @@ elif action == "Gestion des produits":
             sub_tab1, sub_tab2 = st.tabs(["🔍 QR Code individuel", "📦 Tous les QR codes"])
             
             with sub_tab1:
-                st.subheader("🔍 Génération d'un QR code individuel")
                 
                 produit_select = st.selectbox("Sélectionnez un produit", df['Produits'].unique(), key="qr_individual")
                 produit_info = df[df['Produits'] == produit_select].iloc[0]
@@ -2309,6 +2504,7 @@ elif action == "Gestion des produits":
                         data=buf.getvalue(),
                         file_name=f"QR_Produit_{produit_info['Reference']}.png",
                         mime="image/png",
+                        key=f"download_qr_individual_{produit_info['Reference']}",
                         use_container_width=True
                     )
             
@@ -2464,7 +2660,7 @@ elif action == "Entrée de stock":
                 nouvelle_quantite = quantite_actuelle + quantite_ajout
                 df.loc[df['Reference'] == produit_trouve['Reference'], 'Quantite'] = nouvelle_quantite
                 save_data(df)
-                log_mouvement(produit_trouve['Produits'], "Entrée", quantite_ajout, nouvelle_quantite, quantite_actuelle)
+                log_mouvement(produit_trouve['Produits'], "Entrée", quantite_ajout, nouvelle_quantite, quantite_actuelle, produit_trouve['Reference'])
                 st.success(f"Entrée de {quantite_ajout} unités pour {produit_trouve['Produits']} effectuée.")
                 st.experimental_rerun()
     else:
@@ -2539,7 +2735,7 @@ elif action == "Sortie de stock":
                     nouvelle_quantite = quantite_actuelle - quantite_retrait
                     df.loc[df['Reference'] == produit_trouve['Reference'], 'Quantite'] = nouvelle_quantite
                     save_data(df)
-                    log_mouvement(produit_trouve['Produits'], "Sortie", quantite_retrait, nouvelle_quantite, quantite_actuelle)
+                    log_mouvement(produit_trouve['Produits'], "Sortie", quantite_retrait, nouvelle_quantite, quantite_actuelle, produit_trouve['Reference'])
                     st.success(f"Sortie de {quantite_retrait} unités pour {produit_trouve['Produits']} effectuée.")
                     st.experimental_rerun()
                 else:
@@ -2628,7 +2824,8 @@ elif action == "Inventaire":
                         "Inventaire",
                         abs(nouvelle_quantite - quantite_actuelle),
                         nouvelle_quantite,
-                        quantite_actuelle
+                        quantite_actuelle,
+                        produit_trouve['Reference']
                     )
                     st.success(f"Inventaire ajusté pour {produit_trouve['Produits']} : {quantite_actuelle} → {nouvelle_quantite}")
                     st.experimental_rerun()
@@ -2703,43 +2900,125 @@ elif action == "Alertes de stock":
         st.warning("Aucun produit disponible dans l'inventaire.")
 
 elif action == "Historique des mouvements":
-    st.header("Historique des mouvements de stock")
+    st.header("📈 Historique des mouvements de stock")
     import pandas as pd
     import os
     file_path = "data/historique.xlsx"
     if os.path.exists(file_path):
         df_hist = pd.read_excel(file_path, engine='openpyxl')
         if not df_hist.empty:
+            # S'assurer que la colonne Reference existe (pour la compatibilité avec les anciens fichiers)
+            if 'Reference' not in df_hist.columns:
+                df_hist['Reference'] = ""
+            
+            # Convertir la colonne Reference en string pour éviter les séparateurs
+            # Traitement spécial pour éviter les .0 sur les nombres entiers
+            df_hist['Reference'] = df_hist['Reference'].apply(lambda x: 
+                str(int(float(x))) if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() and float(x) == int(float(x))
+                else str(x) if pd.notna(x) and str(x) not in ['nan', 'None', ''] 
+                else ''
+            )
+            
             df_hist = df_hist.sort_values(by="Date", ascending=False)
-            # Filtres
-            col1, col2, col3 = st.columns(3)
+            
+            # Statistiques générales
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("📊 Total mouvements", len(df_hist))
+            with col2:
+                entrees = len(df_hist[df_hist['Nature'].str.contains('Entrée', na=False)])
+                st.metric("📥 Entrées", entrees)
+            with col3:
+                sorties = len(df_hist[df_hist['Nature'].str.contains('Sortie', na=False)])
+                st.metric("📤 Sorties", sorties)
+            with col4:
+                inventaires = len(df_hist[df_hist['Nature'].str.contains('Inventaire', na=False)])
+                st.metric("📋 Inventaires", inventaires)
+            
+            st.markdown("---")
+            
+            # Filtres améliorés
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 types = ["Tous"] + sorted(df_hist['Nature'].dropna().unique().tolist())
-                type_filtre = st.selectbox("Type de mouvement", types)
+                type_filtre = st.selectbox("🔄 Type de mouvement", types)
             with col2:
                 produits = ["Tous"] + sorted(df_hist['Produit'].dropna().unique().tolist())
-                produit_filtre = st.selectbox("Produit", produits)
+                produit_filtre = st.selectbox("📦 Produit", produits)
             with col3:
+                # Filtre par référence
+                references = ["Toutes"] + sorted([ref for ref in df_hist['Reference'].dropna().unique().tolist() if ref != ""])
+                reference_filtre = st.selectbox("🆔 Référence", references)
+            with col4:
                 min_date = pd.to_datetime(df_hist['Date']).min().date()
                 max_date = pd.to_datetime(df_hist['Date']).max().date()
-                date_range = st.date_input("Plage de dates", (min_date, max_date))
+                date_range = st.date_input("📅 Plage de dates", (min_date, max_date))
+            
             # Application des filtres
             df_filtre = df_hist.copy()
             if type_filtre != "Tous":
                 df_filtre = df_filtre[df_filtre['Nature'] == type_filtre]
             if produit_filtre != "Tous":
                 df_filtre = df_filtre[df_filtre['Produit'] == produit_filtre]
+            if reference_filtre != "Toutes":
+                df_filtre = df_filtre[df_filtre['Reference'] == reference_filtre]
             if date_range:
                 df_filtre = df_filtre[(pd.to_datetime(df_filtre['Date']).dt.date >= date_range[0]) & (pd.to_datetime(df_filtre['Date']).dt.date <= date_range[1])]
-            st.dataframe(df_filtre)
+            
+            if not df_filtre.empty:
+                # Réorganiser les colonnes pour mettre la référence en évidence
+                colonnes_ordre = ['Date', 'Reference', 'Produit', 'Nature', 'Quantite_Mouvement', 'Quantite_Avant', 'Quantite_Apres']
+                df_affichage = df_filtre[colonnes_ordre].copy()
+                
+                # Renommer les colonnes pour un affichage plus clair
+                df_affichage.columns = ['📅 Date', '🆔 Référence', '📦 Produit', '🔄 Nature', '📊 Quantité', '📉 Avant', '📈 Après']
+                
+                # Affichage du tableau avec mise en forme
+                st.dataframe(
+                    df_affichage, 
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # Bouton d'export
+                st.markdown("---")
+                col1, col2 = st.columns(2)
+                with col1:
+                    # Export CSV
+                    csv_data = df_filtre.to_csv(index=False, encoding='utf-8-sig')
+                    st.download_button(
+                        label="📄 Exporter en CSV",
+                        data=csv_data,
+                        file_name=f"historique_mouvements_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        key="export_csv_historique",
+                        use_container_width=True
+                    )
+                
+                with col2:
+                    # Export Excel
+                    from io import BytesIO
+                    excel_buffer = BytesIO()
+                    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                        df_filtre.to_excel(writer, index=False, sheet_name='Historique_Mouvements')
+                    
+                    st.download_button(
+                        label="📊 Exporter en Excel",
+                        data=excel_buffer.getvalue(),
+                        file_name=f"historique_mouvements_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="export_excel_historique",
+                        use_container_width=True
+                    )
+            else:
+                st.warning("🔍 Aucun mouvement ne correspond aux filtres sélectionnés")
         else:
-            st.info("Aucun mouvement enregistré pour le moment.")
+            st.info("📭 Aucun mouvement enregistré pour le moment.")
     else:
-        st.info("Aucun mouvement enregistré pour le moment.")
+        st.info("📭 Aucun mouvement enregistré pour le moment.")
 
 elif action == "Gérer les tables":
     st.header("📋 Gestion des Tables d'Atelier")
-    st.info("💡 Gérez les tables d'atelier et leurs informations")
     
     # Charger les tables d'atelier
     df_tables = charger_tables_atelier()
@@ -2938,10 +3217,21 @@ elif action == "Gérer les tables":
                         # Vérifier si c'est une demande structurée avec chantier
                         if isinstance(produits_data, dict) and 'chantier' in produits_data:
                             chantier = produits_data['chantier']
-                            # Vérifier si le chantier contient l'ID de la table ou le nom de la table
-                            if (table_info['ID_Table'] in chantier or 
-                                table_info['Nom_Table'] in chantier or
-                                table_info['Type_Atelier'] in chantier):
+                            # Vérifier si le chantier contient exactement l'ID de la table ou le nom de la table
+                            # Utiliser des correspondances exactes pour éviter les faux positifs
+                            chantier_lower = chantier.lower()
+                            id_table_lower = table_info['ID_Table'].lower()
+                            nom_table_lower = table_info['Nom_Table'].lower()
+                            type_atelier_lower = table_info['Type_Atelier'].lower()
+                            
+                            # Vérification exacte de l'ID de table (avec délimiteurs)
+                            import re
+                            id_pattern = r'\b' + re.escape(id_table_lower) + r'\b'
+                            nom_pattern = r'\b' + re.escape(nom_table_lower) + r'\b'
+                            
+                            if (re.search(id_pattern, chantier_lower) or 
+                                re.search(nom_pattern, chantier_lower) or
+                                (type_atelier_lower in chantier_lower and len(type_atelier_lower) > 3)):
                                 demandes_table.append(demande)
                         
                         # Aussi vérifier dans le demandeur si c'est le responsable de la table
@@ -3115,7 +3405,6 @@ elif action == "Gérer les tables":
             sub_tab1, sub_tab2 = st.tabs(["🔍 QR Code individuel", "🏭 Toutes les tables"])
             
             with sub_tab1:
-                st.subheader("🔍 Génération d'un QR code individuel")
                 
                 # Sélection de la table
                 table_select = st.selectbox(
@@ -3162,6 +3451,7 @@ elif action == "Gérer les tables":
                         data=buf.getvalue(),
                         file_name=f"QR_Table_{table_info['ID_Table']}.png",
                         mime="image/png",
+                        key=f"download_qr_table_individual_{table_info['ID_Table']}",
                         use_container_width=True
                     )
             
@@ -3257,7 +3547,6 @@ elif action == "Gérer les tables":
 
 elif action == "Fournisseurs":
     st.header("🏪 Gestion des Fournisseurs")
-    st.info("💡 Gérez vos fournisseurs et consultez leurs statistiques")
     
     # Charger et mettre à jour les fournisseurs
     df_fournisseurs = mettre_a_jour_statistiques_fournisseurs()
