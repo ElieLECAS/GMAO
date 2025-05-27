@@ -678,25 +678,43 @@ def afficher_alertes_stock(df):
     if df.empty:
         return
     
-    # Produits en dessous du stock minimum
+    # Produits en dessous du stock minimum (critique)
     alertes_min = df[df['Quantite'] < df['Stock_Min']]
     
-    # Produits au-dessus du stock maximum
+    # Produits au-dessus du stock maximum (surstock)
     alertes_max = df[df['Quantite'] > df['Stock_Max']]
     
-    if not alertes_min.empty or not alertes_max.empty:
+    # Produits bientôt en rupture (entre min et 30% de la plage min-max)
+    seuil_alerte = df['Stock_Min'] + (df['Stock_Max'] - df['Stock_Min']) * 0.3
+    alertes_bientot = df[(df['Quantite'] >= df['Stock_Min']) & (df['Quantite'] <= seuil_alerte)]
+    
+    if not alertes_min.empty or not alertes_max.empty or not alertes_bientot.empty:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### ⚠️ Alertes de Stock")
         
+        # Expander pour stock critique (insuffisant)
         if not alertes_min.empty:
-            st.sidebar.markdown("**🔴 Stock insuffisant :**")
-            for _, produit in alertes_min.iterrows():
-                st.sidebar.error(f"**{produit['Produits']}** : {produit['Quantite']} < {produit['Stock_Min']}")
+            with st.sidebar.expander(f"🔴 Stock critique ({len(alertes_min)})", expanded=False):
+                st.markdown("**Réapprovisionnement urgent requis :**")
+                for _, produit in alertes_min.iterrows():
+                    manquant = produit['Stock_Min'] - produit['Quantite']
+                    st.error(f"**{produit['Produits']}**  \n{produit['Quantite']} < {produit['Stock_Min']} (manque {manquant})")
         
+        # Expander pour stock faible (bientôt critique)
+        if not alertes_bientot.empty:
+            with st.sidebar.expander(f"🟠 Stock faible ({len(alertes_bientot)})", expanded=False):
+                st.markdown("**Réapprovisionnement recommandé :**")
+                for _, produit in alertes_bientot.iterrows():
+                    seuil = seuil_alerte.loc[produit.name]
+                    st.warning(f"**{produit['Produits']}**  \n{produit['Quantite']} ≤ {seuil:.0f} (seuil d'alerte)")
+        
+        # Expander pour surstock
         if not alertes_max.empty:
-            st.sidebar.markdown("**🟡 Surstock :**")
-            for _, produit in alertes_max.iterrows():
-                st.sidebar.warning(f"**{produit['Produits']}** : {produit['Quantite']} > {produit['Stock_Max']}")
+            with st.sidebar.expander(f"🟡 Surstock ({len(alertes_max)})", expanded=False):
+                st.markdown("**Stock excessif :**")
+                for _, produit in alertes_max.iterrows():
+                    excedent = produit['Quantite'] - produit['Stock_Max']
+                    st.info(f"**{produit['Produits']}**  \n{produit['Quantite']} > {produit['Stock_Max']} (+{excedent})")
 
 # Chargement initial des données
 df = load_data()
@@ -732,6 +750,9 @@ st.sidebar.markdown("### 🎯 **Actions principales**")
 
 if st.sidebar.button("🏪 Magasin", use_container_width=True, help="Vue d'ensemble du stock"):
     st.session_state.action = "Magasin"
+
+if st.sidebar.button("📈 Mouvements", use_container_width=True, help="Historique des mouvements"):
+    st.session_state.action = "Historique des mouvements"
 
 if st.sidebar.button("📋 Demande de matériel", use_container_width=True, help="Demander du matériel"):
     st.session_state.action = "Demande de matériel"
@@ -783,9 +804,7 @@ with st.sidebar.expander("⚙️ **Administration**"):
 with st.sidebar.expander("📊 **Rapports**"):
     if st.button("🚨 Alertes stock", use_container_width=True):
         st.session_state.action = "Alertes de stock"
-    
-    if st.button("📈 Historique", use_container_width=True):
-        st.session_state.action = "Historique des mouvements"
+
 
 # Récupérer l'action actuelle
 action = st.session_state.action
