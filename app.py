@@ -773,26 +773,20 @@ if st.sidebar.button("📤 Sortie", use_container_width=True, help="Sortie de st
 if st.sidebar.button("📊 Inventaire", use_container_width=True, help="Ajustement d'inventaire"):
     st.session_state.action = "Inventaire"
 
-if st.sidebar.button("🔍 Rechercher", use_container_width=True):
-    st.session_state.action = "Rechercher un produit"
+# if st.sidebar.button("🔍 Rechercher", use_container_width=True):
+#     st.session_state.action = "Rechercher un produit"
 
 # Section QR Codes - Outils mobiles
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 **QR Codes**")
-
-if st.sidebar.button("📦 QR Produits", use_container_width=True, help="QR codes des produits"):
-    st.session_state.action = "QR Code produit"
 
 if st.sidebar.button("🏭 QR Tables", use_container_width=True, help="QR codes des tables d'atelier"):
     st.session_state.action = "QR Code tables d'atelier"
 
 # Section administration - Moins fréquent
 with st.sidebar.expander("⚙️ **Administration**"):
-    if st.button("➕ Ajouter produit", use_container_width=True):
-        st.session_state.action = "Ajouter un produit"
-    
-    if st.button("✏️ Modifier produit", use_container_width=True):
-        st.session_state.action = "Modifier un produit"
+    if st.button("📦 Gestion produits", use_container_width=True):
+        st.session_state.action = "Gestion des produits"
     
     if st.button("📋 Gérer tables", use_container_width=True):
         st.session_state.action = "Gérer les tables"
@@ -1561,708 +1555,850 @@ elif action == "Gestion des demandes":
     else:
         st.info("Aucune demande de matériel pour le moment.")
 
-elif action == "Ajouter un produit":
-    st.header("➕ Ajouter des produits")
-    st.info("💡 Ajoutez des produits individuellement ou en masse via un fichier")
+elif action == "Gestion des produits":
+    st.header("📦 Gestion des Produits")
+    st.info("💡 Gérez vos produits : recherche, ajout, modification et QR codes")
     
-    # Onglets pour différentes méthodes d'ajout
-    tab1, tab2 = st.tabs(["➕ Ajout individuel", "📁 Import en masse"])
+    # Onglets pour différentes actions
+    tab1, tab2, tab3, tab4 = st.tabs(["🔍 Rechercher", "➕ Ajouter", "✏️ Modifier", "📱 QR Codes"])
     
     with tab1:
-        st.subheader("➕ Ajouter un produit individuellement")
+        st.subheader("🔍 Rechercher un produit")
         
-        with st.form("ajout_produit"):
-            col1, col2 = st.columns(2)
+        produit_trouve = rechercher_produit(df, mode="selection")
+        
+        # Si un produit est trouvé, afficher les informations détaillées
+        if produit_trouve is not None:
+            st.markdown("---")
             
+            # En-tête avec le nom du produit
+            st.subheader(f"📦 {produit_trouve['Produits']}")
+            
+            # Informations de base en colonnes
+            col1, col2, col3 = st.columns(3)
             with col1:
-                produit = st.text_input("Nom du produit *")
-                reference = st.text_input("Référence (code-barres)")
-                quantite = st.number_input("Quantité", min_value=0, value=0)
-                stock_min = st.number_input("Stock minimum", min_value=0, value=10)
-                stock_max = st.number_input("Stock maximum", min_value=1, value=100)
-            
+                st.metric("🆔 Référence", produit_trouve['Reference'])
             with col2:
-                # Récupérer les emplacements et fournisseurs existants
-                emplacements_existants = df['Emplacement'].dropna().unique().tolist() if not df.empty else []
-                emplacements_defaut = ["Atelier A", "Atelier B", "Stockage", "Magasin", "Zone de réception"]
-                emplacements_tous = list(set(emplacements_existants + emplacements_defaut))
-                
-                fournisseurs_existants = df['Fournisseur'].dropna().unique().tolist() if not df.empty else []
-                fournisseurs_defaut = ["Fournisseur A", "Fournisseur B", "Fournisseur C"]
-                fournisseurs_tous = list(set(fournisseurs_existants + fournisseurs_defaut))
-                
-                emplacement = st.selectbox("Emplacement", emplacements_tous)
-                fournisseur = st.selectbox("Fournisseur", fournisseurs_tous)
-                prix = st.number_input("Prix unitaire (€)", min_value=0.0, value=0.0, step=0.01)
-                
-                # Champs optionnels
-                reference_fournisseur = st.text_input("Référence fournisseur")
-                unite_stockage = st.text_input("Unité de stockage", value="Unité")
+                st.metric("📍 Emplacement", produit_trouve['Emplacement'])
+            with col3:
+                st.metric("🏪 Fournisseur", produit_trouve['Fournisseur'])
             
-            submitted = st.form_submit_button("➕ Ajouter le produit", use_container_width=True)
+            # ═══════════════════════════════════════════════════════════════
+            # 📊 SECTION 1: ÉTAT DU STOCK VISUEL
+            # ═══════════════════════════════════════════════════════════════
+            st.markdown("---")
+            st.subheader("📊 État du stock")
             
-            if submitted:
-                if not produit:
-                    st.error("❌ Le nom du produit est obligatoire")
-                elif stock_min >= stock_max:
-                    st.error("❌ Le stock minimum doit être inférieur au stock maximum")
-                else:
-                    # Générer une référence automatique si non fournie
-                    if not reference:
-                        reference = generer_reference_qr(produit, produit)
-                    
-                    new_row = pd.DataFrame({
-                        'Code': [reference],
-                        'Reference_Fournisseur': [reference_fournisseur],
-                        'Produits': [produit],
-                        'Unite_Stockage': [unite_stockage],
-                        'Unite_Commande': [unite_stockage],
-                        'Stock_Min': [stock_min],
-                        'Stock_Max': [stock_max],
-                        'Site': ['Site principal'],
-                        'Lieu': [emplacement],
-                        'Emplacement': [emplacement],
-                        'Fournisseur': [fournisseur],
-                        'Prix_Unitaire': [prix],
-                        'Categorie': ['Général'],
-                        'Secteur': ['Général'],
-                        'Reference': [reference],
-                        'Quantite': [quantite],
-                        'Date_Entree': [datetime.now().strftime("%Y-%m-%d")]
-                    })
-                    
-                    df = pd.concat([df, new_row], ignore_index=True)
-                    save_data(df)
-                    log_mouvement(produit, "Ajout produit", quantite, quantite, 0)
-                    st.success(f"✅ Produit '{produit}' ajouté avec succès!")
-                    st.experimental_rerun()
-    
-    with tab2:
-        st.subheader("📁 Import en masse de produits")
-        
-        # Instructions et modèle
-        st.markdown("### 📋 Instructions")
-        st.info("""
-        **Format de fichier accepté :** CSV ou Excel (.xlsx)
-        
-        **Colonnes requises :**
-        - `Désignation` : Nom du produit (obligatoire)
-        
-        **Colonnes recommandées :**
-        - `Code` : Code du produit
-        - `Référence fournisseur` : Référence chez le fournisseur
-        - `Unité de stockage` : Unité de stockage (ex: Unité, Kg, Mètre)
-        - `Unite Commande` : Unité de commande
-        - `Min` : Stock minimum
-        - `Max` : Stock maximum
-        - `Site` : Site de stockage
-        - `Lieu` : Lieu de stockage
-        - `Emplacement` : Emplacement précis
-        - `Fournisseur Standard` : Nom du fournisseur
-        - `Prix` : Prix unitaire en euros
-        - `Catégorie` : Catégorie du produit
-        - `Secteur` : Secteur d'activité
-        
-                 **Colonnes optionnelles :**
-         - `Quantite` : Quantité en stock (défaut: 0 si vide)
-        
-        💡 **Note :** Les noms de colonnes correspondent exactement au fichier Excel original
-        """)
-        
-        # Télécharger le modèle
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("### 📥 Télécharger le modèle")
+            quantite_actuelle = int(produit_trouve['Quantite'])
+            stock_min = int(produit_trouve['Stock_Min'])
+            stock_max = int(produit_trouve['Stock_Max'])
+            prix_unitaire = float(produit_trouve['Prix_Unitaire'])
+            valeur_stock = quantite_actuelle * prix_unitaire
             
-            # Créer un fichier modèle basé sur les vraies colonnes du fichier Excel
-            modele_data = {
-                'Code': ['VIS001', 'JOINT002', 'ALU003'],
-                'Référence fournisseur': ['VP-4040', 'EP-JOINT01', 'AE-PROF2M'],
-                'Désignation': ['Vis inox 4x40', 'Joint étanchéité', 'Profilé aluminium 2m'],
-                'Unité de stockage': ['Unité', 'Unité', 'Mètre'],
-                'Unite Commande': ['Boîte de 100', 'Unité', 'Barre de 6m'],
-                'Min': [20, 10, 5],
-                'Max': [200, 100, 50],
-                'Site': ['Site principal', 'Site principal', 'Site principal'],
-                'Lieu': ['Atelier A', 'Magasin', 'Stockage'],
-                'Emplacement': ['Étagère A1', 'Armoire B2', 'Rack C3'],
-                'Fournisseur Standard': ['Visserie Pro', 'Étanchéité Plus', 'Alu Expert'],
-                'Prix': [0.15, 2.50, 45.00],
-                'Catégorie': ['Visserie', 'Étanchéité', 'Profilés'],
-                'Secteur': ['Fixation', 'Étanchéité', 'Structure'],
-                'Quantite': [100, 50, 25]
-            }
+            # Métriques principales
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                st.metric("📦 Stock actuel", quantite_actuelle)
+            with col2:
+                st.metric("🔻 Stock minimum", stock_min)
+            with col3:
+                st.metric("🔺 Stock maximum", stock_max)
+            with col4:
+                st.metric("💰 Prix unitaire", f"{prix_unitaire:.2f} €")
+            with col5:
+                st.metric("💎 Valeur stock", f"{valeur_stock:.2f} €")
             
-            df_modele = pd.DataFrame(modele_data)
+            # Indicateur visuel de l'état du stock
+            pourcentage_stock = (quantite_actuelle - stock_min) / (stock_max - stock_min) * 100 if stock_max > stock_min else 50
             
-            # Boutons de téléchargement du modèle
-            csv_modele = df_modele.to_csv(index=False, encoding='utf-8-sig')
-            st.download_button(
-                label="📄 Télécharger modèle CSV",
-                data=csv_modele,
-                file_name="modele_import_produits.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+            # Déterminer la couleur et le statut
+            if quantite_actuelle < stock_min:
+                couleur_statut = "#ff4444"  # Rouge
+                statut_text = "🔴 STOCK CRITIQUE"
+                statut_description = f"Il manque {stock_min - quantite_actuelle} unités pour atteindre le minimum"
+            elif quantite_actuelle > stock_max:
+                couleur_statut = "#ffaa00"  # Orange
+                statut_text = "🟡 SURSTOCK"
+                statut_description = f"Excédent de {quantite_actuelle - stock_max} unités au-dessus du maximum"
+            elif quantite_actuelle <= stock_min + (stock_max - stock_min) * 0.3:
+                couleur_statut = "#ff8800"  # Orange foncé
+                statut_text = "🟠 STOCK FAIBLE"
+                statut_description = "Réapprovisionnement recommandé prochainement"
+            else:
+                couleur_statut = "#00aa44"  # Vert
+                statut_text = "🟢 STOCK NORMAL"
+                statut_description = "Stock dans les limites optimales"
             
-            # Créer un fichier Excel pour le modèle
-            from io import BytesIO
-            excel_buffer = BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                df_modele.to_excel(writer, index=False, sheet_name='Produits')
+            # Affichage du statut avec barre de progression
+            st.markdown(f"""
+            <div style="background: {couleur_statut}; color: white; padding: 1rem; border-radius: 10px; text-align: center; margin: 1rem 0;">
+                <h3 style="margin: 0; color: white;">{statut_text}</h3>
+                <p style="margin: 0.5rem 0 0 0; color: white;">{statut_description}</p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            st.download_button(
-                label="📊 Télécharger modèle Excel",
-                data=excel_buffer.getvalue(),
-                file_name="modele_import_produits.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-        
-        with col2:
-            st.markdown("### 📤 Importer votre fichier")
+            # Barre de progression visuelle
+            if stock_max > stock_min:
+                progress_value = max(0, min(100, pourcentage_stock))
+                st.progress(progress_value / 100)
+                st.caption(f"Position dans la plage de stock : {progress_value:.1f}%")
             
-            # Upload du fichier
-            uploaded_file = st.file_uploader(
-                "Choisissez votre fichier",
-                type=['csv', 'xlsx'],
-                help="Formats acceptés : CSV, Excel (.xlsx)"
-            )
+            # ═══════════════════════════════════════════════════════════════
+            # 📈 SECTION 2: HISTORIQUE DES MOUVEMENTS
+            # ═══════════════════════════════════════════════════════════════
+            st.markdown("---")
+            st.subheader("📈 Historique des mouvements")
             
-            if uploaded_file is not None:
+            # Charger l'historique pour ce produit
+            file_path_hist = "data/historique.xlsx"
+            if os.path.exists(file_path_hist):
                 try:
-                    # Lire le fichier selon son type
-                    if uploaded_file.name.endswith('.csv'):
-                        df_import = pd.read_csv(uploaded_file, encoding='utf-8')
-                    else:
-                        df_import = pd.read_excel(uploaded_file, engine='openpyxl')
+                    df_hist = pd.read_excel(file_path_hist, engine='openpyxl')
+                    # Filtrer pour le produit actuel
+                    df_hist_produit = df_hist[df_hist['Produit'] == produit_trouve['Produits']].copy()
                     
-                    st.success(f"✅ Fichier lu avec succès : {len(df_import)} ligne(s)")
-                    
-                    # Vérification des colonnes obligatoires (basées sur le fichier Excel original)
-                    colonnes_obligatoires = ['Désignation']
-                    colonnes_manquantes = [col for col in colonnes_obligatoires if col not in df_import.columns]
-                    
-                    if colonnes_manquantes:
-                        st.error(f"❌ Colonnes manquantes : {', '.join(colonnes_manquantes)}")
-                    else:
-                        # Prévisualisation des données
-                        st.markdown("### 👀 Prévisualisation des données")
-                        st.dataframe(df_import.head(10), use_container_width=True)
+                    if not df_hist_produit.empty:
+                        # Trier par date (plus récent en premier)
+                        df_hist_produit = df_hist_produit.sort_values('Date', ascending=False)
                         
-                        if len(df_import) > 10:
-                            st.caption(f"Affichage des 10 premières lignes sur {len(df_import)} au total")
+                        # Statistiques des mouvements
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            total_mouvements = len(df_hist_produit)
+                            st.metric("📊 Total mouvements", total_mouvements)
+                        with col2:
+                            entrees = len(df_hist_produit[df_hist_produit['Nature'].str.contains('Entrée', na=False)])
+                            st.metric("📥 Entrées", entrees)
+                        with col3:
+                            sorties = len(df_hist_produit[df_hist_produit['Nature'].str.contains('Sortie', na=False)])
+                            st.metric("📤 Sorties", sorties)
+                        with col4:
+                            inventaires = len(df_hist_produit[df_hist_produit['Nature'].str.contains('Inventaire', na=False)])
+                            st.metric("📋 Inventaires", inventaires)
                         
-                        # Validation des données
-                        st.markdown("### ✅ Validation des données")
+                        # Affichage des derniers mouvements
+                        st.markdown("**🕒 Derniers mouvements :**")
                         
-                        erreurs = []
-                        avertissements = []
+                        # Limiter à 10 derniers mouvements pour l'affichage
+                        df_hist_recent = df_hist_produit.head(10)
                         
-                        # Vérifier les désignations vides
-                        designations_vides = df_import['Désignation'].isna().sum()
-                        if designations_vides > 0:
-                            erreurs.append(f"❌ {designations_vides} ligne(s) avec désignation vide")
-                        
-                        # Vérifier les doublons de désignations
-                        doublons = df_import['Désignation'].duplicated().sum()
-                        if doublons > 0:
-                            avertissements.append(f"⚠️ {doublons} désignation(s) en doublon dans le fichier")
-                        
-                        # Vérifier les stocks min/max (colonnes du fichier Excel original)
-                        if 'Min' in df_import.columns and 'Max' in df_import.columns:
-                            stocks_invalides = (df_import['Min'] >= df_import['Max']).sum()
-                            if stocks_invalides > 0:
-                                erreurs.append(f"❌ {stocks_invalides} ligne(s) avec stock minimum >= stock maximum")
-                        
-                        # Vérifier les quantités négatives
-                        if 'Quantite' in df_import.columns:
-                            quantites_negatives = (df_import['Quantite'] < 0).sum()
-                            if quantites_negatives > 0:
-                                erreurs.append(f"❌ {quantites_negatives} ligne(s) avec quantité négative")
-                        
-                        # Vérifier les prix négatifs (colonne Prix du fichier Excel original)
-                        if 'Prix' in df_import.columns:
-                            prix_negatifs = (df_import['Prix'] < 0).sum()
-                            if prix_negatifs > 0:
-                                erreurs.append(f"❌ {prix_negatifs} ligne(s) avec prix négatif")
-                        
-                        # Afficher les erreurs et avertissements
-                        if erreurs:
-                            for erreur in erreurs:
-                                st.error(erreur)
-                        
-                        if avertissements:
-                            for avertissement in avertissements:
-                                st.warning(avertissement)
-                        
-                        if not erreurs:
-                            st.success("✅ Toutes les validations sont passées")
+                        for idx, mouvement in df_hist_recent.iterrows():
+                            # Déterminer l'icône et la couleur selon le type de mouvement
+                            if 'Entrée' in mouvement['Nature']:
+                                icone = "📥"
+                                couleur = "#e8f5e8"
+                                couleur_bordure = "#4caf50"
+                            elif 'Sortie' in mouvement['Nature']:
+                                icone = "📤"
+                                couleur = "#fff3e0"
+                                couleur_bordure = "#ff9800"
+                            elif 'Inventaire' in mouvement['Nature']:
+                                icone = "📋"
+                                couleur = "#e3f2fd"
+                                couleur_bordure = "#2196f3"
+                            else:
+                                icone = "📊"
+                                couleur = "#f5f5f5"
+                                couleur_bordure = "#9e9e9e"
                             
-                            # Options d'import
-                            st.markdown("### ⚙️ Options d'import")
+                            # Formatage de la date
+                            try:
+                                date_formatee = pd.to_datetime(mouvement['Date']).strftime("%d/%m/%Y %H:%M")
+                            except:
+                                date_formatee = str(mouvement['Date'])
                             
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                mode_import = st.radio(
-                                    "Mode d'import",
-                                    ["Ajouter uniquement", "Mettre à jour si existe"],
-                                    help="Ajouter uniquement : ignore les produits existants\nMettre à jour : met à jour les produits existants"
-                                )
-                            
-                            with col2:
-                                generer_references = st.checkbox(
-                                    "Générer automatiquement les références manquantes",
-                                    value=True,
-                                    help="Génère des références uniques pour les produits qui n'en ont pas"
-                                )
-                            
-                            # Bouton d'import
-                            if st.button("📥 Importer les produits", type="primary", use_container_width=True):
-                                try:
-                                    # Préparer les données pour l'import
-                                    df_import_clean = df_import.copy()
-                                    
-                                    # Appliquer le mapping des colonnes du fichier Excel vers les colonnes internes
-                                    column_mapping = {
-                                        'Code': 'Code',
-                                        'Référence fournisseur': 'Reference_Fournisseur', 
-                                        'Désignation': 'Produits',
-                                        'Unité de stockage': 'Unite_Stockage',
-                                        'Unite Commande': 'Unite_Commande',
-                                        'Min': 'Stock_Min',
-                                        'Max': 'Stock_Max',
-                                        'Site': 'Site',
-                                        'Lieu': 'Lieu',
-                                        'Emplacement': 'Emplacement',
-                                        'Fournisseur Standard': 'Fournisseur',
-                                        'Prix': 'Prix_Unitaire',
-                                        'Catégorie': 'Categorie',
-                                        'Secteur': 'Secteur'
-                                    }
-                                    
-                                    # Renommer les colonnes selon le mapping
-                                    df_import_clean = df_import_clean.rename(columns=column_mapping)
-                                    
-                                    # Remplir les colonnes manquantes avec des valeurs par défaut
-                                    colonnes_defaut = {
-                                        'Code': '',
-                                        'Reference_Fournisseur': '',
-                                        'Produits': '',
-                                        'Unite_Stockage': 'Unité',
-                                        'Unite_Commande': 'Unité',
-                                        'Stock_Min': 10,
-                                        'Stock_Max': 100,
-                                        'Site': 'Site principal',
-                                        'Lieu': 'Magasin',
-                                        'Emplacement': 'Magasin',
-                                        'Fournisseur': 'À définir',
-                                        'Prix_Unitaire': 0.0,
-                                        'Categorie': 'Général',
-                                        'Secteur': 'Général',
-                                        'Quantite': 0
-                                    }
-                                    
-                                    for col, valeur_defaut in colonnes_defaut.items():
-                                        if col not in df_import_clean.columns:
-                                            df_import_clean[col] = valeur_defaut
-                                        else:
-                                            df_import_clean[col] = df_import_clean[col].fillna(valeur_defaut)
-                                    
-                                    # Générer les codes et références si nécessaire
-                                    for idx, row in df_import_clean.iterrows():
-                                        # Si pas de code, utiliser la désignation pour en générer un
-                                        if pd.isna(row['Code']) or row['Code'] == '':
-                                            df_import_clean.loc[idx, 'Code'] = row['Produits'][:10].upper().replace(' ', '')
-                                    
-                                    # Générer les références pour les QR codes
-                                    if 'Reference' not in df_import_clean.columns or generer_references:
-                                        if 'Reference' not in df_import_clean.columns:
-                                            df_import_clean['Reference'] = ''
-                                        
-                                        for idx, row in df_import_clean.iterrows():
-                                            if pd.isna(row['Reference']) or row['Reference'] == '':
-                                                df_import_clean.loc[idx, 'Reference'] = generer_reference_qr(row['Code'], row['Produits'])
-                                    
-                                    # Ajouter les colonnes système
-                                    df_import_clean['Date_Entree'] = datetime.now().strftime("%Y-%m-%d")
-                                    
-                                    # S'assurer que Lieu est défini
-                                    if 'Lieu' not in df_import_clean.columns or df_import_clean['Lieu'].isna().all():
-                                        df_import_clean['Lieu'] = df_import_clean['Emplacement']
-                                    
-                                    # Statistiques d'import
-                                    produits_ajoutes = 0
-                                    produits_mis_a_jour = 0
-                                    produits_ignores = 0
-                                    
-                                    # Barre de progression
-                                    progress_bar = st.progress(0)
-                                    status_text = st.empty()
-                                    
-                                    for idx, row in df_import_clean.iterrows():
-                                        # Mise à jour de la progression
-                                        progress = (idx + 1) / len(df_import_clean)
-                                        progress_bar.progress(progress)
-                                        status_text.text(f"Traitement en cours... {idx + 1}/{len(df_import_clean)}")
-                                        
-                                        # Vérifier si le produit existe déjà
-                                        produit_existant = df[df['Produits'] == row['Produits']]
-                                        
-                                        if not produit_existant.empty and mode_import == "Mettre à jour si existe":
-                                            # Mettre à jour le produit existant
-                                            for col in df_import_clean.columns:
-                                                if col in df.columns:
-                                                    df.loc[df['Produits'] == row['Produits'], col] = row[col]
-                                            produits_mis_a_jour += 1
-                                            
-                                            # Log du mouvement si la quantité a changé
-                                            ancienne_quantite = produit_existant.iloc[0]['Quantite']
-                                            nouvelle_quantite = row['Quantite']
-                                            if ancienne_quantite != nouvelle_quantite:
-                                                log_mouvement(
-                                                    row['Produits'],
-                                                    "Import - Mise à jour",
-                                                    abs(nouvelle_quantite - ancienne_quantite),
-                                                    nouvelle_quantite,
-                                                    ancienne_quantite
-                                                )
-                                        
-                                        elif produit_existant.empty:
-                                            # Ajouter le nouveau produit
-                                            new_row = pd.DataFrame([row])
-                                            df = pd.concat([df, new_row], ignore_index=True)
-                                            produits_ajoutes += 1
-                                            
-                                            # Log du mouvement
-                                            if row['Quantite'] > 0:
-                                                log_mouvement(
-                                                    row['Produits'],
-                                                    "Import - Nouveau produit",
-                                                    row['Quantite'],
-                                                    row['Quantite'],
-                                                    0
-                                                )
-                                        else:
-                                            # Produit existant mais mode "Ajouter uniquement"
-                                            produits_ignores += 1
-                                    
-                                    # Sauvegarder les données
-                                    save_data(df)
-                                    
-                                    # Finalisation
-                                    progress_bar.progress(1.0)
-                                    status_text.text("✅ Import terminé !")
-                                    
-                                    # Afficher le résumé
-                                    st.success("🎉 Import terminé avec succès !")
-                                    
-                                    col1, col2, col3 = st.columns(3)
-                                    with col1:
-                                        st.metric("➕ Produits ajoutés", produits_ajoutes)
-                                    with col2:
-                                        st.metric("🔄 Produits mis à jour", produits_mis_a_jour)
-                                    with col3:
-                                        st.metric("⏭️ Produits ignorés", produits_ignores)
-                                    
-                                    st.experimental_rerun()
-                                    
-                                except Exception as e:
-                                    st.error(f"❌ Erreur lors de l'import : {str(e)}")
-                        else:
-                            st.error("❌ Veuillez corriger les erreurs avant de procéder à l'import")
-                
-                except Exception as e:
-                    st.error(f"❌ Erreur lors de la lecture du fichier : {str(e)}")
-                    st.info("💡 Vérifiez que votre fichier respecte le format attendu")
-
-elif action == "Modifier un produit":
-    st.header("Modifier un produit")
-    
-    if not df.empty:
-        produit_to_edit = st.selectbox("Sélectionner le produit à modifier", df['Produits'].unique())
-        produit_data = df[df['Produits'] == produit_to_edit].iloc[0]
-        
-        with st.form("modifier_produit"):
-            quantite = st.number_input("Nouvelle quantité", value=int(produit_data['Quantite']))
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                stock_min = st.number_input("Stock minimum", min_value=0, value=int(produit_data['Stock_Min']))
-            with col2:
-                stock_max = st.number_input("Stock maximum", min_value=1, value=int(produit_data['Stock_Max']))
-            
-            emplacement = st.selectbox("Nouvel emplacement", df['Emplacement'].unique(), 
-                                     index=list(df['Emplacement'].unique()).index(produit_data['Emplacement']))
-            
-            submitted = st.form_submit_button("Mettre à jour")
-            
-            if submitted:
-                if stock_min >= stock_max:
-                    st.error("Le stock minimum doit être inférieur au stock maximum")
-                else:
-                    df.loc[df['Produits'] == produit_to_edit, 'Quantite'] = quantite
-                    df.loc[df['Produits'] == produit_to_edit, 'Stock_Min'] = stock_min
-                    df.loc[df['Produits'] == produit_to_edit, 'Stock_Max'] = stock_max
-                    df.loc[df['Produits'] == produit_to_edit, 'Emplacement'] = emplacement
-                    save_data(df)
-                    st.success("Produit mis à jour avec succès!")
-                    st.experimental_rerun()
-
-elif action == "Rechercher un produit":
-    st.header("🔍 Rechercher un produit")
-    
-    produit_trouve = rechercher_produit(df, mode="selection")
-    
-    # Si un produit est trouvé, afficher les informations détaillées
-    if produit_trouve is not None:
-        st.markdown("---")
-        
-        # En-tête avec le nom du produit
-        st.subheader(f"📦 {produit_trouve['Produits']}")
-        
-        # Informations de base en colonnes
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("🆔 Référence", produit_trouve['Reference'])
-        with col2:
-            st.metric("📍 Emplacement", produit_trouve['Emplacement'])
-        with col3:
-            st.metric("🏪 Fournisseur", produit_trouve['Fournisseur'])
-        
-        # ═══════════════════════════════════════════════════════════════
-        # 📊 SECTION 1: ÉTAT DU STOCK VISUEL
-        # ═══════════════════════════════════════════════════════════════
-        st.markdown("---")
-        st.subheader("📊 État du stock")
-        
-        quantite_actuelle = int(produit_trouve['Quantite'])
-        stock_min = int(produit_trouve['Stock_Min'])
-        stock_max = int(produit_trouve['Stock_Max'])
-        prix_unitaire = float(produit_trouve['Prix_Unitaire'])
-        valeur_stock = quantite_actuelle * prix_unitaire
-        
-        # Métriques principales
-        col1, col2, col3, col4, col5 = st.columns(5)
-        with col1:
-            st.metric("📦 Stock actuel", quantite_actuelle)
-        with col2:
-            st.metric("🔻 Stock minimum", stock_min)
-        with col3:
-            st.metric("🔺 Stock maximum", stock_max)
-        with col4:
-            st.metric("💰 Prix unitaire", f"{prix_unitaire:.2f} €")
-        with col5:
-            st.metric("💎 Valeur stock", f"{valeur_stock:.2f} €")
-        
-        # Indicateur visuel de l'état du stock
-        pourcentage_stock = (quantite_actuelle - stock_min) / (stock_max - stock_min) * 100 if stock_max > stock_min else 50
-        
-        # Déterminer la couleur et le statut
-        if quantite_actuelle < stock_min:
-            couleur_statut = "#ff4444"  # Rouge
-            statut_text = "🔴 STOCK CRITIQUE"
-            statut_description = f"Il manque {stock_min - quantite_actuelle} unités pour atteindre le minimum"
-        elif quantite_actuelle > stock_max:
-            couleur_statut = "#ffaa00"  # Orange
-            statut_text = "🟡 SURSTOCK"
-            statut_description = f"Excédent de {quantite_actuelle - stock_max} unités au-dessus du maximum"
-        elif quantite_actuelle <= stock_min + (stock_max - stock_min) * 0.3:
-            couleur_statut = "#ff8800"  # Orange foncé
-            statut_text = "🟠 STOCK FAIBLE"
-            statut_description = "Réapprovisionnement recommandé prochainement"
-        else:
-            couleur_statut = "#00aa44"  # Vert
-            statut_text = "🟢 STOCK NORMAL"
-            statut_description = "Stock dans les limites optimales"
-        
-        # Affichage du statut avec barre de progression
-        st.markdown(f"""
-        <div style="background: {couleur_statut}; color: white; padding: 1rem; border-radius: 10px; text-align: center; margin: 1rem 0;">
-            <h3 style="margin: 0; color: white;">{statut_text}</h3>
-            <p style="margin: 0.5rem 0 0 0; color: white;">{statut_description}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Barre de progression visuelle
-        if stock_max > stock_min:
-            progress_value = max(0, min(100, pourcentage_stock))
-            st.progress(progress_value / 100)
-            st.caption(f"Position dans la plage de stock : {progress_value:.1f}%")
-        
-        # ═══════════════════════════════════════════════════════════════
-        # 📈 SECTION 2: HISTORIQUE DES MOUVEMENTS
-        # ═══════════════════════════════════════════════════════════════
-        st.markdown("---")
-        st.subheader("📈 Historique des mouvements")
-        
-        # Charger l'historique pour ce produit
-        file_path_hist = "data/historique.xlsx"
-        if os.path.exists(file_path_hist):
-            try:
-                df_hist = pd.read_excel(file_path_hist, engine='openpyxl')
-                # Filtrer pour le produit actuel
-                df_hist_produit = df_hist[df_hist['Produit'] == produit_trouve['Produits']].copy()
-                
-                if not df_hist_produit.empty:
-                    # Trier par date (plus récent en premier)
-                    df_hist_produit = df_hist_produit.sort_values('Date', ascending=False)
-                    
-                    # Statistiques des mouvements
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        total_mouvements = len(df_hist_produit)
-                        st.metric("📊 Total mouvements", total_mouvements)
-                    with col2:
-                        entrees = len(df_hist_produit[df_hist_produit['Nature'].str.contains('Entrée', na=False)])
-                        st.metric("📥 Entrées", entrees)
-                    with col3:
-                        sorties = len(df_hist_produit[df_hist_produit['Nature'].str.contains('Sortie', na=False)])
-                        st.metric("📤 Sorties", sorties)
-                    with col4:
-                        inventaires = len(df_hist_produit[df_hist_produit['Nature'].str.contains('Inventaire', na=False)])
-                        st.metric("📋 Inventaires", inventaires)
-                    
-                    # Affichage des derniers mouvements
-                    st.markdown("**🕒 Derniers mouvements :**")
-                    
-                    # Limiter à 10 derniers mouvements pour l'affichage
-                    df_hist_recent = df_hist_produit.head(10)
-                    
-                    for idx, mouvement in df_hist_recent.iterrows():
-                        # Déterminer l'icône et la couleur selon le type de mouvement
-                        if 'Entrée' in mouvement['Nature']:
-                            icone = "📥"
-                            couleur = "#e8f5e8"
-                            couleur_bordure = "#4caf50"
-                        elif 'Sortie' in mouvement['Nature']:
-                            icone = "📤"
-                            couleur = "#fff3e0"
-                            couleur_bordure = "#ff9800"
-                        elif 'Inventaire' in mouvement['Nature']:
-                            icone = "📋"
-                            couleur = "#e3f2fd"
-                            couleur_bordure = "#2196f3"
-                        else:
-                            icone = "📊"
-                            couleur = "#f5f5f5"
-                            couleur_bordure = "#9e9e9e"
-                        
-                        # Formatage de la date
-                        try:
-                            date_formatee = pd.to_datetime(mouvement['Date']).strftime("%d/%m/%Y %H:%M")
-                        except:
-                            date_formatee = str(mouvement['Date'])
-                        
-                        # Affichage du mouvement
-                        st.markdown(f"""
-                        <div style="background: {couleur}; border-left: 4px solid {couleur_bordure}; 
-                                    padding: 1rem; margin: 0.5rem 0; border-radius: 5px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <strong>{icone} {mouvement['Nature']}</strong><br>
-                                    <span style="color: #666;">📅 {date_formatee}</span>
-                                </div>
-                                <div style="text-align: right;">
-                                    <strong>Quantité: {mouvement['Quantite_Mouvement']}</strong><br>
-                                    <span style="color: #666;">{mouvement['Quantite_Avant']} → {mouvement['Quantite_Apres']}</span>
+                            # Affichage du mouvement
+                            st.markdown(f"""
+                            <div style="background: {couleur}; border-left: 4px solid {couleur_bordure}; 
+                                        padding: 1rem; margin: 0.5rem 0; border-radius: 5px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong>{icone} {mouvement['Nature']}</strong><br>
+                                        <span style="color: #666;">📅 {date_formatee}</span>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <strong>Quantité: {mouvement['Quantite_Mouvement']}</strong><br>
+                                        <span style="color: #666;">{mouvement['Quantite_Avant']} → {mouvement['Quantite_Apres']}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
+                        
+                        # Bouton pour voir tout l'historique
+                        if len(df_hist_produit) > 10:
+                            with st.expander(f"📜 Voir tous les mouvements ({len(df_hist_produit)} au total)"):
+                                st.dataframe(df_hist_produit, use_container_width=True)
+                        
+                        # Graphique des mouvements dans le temps
+                        if len(df_hist_produit) > 1:
+                            st.markdown("**📈 Évolution du stock :**")
+                            
+                            # Préparer les données pour le graphique
+                            df_graph = df_hist_produit.copy()
+                            df_graph['Date'] = pd.to_datetime(df_graph['Date'])
+                            df_graph = df_graph.sort_values('Date')
+                            
+                            # Créer le graphique
+                            import plotly.express as px
+                            import plotly.graph_objects as go
+                            
+                            fig = go.Figure()
+                            
+                            # Ligne du stock
+                            fig.add_trace(go.Scatter(
+                                x=df_graph['Date'],
+                                y=df_graph['Quantite_Apres'],
+                                mode='lines+markers',
+                                name='Stock',
+                                line=dict(color='#1f77b4', width=3),
+                                marker=dict(size=8)
+                            ))
+                            
+                            # Lignes de référence
+                            fig.add_hline(y=stock_min, line_dash="dash", line_color="red", 
+                                         annotation_text="Stock minimum")
+                            fig.add_hline(y=stock_max, line_dash="dash", line_color="green", 
+                                         annotation_text="Stock maximum")
+                            
+                            fig.update_layout(
+                                title=f"Évolution du stock - {produit_trouve['Produits']}",
+                                xaxis_title="Date",
+                                yaxis_title="Quantité",
+                                height=400
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
                     
-                    # Bouton pour voir tout l'historique
-                    if len(df_hist_produit) > 10:
-                        with st.expander(f"📜 Voir tous les mouvements ({len(df_hist_produit)} au total)"):
-                            st.dataframe(df_hist_produit, use_container_width=True)
-                    
-                    # Graphique des mouvements dans le temps
-                    if len(df_hist_produit) > 1:
-                        st.markdown("**📈 Évolution du stock :**")
+                    else:
+                        st.info("📭 Aucun mouvement enregistré pour ce produit")
                         
-                        # Préparer les données pour le graphique
-                        df_graph = df_hist_produit.copy()
-                        df_graph['Date'] = pd.to_datetime(df_graph['Date'])
-                        df_graph = df_graph.sort_values('Date')
-                        
-                        # Créer le graphique
-                        import plotly.express as px
-                        import plotly.graph_objects as go
-                        
-                        fig = go.Figure()
-                        
-                        # Ligne du stock
-                        fig.add_trace(go.Scatter(
-                            x=df_graph['Date'],
-                            y=df_graph['Quantite_Apres'],
-                            mode='lines+markers',
-                            name='Stock',
-                            line=dict(color='#1f77b4', width=3),
-                            marker=dict(size=8)
-                        ))
-                        
-                        # Lignes de référence
-                        fig.add_hline(y=stock_min, line_dash="dash", line_color="red", 
-                                     annotation_text="Stock minimum")
-                        fig.add_hline(y=stock_max, line_dash="dash", line_color="green", 
-                                     annotation_text="Stock maximum")
-                        
-                        fig.update_layout(
-                            title=f"Évolution du stock - {produit_trouve['Produits']}",
-                            xaxis_title="Date",
-                            yaxis_title="Quantité",
-                            height=400
-                        )
-                        
-                        st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    st.error(f"❌ Erreur lors du chargement de l'historique : {str(e)}")
+            else:
+                st.info("📭 Aucun historique de mouvements disponible")
+            
+            # ═══════════════════════════════════════════════════════════════
+            # 📱 SECTION 3: QR CODE DU PRODUIT
+            # ═══════════════════════════════════════════════════════════════
+            st.markdown("---")
+            st.subheader("📱 QR Code du produit")
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.markdown("**🔍 Informations d'identification :**")
+                st.write(f"**📛 Nom :** {produit_trouve['Produits']}")
+                st.write(f"**🆔 Référence :** {produit_trouve['Reference']}")
+                st.write(f"**📅 Date d'entrée :** {produit_trouve['Date_Entree']}")
                 
-                else:
-                    st.info("📭 Aucun mouvement enregistré pour ce produit")
-                    
-            except Exception as e:
-                st.error(f"❌ Erreur lors du chargement de l'historique : {str(e)}")
-        else:
-            st.info("📭 Aucun historique de mouvements disponible")
-        
-        # ═══════════════════════════════════════════════════════════════
-        # 📱 SECTION 3: QR CODE DU PRODUIT
-        # ═══════════════════════════════════════════════════════════════
-        st.markdown("---")
-        st.subheader("📱 QR Code du produit")
-        
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            st.markdown("**🔍 Informations d'identification :**")
-            st.write(f"**📛 Nom :** {produit_trouve['Produits']}")
-            st.write(f"**🆔 Référence :** {produit_trouve['Reference']}")
-            st.write(f"**📅 Date d'entrée :** {produit_trouve['Date_Entree']}")
+                # Bouton pour imprimer/télécharger
+                qr = qrcode.QRCode(box_size=8, border=4)
+                qr.add_data(produit_trouve['Reference'])
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white")
+                buf = BytesIO()
+                img.save(buf, format="PNG")
+                
+                st.download_button(
+                    label="💾 Télécharger le QR Code",
+                    data=buf.getvalue(),
+                    file_name=f"QR_Produit_{produit_trouve['Reference']}.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
             
-            # Bouton pour imprimer/télécharger
-            qr = qrcode.QRCode(box_size=8, border=4)
-            qr.add_data(produit_trouve['Reference'])
-            qr.make(fit=True)
-            img = qr.make_image(fill_color="black", back_color="white")
-            buf = BytesIO()
-            img.save(buf, format="PNG")
-            
-            st.download_button(
-                label="💾 Télécharger le QR Code",
-                data=buf.getvalue(),
-                file_name=f"QR_Produit_{produit_trouve['Reference']}.png",
-                mime="image/png",
-                use_container_width=True
-            )
-        
-        with col2:
-            st.markdown("**📱 QR Code à scanner :**")
-            
-            # Afficher le QR code
-            st.image(buf.getvalue(), caption=f"QR Code - {produit_trouve['Produits']}")
-            
-            st.caption("💡 Scannez ce code avec votre smartphone ou scanner pour identifier rapidement ce produit")
+            with col2:
+                st.markdown("**📱 QR Code à scanner :**")
+                
+                # Afficher le QR code
+                st.image(buf.getvalue(), caption=f"QR Code - {produit_trouve['Produits']}")
+                
+                st.caption("💡 Scannez ce code avec votre smartphone ou scanner pour identifier rapidement ce produit")
     
+    with tab2:
+        st.subheader("➕ Ajouter des produits")
+        st.info("💡 Ajoutez des produits individuellement ou en masse via un fichier")
+        
+        # Onglets pour différentes méthodes d'ajout
+        sub_tab1, sub_tab2 = st.tabs(["➕ Ajout individuel", "📁 Import en masse"])
+        
+        with sub_tab1:
+            st.subheader("➕ Ajouter un produit individuellement")
+            
+            with st.form("ajout_produit"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    produit = st.text_input("Nom du produit *")
+                    reference = st.text_input("Référence (code-barres)")
+                    quantite = st.number_input("Quantité", min_value=0, value=0)
+                    stock_min = st.number_input("Stock minimum", min_value=0, value=10)
+                    stock_max = st.number_input("Stock maximum", min_value=1, value=100)
+                
+                with col2:
+                    # Récupérer les emplacements et fournisseurs existants
+                    emplacements_existants = df['Emplacement'].dropna().unique().tolist() if not df.empty else []
+                    emplacements_defaut = ["Atelier A", "Atelier B", "Stockage", "Magasin", "Zone de réception"]
+                    emplacements_tous = list(set(emplacements_existants + emplacements_defaut))
+                    
+                    fournisseurs_existants = df['Fournisseur'].dropna().unique().tolist() if not df.empty else []
+                    fournisseurs_defaut = ["Fournisseur A", "Fournisseur B", "Fournisseur C"]
+                    fournisseurs_tous = list(set(fournisseurs_existants + fournisseurs_defaut))
+                    
+                    emplacement = st.selectbox("Emplacement", emplacements_tous)
+                    fournisseur = st.selectbox("Fournisseur", fournisseurs_tous)
+                    prix = st.number_input("Prix unitaire (€)", min_value=0.0, value=0.0, step=0.01)
+                    
+                    # Champs optionnels
+                    reference_fournisseur = st.text_input("Référence fournisseur")
+                    unite_stockage = st.text_input("Unité de stockage", value="Unité")
+                
+                submitted = st.form_submit_button("➕ Ajouter le produit", use_container_width=True)
+                
+                if submitted:
+                    if not produit:
+                        st.error("❌ Le nom du produit est obligatoire")
+                    elif stock_min >= stock_max:
+                        st.error("❌ Le stock minimum doit être inférieur au stock maximum")
+                    else:
+                        # Générer une référence automatique si non fournie
+                        if not reference:
+                            reference = generer_reference_qr(produit, produit)
+                        
+                        new_row = pd.DataFrame({
+                            'Code': [reference],
+                            'Reference_Fournisseur': [reference_fournisseur],
+                            'Produits': [produit],
+                            'Unite_Stockage': [unite_stockage],
+                            'Unite_Commande': [unite_stockage],
+                            'Stock_Min': [stock_min],
+                            'Stock_Max': [stock_max],
+                            'Site': ['Site principal'],
+                            'Lieu': [emplacement],
+                            'Emplacement': [emplacement],
+                            'Fournisseur': [fournisseur],
+                            'Prix_Unitaire': [prix],
+                            'Categorie': ['Général'],
+                            'Secteur': ['Général'],
+                            'Reference': [reference],
+                            'Quantite': [quantite],
+                            'Date_Entree': [datetime.now().strftime("%Y-%m-%d")]
+                        })
+                        
+                        df = pd.concat([df, new_row], ignore_index=True)
+                        save_data(df)
+                        log_mouvement(produit, "Ajout produit", quantite, quantite, 0)
+                        st.success(f"✅ Produit '{produit}' ajouté avec succès!")
+                        st.experimental_rerun()
+        
+        with sub_tab2:
+            st.subheader("📁 Import en masse de produits")
+            
+            # Instructions et modèle
+            st.markdown("### 📋 Instructions")
+            st.info("""
+            **Format de fichier accepté :** CSV ou Excel (.xlsx)
+            
+            **Colonnes requises :**
+            - `Désignation` : Nom du produit (obligatoire)
+            
+            **Colonnes recommandées :**
+            - `Code` : Code du produit
+            - `Référence fournisseur` : Référence chez le fournisseur
+            - `Unité de stockage` : Unité de stockage (ex: Unité, Kg, Mètre)
+            - `Unite Commande` : Unité de commande
+            - `Min` : Stock minimum
+            - `Max` : Stock maximum
+            - `Site` : Site de stockage
+            - `Lieu` : Lieu de stockage
+            - `Emplacement` : Emplacement précis
+            - `Fournisseur Standard` : Nom du fournisseur
+            - `Prix` : Prix unitaire en euros
+            - `Catégorie` : Catégorie du produit
+            - `Secteur` : Secteur d'activité
+            
+                     **Colonnes optionnelles :**
+             - `Quantite` : Quantité en stock (défaut: 0 si vide)
+            
+            💡 **Note :** Les noms de colonnes correspondent exactement au fichier Excel original
+            """)
+            
+            # Télécharger le modèle
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### 📥 Télécharger le modèle")
+                
+                # Créer un fichier modèle basé sur les vraies colonnes du fichier Excel
+                modele_data = {
+                    'Code': ['VIS001', 'JOINT002', 'ALU003'],
+                    'Référence fournisseur': ['VP-4040', 'EP-JOINT01', 'AE-PROF2M'],
+                    'Désignation': ['Vis inox 4x40', 'Joint étanchéité', 'Profilé aluminium 2m'],
+                    'Unité de stockage': ['Unité', 'Unité', 'Mètre'],
+                    'Unite Commande': ['Boîte de 100', 'Unité', 'Barre de 6m'],
+                    'Min': [20, 10, 5],
+                    'Max': [200, 100, 50],
+                    'Site': ['Site principal', 'Site principal', 'Site principal'],
+                    'Lieu': ['Atelier A', 'Magasin', 'Stockage'],
+                    'Emplacement': ['Étagère A1', 'Armoire B2', 'Rack C3'],
+                    'Fournisseur Standard': ['Visserie Pro', 'Étanchéité Plus', 'Alu Expert'],
+                    'Prix': [0.15, 2.50, 45.00],
+                    'Catégorie': ['Visserie', 'Étanchéité', 'Profilés'],
+                    'Secteur': ['Fixation', 'Étanchéité', 'Structure'],
+                    'Quantite': [100, 50, 25]
+                }
+                
+                df_modele = pd.DataFrame(modele_data)
+                
+                # Boutons de téléchargement du modèle
+                csv_modele = df_modele.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📄 Télécharger modèle CSV",
+                    data=csv_modele,
+                    file_name="modele_import_produits.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+                
+                # Créer un fichier Excel pour le modèle
+                from io import BytesIO
+                excel_buffer = BytesIO()
+                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                    df_modele.to_excel(writer, index=False, sheet_name='Produits')
+                
+                st.download_button(
+                    label="📊 Télécharger modèle Excel",
+                    data=excel_buffer.getvalue(),
+                    file_name="modele_import_produits.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            
+            with col2:
+                st.markdown("### 📤 Importer votre fichier")
+                
+                # Upload du fichier
+                uploaded_file = st.file_uploader(
+                    "Choisissez votre fichier",
+                    type=['csv', 'xlsx'],
+                    help="Formats acceptés : CSV, Excel (.xlsx)"
+                )
+                
+                if uploaded_file is not None:
+                    try:
+                        # Lire le fichier selon son type
+                        if uploaded_file.name.endswith('.csv'):
+                            df_import = pd.read_csv(uploaded_file, encoding='utf-8')
+                        else:
+                            df_import = pd.read_excel(uploaded_file, engine='openpyxl')
+                        
+                        st.success(f"✅ Fichier lu avec succès : {len(df_import)} ligne(s)")
+                        
+                        # Vérification des colonnes obligatoires (basées sur le fichier Excel original)
+                        colonnes_obligatoires = ['Désignation']
+                        colonnes_manquantes = [col for col in colonnes_obligatoires if col not in df_import.columns]
+                        
+                        if colonnes_manquantes:
+                            st.error(f"❌ Colonnes manquantes : {', '.join(colonnes_manquantes)}")
+                        else:
+                            # Prévisualisation des données
+                            st.markdown("### 👀 Prévisualisation des données")
+                            st.dataframe(df_import.head(10), use_container_width=True)
+                            
+                            if len(df_import) > 10:
+                                st.caption(f"Affichage des 10 premières lignes sur {len(df_import)} au total")
+                            
+                            # Validation des données
+                            st.markdown("### ✅ Validation des données")
+                            
+                            erreurs = []
+                            avertissements = []
+                            
+                            # Vérifier les désignations vides
+                            designations_vides = df_import['Désignation'].isna().sum()
+                            if designations_vides > 0:
+                                erreurs.append(f"❌ {designations_vides} ligne(s) avec désignation vide")
+                            
+                            # Vérifier les doublons de désignations
+                            doublons = df_import['Désignation'].duplicated().sum()
+                            if doublons > 0:
+                                avertissements.append(f"⚠️ {doublons} désignation(s) en doublon dans le fichier")
+                            
+                            # Vérifier les stocks min/max (colonnes du fichier Excel original)
+                            if 'Min' in df_import.columns and 'Max' in df_import.columns:
+                                stocks_invalides = (df_import['Min'] >= df_import['Max']).sum()
+                                if stocks_invalides > 0:
+                                    erreurs.append(f"❌ {stocks_invalides} ligne(s) avec stock minimum >= stock maximum")
+                            
+                            # Vérifier les quantités négatives
+                            if 'Quantite' in df_import.columns:
+                                quantites_negatives = (df_import['Quantite'] < 0).sum()
+                                if quantites_negatives > 0:
+                                    erreurs.append(f"❌ {quantites_negatives} ligne(s) avec quantité négative")
+                            
+                            # Vérifier les prix négatifs (colonne Prix du fichier Excel original)
+                            if 'Prix' in df_import.columns:
+                                prix_negatifs = (df_import['Prix'] < 0).sum()
+                                if prix_negatifs > 0:
+                                    erreurs.append(f"❌ {prix_negatifs} ligne(s) avec prix négatif")
+                            
+                            # Afficher les erreurs et avertissements
+                            if erreurs:
+                                for erreur in erreurs:
+                                    st.error(erreur)
+                            
+                            if avertissements:
+                                for avertissement in avertissements:
+                                    st.warning(avertissement)
+                            
+                            if not erreurs:
+                                st.success("✅ Toutes les validations sont passées")
+                                
+                                # Options d'import
+                                st.markdown("### ⚙️ Options d'import")
+                                
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    mode_import = st.radio(
+                                        "Mode d'import",
+                                        ["Ajouter uniquement", "Mettre à jour si existe"],
+                                        help="Ajouter uniquement : ignore les produits existants\nMettre à jour : met à jour les produits existants"
+                                    )
+                                
+                                with col2:
+                                    generer_references = st.checkbox(
+                                        "Générer automatiquement les références manquantes",
+                                        value=True,
+                                        help="Génère des références uniques pour les produits qui n'en ont pas"
+                                    )
+                                
+                                # Bouton d'import
+                                if st.button("📥 Importer les produits", type="primary", use_container_width=True):
+                                    try:
+                                        # Préparer les données pour l'import
+                                        df_import_clean = df_import.copy()
+                                        
+                                        # Appliquer le mapping des colonnes du fichier Excel vers les colonnes internes
+                                        column_mapping = {
+                                            'Code': 'Code',
+                                            'Référence fournisseur': 'Reference_Fournisseur', 
+                                            'Désignation': 'Produits',
+                                            'Unité de stockage': 'Unite_Stockage',
+                                            'Unite Commande': 'Unite_Commande',
+                                            'Min': 'Stock_Min',
+                                            'Max': 'Stock_Max',
+                                            'Site': 'Site',
+                                            'Lieu': 'Lieu',
+                                            'Emplacement': 'Emplacement',
+                                            'Fournisseur Standard': 'Fournisseur',
+                                            'Prix': 'Prix_Unitaire',
+                                            'Catégorie': 'Categorie',
+                                            'Secteur': 'Secteur'
+                                        }
+                                        
+                                        # Renommer les colonnes selon le mapping
+                                        df_import_clean = df_import_clean.rename(columns=column_mapping)
+                                        
+                                        # Remplir les colonnes manquantes avec des valeurs par défaut
+                                        colonnes_defaut = {
+                                            'Code': '',
+                                            'Reference_Fournisseur': '',
+                                            'Produits': '',
+                                            'Unite_Stockage': 'Unité',
+                                            'Unite_Commande': 'Unité',
+                                            'Stock_Min': 10,
+                                            'Stock_Max': 100,
+                                            'Site': 'Site principal',
+                                            'Lieu': 'Magasin',
+                                            'Emplacement': 'Magasin',
+                                            'Fournisseur': 'À définir',
+                                            'Prix_Unitaire': 0.0,
+                                            'Categorie': 'Général',
+                                            'Secteur': 'Général',
+                                            'Quantite': 0
+                                        }
+                                        
+                                        for col, valeur_defaut in colonnes_defaut.items():
+                                            if col not in df_import_clean.columns:
+                                                df_import_clean[col] = valeur_defaut
+                                            else:
+                                                df_import_clean[col] = df_import_clean[col].fillna(valeur_defaut)
+                                        
+                                        # Générer les codes et références si nécessaire
+                                        for idx, row in df_import_clean.iterrows():
+                                            # Si pas de code, utiliser la désignation pour en générer un
+                                            if pd.isna(row['Code']) or row['Code'] == '':
+                                                df_import_clean.loc[idx, 'Code'] = row['Produits'][:10].upper().replace(' ', '')
+                                        
+                                        # Générer les références pour les QR codes
+                                        if 'Reference' not in df_import_clean.columns or generer_references:
+                                            if 'Reference' not in df_import_clean.columns:
+                                                df_import_clean['Reference'] = ''
+                                            
+                                            for idx, row in df_import_clean.iterrows():
+                                                if pd.isna(row['Reference']) or row['Reference'] == '':
+                                                    df_import_clean.loc[idx, 'Reference'] = generer_reference_qr(row['Code'], row['Produits'])
+                                        
+                                        # Ajouter les colonnes système
+                                        df_import_clean['Date_Entree'] = datetime.now().strftime("%Y-%m-%d")
+                                        
+                                        # S'assurer que Lieu est défini
+                                        if 'Lieu' not in df_import_clean.columns or df_import_clean['Lieu'].isna().all():
+                                            df_import_clean['Lieu'] = df_import_clean['Emplacement']
+                                        
+                                        # Statistiques d'import
+                                        produits_ajoutes = 0
+                                        produits_mis_a_jour = 0
+                                        produits_ignores = 0
+                                        
+                                        # Barre de progression
+                                        progress_bar = st.progress(0)
+                                        status_text = st.empty()
+                                        
+                                        for idx, row in df_import_clean.iterrows():
+                                            # Mise à jour de la progression
+                                            progress = (idx + 1) / len(df_import_clean)
+                                            progress_bar.progress(progress)
+                                            status_text.text(f"Traitement en cours... {idx + 1}/{len(df_import_clean)}")
+                                            
+                                            # Vérifier si le produit existe déjà
+                                            produit_existant = df[df['Produits'] == row['Produits']]
+                                            
+                                            if not produit_existant.empty and mode_import == "Mettre à jour si existe":
+                                                # Mettre à jour le produit existant
+                                                for col in df_import_clean.columns:
+                                                    if col in df.columns:
+                                                        df.loc[df['Produits'] == row['Produits'], col] = row[col]
+                                                produits_mis_a_jour += 1
+                                                
+                                                # Log du mouvement si la quantité a changé
+                                                ancienne_quantite = produit_existant.iloc[0]['Quantite']
+                                                nouvelle_quantite = row['Quantite']
+                                                if ancienne_quantite != nouvelle_quantite:
+                                                    log_mouvement(
+                                                        row['Produits'],
+                                                        "Import - Mise à jour",
+                                                        abs(nouvelle_quantite - ancienne_quantite),
+                                                        nouvelle_quantite,
+                                                        ancienne_quantite
+                                                    )
+                                            
+                                            elif produit_existant.empty:
+                                                # Ajouter le nouveau produit
+                                                new_row = pd.DataFrame([row])
+                                                df = pd.concat([df, new_row], ignore_index=True)
+                                                produits_ajoutes += 1
+                                                
+                                                # Log du mouvement
+                                                if row['Quantite'] > 0:
+                                                    log_mouvement(
+                                                        row['Produits'],
+                                                        "Import - Nouveau produit",
+                                                        row['Quantite'],
+                                                        row['Quantite'],
+                                                        0
+                                                    )
+                                            else:
+                                                # Produit existant mais mode "Ajouter uniquement"
+                                                produits_ignores += 1
+                                        
+                                        # Sauvegarder les données
+                                        save_data(df)
+                                        
+                                        # Finalisation
+                                        progress_bar.progress(1.0)
+                                        status_text.text("✅ Import terminé !")
+                                        
+                                        # Afficher le résumé
+                                        st.success("🎉 Import terminé avec succès !")
+                                        
+                                        col1, col2, col3 = st.columns(3)
+                                        with col1:
+                                            st.metric("➕ Produits ajoutés", produits_ajoutes)
+                                        with col2:
+                                            st.metric("🔄 Produits mis à jour", produits_mis_a_jour)
+                                        with col3:
+                                            st.metric("⏭️ Produits ignorés", produits_ignores)
+                                        
+                                        st.experimental_rerun()
+                                        
+                                    except Exception as e:
+                                        st.error(f"❌ Erreur lors de l'import : {str(e)}")
+                            else:
+                                st.error("❌ Veuillez corriger les erreurs avant de procéder à l'import")
+                    
+                    except Exception as e:
+                        st.error(f"❌ Erreur lors de la lecture du fichier : {str(e)}")
+                        st.info("💡 Vérifiez que votre fichier respecte le format attendu")
+    
+    with tab3:
+        st.subheader("✏️ Modifier un produit")
+        
+        if not df.empty:
+            produit_to_edit = st.selectbox("Sélectionner le produit à modifier", df['Produits'].unique())
+            produit_data = df[df['Produits'] == produit_to_edit].iloc[0]
+            
+            with st.form("modifier_produit"):
+                quantite = st.number_input("Nouvelle quantité", value=int(produit_data['Quantite']))
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    stock_min = st.number_input("Stock minimum", min_value=0, value=int(produit_data['Stock_Min']))
+                with col2:
+                    stock_max = st.number_input("Stock maximum", min_value=1, value=int(produit_data['Stock_Max']))
+                
+                emplacement = st.selectbox("Nouvel emplacement", df['Emplacement'].unique(), 
+                                         index=list(df['Emplacement'].unique()).index(produit_data['Emplacement']))
+                
+                submitted = st.form_submit_button("Mettre à jour")
+                
+                if submitted:
+                    if stock_min >= stock_max:
+                        st.error("Le stock minimum doit être inférieur au stock maximum")
+                    else:
+                        df.loc[df['Produits'] == produit_to_edit, 'Quantite'] = quantite
+                        df.loc[df['Produits'] == produit_to_edit, 'Stock_Min'] = stock_min
+                        df.loc[df['Produits'] == produit_to_edit, 'Stock_Max'] = stock_max
+                        df.loc[df['Produits'] == produit_to_edit, 'Emplacement'] = emplacement
+                        save_data(df)
+                        st.success("Produit mis à jour avec succès!")
+                        st.experimental_rerun()
+        else:
+            st.warning("Aucun produit disponible pour modification.")
+    
+    with tab4:
+        st.subheader("📱 QR Code des Produits")
+        
+        if not df.empty:
+            # Onglets pour différentes options
+            sub_tab1, sub_tab2 = st.tabs(["🔍 QR Code individuel", "📦 Tous les QR codes"])
+            
+            with sub_tab1:
+                st.subheader("🔍 Génération d'un QR code individuel")
+                
+                produit_select = st.selectbox("Sélectionnez un produit", df['Produits'].unique(), key="qr_individual")
+                produit_info = df[df['Produits'] == produit_select].iloc[0]
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.subheader("📋 Informations du produit")
+                    st.write(f"**📛 Nom :** {produit_info['Produits']}")
+                    st.write(f"**🆔 Référence :** {produit_info['Reference']}")
+                    st.write(f"**📦 Quantité :** {produit_info['Quantite']}")
+                    st.write(f"**📍 Emplacement :** {produit_info['Emplacement']}")
+                    st.write(f"**🏪 Fournisseur :** {produit_info['Fournisseur']}")
+                    st.write(f"**💰 Prix unitaire :** {produit_info['Prix_Unitaire']} €")
+                
+                with col2:
+                    st.subheader("📱 QR Code")
+                    
+                    # Génération du QR code
+                    qr = qrcode.QRCode(box_size=8, border=4)
+                    qr.add_data(produit_info['Reference'])
+                    qr.make(fit=True)
+                    img = qr.make_image(fill_color="black", back_color="white")
+                    buf = BytesIO()
+                    img.save(buf, format="PNG")
+                    
+                    # Afficher le QR code
+                    st.image(buf.getvalue(), caption=f"QR Code pour {produit_info['Produits']}")
+                    
+                    # Bouton de téléchargement
+                    st.download_button(
+                        label="💾 Télécharger le QR Code",
+                        data=buf.getvalue(),
+                        file_name=f"QR_Produit_{produit_info['Reference']}.png",
+                        mime="image/png",
+                        use_container_width=True
+                    )
+            
+            with sub_tab2:
+                st.subheader("📦 Génération de tous les QR codes")
+                
+                # Filtres pour sélectionner les produits
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    emplacements = ["Tous"] + sorted(df['Emplacement'].unique().tolist())
+                    filtre_emplacement = st.selectbox("Filtrer par emplacement", emplacements)
+                with col2:
+                    fournisseurs = ["Tous"] + sorted(df['Fournisseur'].unique().tolist())
+                    filtre_fournisseur = st.selectbox("Filtrer par fournisseur", fournisseurs)
+                with col3:
+                    # Filtre par stock (produits en stock uniquement)
+                    stock_uniquement = st.checkbox("Produits en stock uniquement", value=False)
+                
+                # Application des filtres
+                df_filtre = df.copy()
+                if filtre_emplacement != "Tous":
+                    df_filtre = df_filtre[df_filtre['Emplacement'] == filtre_emplacement]
+                if filtre_fournisseur != "Tous":
+                    df_filtre = df_filtre[df_filtre['Fournisseur'] == filtre_fournisseur]
+                if stock_uniquement:
+                    df_filtre = df_filtre[df_filtre['Quantite'] > 0]
+                
+                # Affichage du nombre de produits sélectionnés
+                st.info(f"📊 **{len(df_filtre)} produit(s) sélectionné(s)** pour la génération de QR codes")
+                
+                if len(df_filtre) > 0:
+                    # Options d'affichage
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        taille_qr = st.selectbox("Taille des QR codes", ["Petit (4)", "Moyen (6)", "Grand (8)"], index=1)
+                        box_size = {"Petit (4)": 4, "Moyen (6)": 6, "Grand (8)": 8}[taille_qr]
+                    with col2:
+                        colonnes_par_ligne = st.selectbox("QR codes par ligne", [2, 3, 4, 5], index=1)
+                    
+                    # Bouton pour générer tous les QR codes
+                    if st.button("📱 Générer tous les QR codes", use_container_width=True, type="primary"):
+                        st.subheader("📱 QR codes de tous les produits sélectionnés")
+                        
+                        # Barre de progression
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        # Créer une grille pour afficher tous les QR codes
+                        for i in range(0, len(df_filtre), colonnes_par_ligne):
+                            cols = st.columns(colonnes_par_ligne)
+                            
+                            for j in range(colonnes_par_ligne):
+                                if i + j < len(df_filtre):
+                                    produit_row = df_filtre.iloc[i + j]
+                                    
+                                    # Mise à jour de la barre de progression
+                                    progress = (i + j + 1) / len(df_filtre)
+                                    progress_bar.progress(progress)
+                                    status_text.text(f"Génération en cours... {i + j + 1}/{len(df_filtre)}")
+                                    
+                                    with cols[j]:
+                                        # Générer le QR code
+                                        qr = qrcode.QRCode(box_size=box_size, border=2)
+                                        qr.add_data(produit_row['Reference'])
+                                        qr.make(fit=True)
+                                        img = qr.make_image(fill_color="black", back_color="white")
+                                        buf = BytesIO()
+                                        img.save(buf, format="PNG")
+                                        
+                                        # Afficher avec informations
+                                        st.image(buf.getvalue(), caption=f"{produit_row['Produits']}\nRéf: {produit_row['Reference']}")
+                                        
+                                        # Bouton de téléchargement individuel
+                                        st.download_button(
+                                            label=f"💾 {produit_row['Reference']}",
+                                            data=buf.getvalue(),
+                                            file_name=f"QR_Produit_{produit_row['Reference']}.png",
+                                            mime="image/png",
+                                            key=f"download_produit_{produit_row['Reference']}",
+                                            use_container_width=True
+                                        )
+                        
+                        # Finalisation
+                        progress_bar.progress(1.0)
+                        status_text.text("✅ Génération terminée !")
+                        st.success(f"🎉 **{len(df_filtre)} QR codes générés avec succès !**")
+                        
+        else:
+            st.warning("Aucun produit disponible dans l'inventaire.")
 
 elif action == "Entrée de stock":
     st.header("Entrée de stock")
@@ -2600,140 +2736,6 @@ elif action == "Historique des mouvements":
             st.info("Aucun mouvement enregistré pour le moment.")
     else:
         st.info("Aucun mouvement enregistré pour le moment.")
-
-elif action == "QR Code produit":
-    st.header("📱 QR Code des Produits")
-    
-    if not df.empty:
-        # Onglets pour différentes options
-        tab1, tab2 = st.tabs(["🔍 QR Code individuel", "📦 Tous les QR codes"])
-        
-        with tab1:
-            st.subheader("🔍 Génération d'un QR code individuel")
-            
-            produit_select = st.selectbox("Sélectionnez un produit", df['Produits'].unique(), key="qr_individual")
-            produit_info = df[df['Produits'] == produit_select].iloc[0]
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.subheader("📋 Informations du produit")
-                st.write(f"**📛 Nom :** {produit_info['Produits']}")
-                st.write(f"**🆔 Référence :** {produit_info['Reference']}")
-                st.write(f"**📦 Quantité :** {produit_info['Quantite']}")
-                st.write(f"**📍 Emplacement :** {produit_info['Emplacement']}")
-                st.write(f"**🏪 Fournisseur :** {produit_info['Fournisseur']}")
-                st.write(f"**💰 Prix unitaire :** {produit_info['Prix_Unitaire']} €")
-            
-            with col2:
-                st.subheader("📱 QR Code")
-                
-                # Génération du QR code
-                qr = qrcode.QRCode(box_size=8, border=4)
-                qr.add_data(produit_info['Reference'])
-                qr.make(fit=True)
-                img = qr.make_image(fill_color="black", back_color="white")
-                buf = BytesIO()
-                img.save(buf, format="PNG")
-                
-                # Afficher le QR code
-                st.image(buf.getvalue(), caption=f"QR Code pour {produit_info['Produits']}")
-                
-                # Bouton de téléchargement
-                st.download_button(
-                    label="💾 Télécharger le QR Code",
-                    data=buf.getvalue(),
-                    file_name=f"QR_Produit_{produit_info['Reference']}.png",
-                    mime="image/png",
-                    use_container_width=True
-                )
-        
-        with tab2:
-            st.subheader("📦 Génération de tous les QR codes")
-            
-            # Filtres pour sélectionner les produits
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                emplacements = ["Tous"] + sorted(df['Emplacement'].unique().tolist())
-                filtre_emplacement = st.selectbox("Filtrer par emplacement", emplacements)
-            with col2:
-                fournisseurs = ["Tous"] + sorted(df['Fournisseur'].unique().tolist())
-                filtre_fournisseur = st.selectbox("Filtrer par fournisseur", fournisseurs)
-            with col3:
-                # Filtre par stock (produits en stock uniquement)
-                stock_uniquement = st.checkbox("Produits en stock uniquement", value=False)
-            
-            # Application des filtres
-            df_filtre = df.copy()
-            if filtre_emplacement != "Tous":
-                df_filtre = df_filtre[df_filtre['Emplacement'] == filtre_emplacement]
-            if filtre_fournisseur != "Tous":
-                df_filtre = df_filtre[df_filtre['Fournisseur'] == filtre_fournisseur]
-            if stock_uniquement:
-                df_filtre = df_filtre[df_filtre['Quantite'] > 0]
-            
-            # Affichage du nombre de produits sélectionnés
-            st.info(f"📊 **{len(df_filtre)} produit(s) sélectionné(s)** pour la génération de QR codes")
-            
-            if len(df_filtre) > 0:
-                # Options d'affichage
-                col1, col2 = st.columns(2)
-                with col1:
-                    taille_qr = st.selectbox("Taille des QR codes", ["Petit (4)", "Moyen (6)", "Grand (8)"], index=1)
-                    box_size = {"Petit (4)": 4, "Moyen (6)": 6, "Grand (8)": 8}[taille_qr]
-                with col2:
-                    colonnes_par_ligne = st.selectbox("QR codes par ligne", [2, 3, 4, 5], index=1)
-                
-                # Bouton pour générer tous les QR codes
-                if st.button("📱 Générer tous les QR codes", use_container_width=True, type="primary"):
-                    st.subheader("📱 QR codes de tous les produits sélectionnés")
-                    
-                    # Barre de progression
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    # Créer une grille pour afficher tous les QR codes
-                    for i in range(0, len(df_filtre), colonnes_par_ligne):
-                        cols = st.columns(colonnes_par_ligne)
-                        
-                        for j in range(colonnes_par_ligne):
-                            if i + j < len(df_filtre):
-                                produit_row = df_filtre.iloc[i + j]
-                                
-                                # Mise à jour de la barre de progression
-                                progress = (i + j + 1) / len(df_filtre)
-                                progress_bar.progress(progress)
-                                status_text.text(f"Génération en cours... {i + j + 1}/{len(df_filtre)}")
-                                
-                                with cols[j]:
-                                    # Générer le QR code
-                                    qr = qrcode.QRCode(box_size=box_size, border=2)
-                                    qr.add_data(produit_row['Reference'])
-                                    qr.make(fit=True)
-                                    img = qr.make_image(fill_color="black", back_color="white")
-                                    buf = BytesIO()
-                                    img.save(buf, format="PNG")
-                                    
-                                    # Afficher avec informations
-                                    st.image(buf.getvalue(), caption=f"{produit_row['Produits']}\nRéf: {produit_row['Reference']}")
-                                    
-                                    # Bouton de téléchargement individuel
-                                    st.download_button(
-                                        label=f"💾 {produit_row['Reference']}",
-                                        data=buf.getvalue(),
-                                        file_name=f"QR_Produit_{produit_row['Reference']}.png",
-                                        mime="image/png",
-                                        key=f"download_produit_{produit_row['Reference']}",
-                                        use_container_width=True
-                                    )
-                    
-                    # Finalisation
-                    progress_bar.progress(1.0)
-                    status_text.text("✅ Génération terminée !")
-                    st.success(f"🎉 **{len(df_filtre)} QR codes générés avec succès !**")
-                    
-    else:
-        st.warning("Aucun produit disponible dans l'inventaire.")
 
 elif action == "QR Code tables d'atelier":
     st.header("🏭 QR Code des Tables d'Atelier")
