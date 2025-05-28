@@ -11,7 +11,8 @@ from PIL import Image
 # Configuration de la page
 st.set_page_config(
     page_title="GMAO - Gestion de Stock",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    layout="wide"
 )
 
 # CSS pour optimiser l'interface mobile
@@ -569,6 +570,150 @@ def mettre_a_jour_statistiques_fournisseurs():
     sauvegarder_fournisseurs(df_fournisseurs)
     return df_fournisseurs
 
+def charger_emplacements():
+    """Charge tous les emplacements depuis le fichier Excel"""
+    file_path = "data/emplacements.xlsx"
+    if os.path.exists(file_path):
+        try:
+            return pd.read_excel(file_path, engine='openpyxl')
+        except Exception as e:
+            st.error(f"Erreur lors du chargement des emplacements: {str(e)}")
+            return pd.DataFrame()
+    else:
+        # Créer le fichier avec les emplacements extraits de l'inventaire
+        return creer_fichier_emplacements_initial()
+
+def creer_fichier_emplacements_initial():
+    """Crée le fichier initial des emplacements basé sur l'inventaire existant"""
+    global df
+    
+    if df.empty or 'Emplacement' not in df.columns:
+        # Créer des emplacements par défaut
+        emplacements_initiaux = {
+            'ID_Emplacement': ['EMP001', 'EMP002', 'EMP003', 'EMP004', 'EMP005'],
+            'Nom_Emplacement': ['Atelier A', 'Atelier B', 'Stockage', 'Magasin', 'Zone de réception'],
+            'Type_Zone': ['Atelier', 'Atelier', 'Stockage', 'Magasin', 'Réception'],
+            'Batiment': ['Bâtiment 1', 'Bâtiment 1', 'Bâtiment 2', 'Bâtiment 1', 'Bâtiment 2'],
+            'Niveau': ['RDC', 'RDC', 'RDC', '1er étage', 'RDC'],
+            'Responsable': ['Jean Martin', 'Marie Dubois', 'Pierre Leroy', 'Sophie Bernard', 'Luc Moreau'],
+            'Capacite_Max': [100, 150, 500, 200, 80],
+            'Statut': ['Actif', 'Actif', 'Actif', 'Actif', 'Actif'],
+            'Date_Creation': ['2024-01-01', '2024-01-01', '2024-01-01', '2024-01-01', '2024-01-01'],
+            'Nb_Produits': [0, 0, 0, 0, 0],
+            'Taux_Occupation': [0.0, 0.0, 0.0, 0.0, 0.0]
+        }
+    else:
+        # Extraire les emplacements uniques de l'inventaire
+        emplacements_uniques = df['Emplacement'].dropna().unique()
+        
+        emplacements_initiaux = {
+            'ID_Emplacement': [f"EMP{str(i+1).zfill(3)}" for i in range(len(emplacements_uniques))],
+            'Nom_Emplacement': emplacements_uniques.tolist(),
+            'Type_Zone': ['À définir'] * len(emplacements_uniques),
+            'Batiment': ['À définir'] * len(emplacements_uniques),
+            'Niveau': ['À définir'] * len(emplacements_uniques),
+            'Responsable': ['À définir'] * len(emplacements_uniques),
+            'Capacite_Max': [100] * len(emplacements_uniques),
+            'Statut': ['Actif'] * len(emplacements_uniques),
+            'Date_Creation': [datetime.now().strftime("%Y-%m-%d")] * len(emplacements_uniques),
+            'Nb_Produits': [0] * len(emplacements_uniques),
+            'Taux_Occupation': [0.0] * len(emplacements_uniques)
+        }
+        
+        # Calculer le nombre de produits pour chaque emplacement
+        for i, emplacement in enumerate(emplacements_uniques):
+            produits_emplacement = df[df['Emplacement'] == emplacement]
+            emplacements_initiaux['Nb_Produits'][i] = len(produits_emplacement)
+            # Calculer le taux d'occupation (nombre de produits / capacité max * 100)
+            taux = (len(produits_emplacement) / emplacements_initiaux['Capacite_Max'][i]) * 100
+            emplacements_initiaux['Taux_Occupation'][i] = min(taux, 100.0)  # Limiter à 100%
+    
+    df_emplacements = pd.DataFrame(emplacements_initiaux)
+    os.makedirs("data", exist_ok=True)
+    df_emplacements.to_excel("data/emplacements.xlsx", index=False, engine='openpyxl')
+    return df_emplacements
+
+def sauvegarder_emplacements(df_emplacements):
+    """Sauvegarde les emplacements dans le fichier Excel"""
+    try:
+        df_emplacements.to_excel("data/emplacements.xlsx", index=False, engine='openpyxl')
+        return True
+    except Exception as e:
+        st.error(f"Erreur lors de la sauvegarde des emplacements: {str(e)}")
+        return False
+
+def ajouter_emplacement(nom_emplacement, type_zone, batiment, niveau, responsable, capacite_max):
+    """Ajoute un nouvel emplacement"""
+    df_emplacements = charger_emplacements()
+    
+    # Vérifier si l'emplacement existe déjà
+    if nom_emplacement in df_emplacements['Nom_Emplacement'].values:
+        return False, "Cet emplacement existe déjà"
+    
+    # Générer un ID unique
+    if df_emplacements.empty:
+        nouvel_id = "EMP001"
+    else:
+        # Trouver le prochain ID disponible
+        ids_existants = df_emplacements['ID_Emplacement'].tolist()
+        numero_max = max([int(id_emp[3:]) for id_emp in ids_existants if id_emp.startswith('EMP')])
+        nouvel_id = f"EMP{str(numero_max + 1).zfill(3)}"
+    
+    nouvel_emplacement = {
+        'ID_Emplacement': nouvel_id,
+        'Nom_Emplacement': nom_emplacement,
+        'Type_Zone': type_zone,
+        'Batiment': batiment,
+        'Niveau': niveau,
+        'Responsable': responsable,
+        'Capacite_Max': capacite_max,
+        'Statut': 'Actif',
+        'Date_Creation': datetime.now().strftime("%Y-%m-%d"),
+        'Nb_Produits': 0,
+        'Taux_Occupation': 0.0
+    }
+    
+    df_emplacements = pd.concat([df_emplacements, pd.DataFrame([nouvel_emplacement])], ignore_index=True)
+    
+    if sauvegarder_emplacements(df_emplacements):
+        return True, "Emplacement ajouté avec succès"
+    else:
+        return False, "Erreur lors de la sauvegarde"
+
+def mettre_a_jour_statistiques_emplacements():
+    """Met à jour les statistiques des emplacements basées sur l'inventaire actuel"""
+    global df
+    df_emplacements = charger_emplacements()
+    
+    if df_emplacements.empty:
+        return df_emplacements
+    
+    # Réinitialiser les compteurs
+    df_emplacements['Nb_Produits'] = 0
+    df_emplacements['Taux_Occupation'] = 0.0
+    
+    # Calculer les statistiques pour chaque emplacement
+    for idx, emplacement_row in df_emplacements.iterrows():
+        nom_emplacement = emplacement_row['Nom_Emplacement']
+        capacite_max = emplacement_row['Capacite_Max']
+        
+        # Compter les produits dans cet emplacement
+        if not df.empty and 'Emplacement' in df.columns:
+            produits_emplacement = df[df['Emplacement'] == nom_emplacement]
+            nb_produits = len(produits_emplacement)
+            
+            # Calculer le taux d'occupation
+            taux_occupation = (nb_produits / capacite_max * 100) if capacite_max > 0 else 0
+            taux_occupation = min(taux_occupation, 100.0)  # Limiter à 100%
+            
+            # Mettre à jour les valeurs
+            df_emplacements.loc[idx, 'Nb_Produits'] = nb_produits
+            df_emplacements.loc[idx, 'Taux_Occupation'] = round(taux_occupation, 1)
+    
+    # Sauvegarder les statistiques mises à jour
+    sauvegarder_emplacements(df_emplacements)
+    return df_emplacements
+
 def mobile_quantity_selector(label, min_value=1, max_value=100, default_value=1, key_prefix="qty"):
     """
     Sélecteur de quantité optimisé pour mobile avec gros boutons + et -
@@ -827,6 +972,9 @@ with st.sidebar.expander("⚙️ **Administration**"):
     
     if st.button("🏪 Gestion Fournisseurs", use_container_width=True):
         st.session_state.action = "Fournisseurs"
+    
+    if st.button("📍 Gestion Emplacements", use_container_width=True):
+        st.session_state.action = "Gestion des emplacements"
 
 
 # Récupérer l'action actuelle
@@ -3852,6 +4000,288 @@ elif action == "Fournisseurs":
                     st.plotly_chart(fig_stock, use_container_width=True)
             else:
                 st.warning(f"Aucun produit trouvé pour le fournisseur {fournisseur_selectionne}")
+        else:
+            st.warning("Aucune donnée disponible pour afficher les statistiques.")
+
+elif action == "Gestion des emplacements":
+    st.header("🏪 Gestion des Emplacements")
+    
+    # Charger et mettre à jour les emplacements
+    df_emplacements = mettre_a_jour_statistiques_emplacements()
+    
+    # Onglets pour différentes actions
+    tab1, tab2, tab3, tab4 = st.tabs(["📋 Liste des emplacements", "➕ Ajouter un emplacement", "✏️ Modifier un emplacement", "📊 Statistiques détaillées"])
+    
+    with tab1:
+        st.subheader("📋 Liste des emplacements")
+        
+        if not df_emplacements.empty:
+            # Filtres
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                types_emplacement = ["Tous"] + sorted(df_emplacements['Type_Zone'].unique().tolist())
+                filtre_type = st.selectbox("Filtrer par type", types_emplacement, key="filtre_type_liste_emplacements")
+            with col2:
+                statuts = ["Tous"] + sorted(df_emplacements['Statut'].unique().tolist())
+                filtre_statut = st.selectbox("Filtrer par statut", statuts, key="filtre_statut_liste_emplacements")
+            with col3:
+                responsables = ["Tous"] + sorted(df_emplacements['Responsable'].unique().tolist())
+                filtre_responsable = st.selectbox("Filtrer par responsable", responsables)
+            
+            # Application des filtres
+            df_filtre = df_emplacements.copy()
+            if filtre_type != "Tous":
+                df_filtre = df_filtre[df_filtre['Type_Zone'] == filtre_type]
+            if filtre_statut != "Tous":
+                df_filtre = df_filtre[df_filtre['Statut'] == filtre_statut]
+            if filtre_responsable != "Tous":
+                df_filtre = df_filtre[df_filtre['Responsable'] == filtre_responsable]
+            
+            # Affichage du tableau
+            st.dataframe(df_filtre, use_container_width=True)
+            
+            # Statistiques
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("📊 Total emplacements", len(df_filtre))
+            with col2:
+                actifs = len(df_filtre[df_filtre['Statut'] == 'Actif'])
+                st.metric("✅ Emplacements actifs", actifs)
+            with col3:
+                types_uniques = df_filtre['Type_Zone'].nunique()
+                st.metric("🏪 Types d'emplacements", types_uniques)
+            with col4:
+                responsables_uniques = df_filtre['Responsable'].nunique()
+                st.metric("👥 Responsables", responsables_uniques)
+        else:
+            st.warning("Aucun emplacement enregistré.")
+    
+    with tab2:
+        st.subheader("➕ Ajouter un nouvel emplacement")
+        
+        with st.form("ajouter_emplacement"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                nom_emplacement = st.text_input(
+                    "Nom de l'emplacement *", 
+                    placeholder="Ex: Atelier A - Zone 1"
+                )
+                
+                type_zone = st.selectbox(
+                    "Type de zone *", 
+                    ["Atelier", "Stockage", "Magasin", "Réception"]
+                )
+                
+                responsable = st.text_input(
+                    "Responsable *", 
+                    placeholder="Ex: Jean Dupont"
+                )
+            
+            with col2:
+                batiment = st.text_input(
+                    "Batiment *", 
+                    placeholder="Ex: Bâtiment 1"
+                )
+                
+                niveau = st.text_input(
+                    "Niveau *", 
+                    placeholder="Ex: RDC"
+                )
+                
+                capacite_max = st.number_input("Capacité maximale", min_value=1, value=100, step=1)
+            
+            
+            submitted = st.form_submit_button("➕ Ajouter l'emplacement", use_container_width=True)
+            
+            if submitted:
+                if not all([nom_emplacement, type_zone, batiment, niveau, responsable, capacite_max]):
+                    st.error("❌ Veuillez remplir tous les champs obligatoires")
+                else:
+                    success, message = ajouter_emplacement(nom_emplacement, type_zone, batiment, niveau, responsable, capacite_max)
+                    if success:
+                        st.success(f"✅ {message}")
+                        st.experimental_rerun()
+                    else:
+                        st.error(f"❌ {message}")
+    
+    with tab3:
+        st.subheader("✏️ Modifier un emplacement")
+        
+        if not df_emplacements.empty:
+            emplacement_a_modifier = st.selectbox(
+                "Sélectionnez l'emplacement à modifier", 
+                df_emplacements['Nom_Emplacement'].unique(),
+                key="select_emplacement_modifier"
+            )
+            
+            emplacement_data = df_emplacements[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier].iloc[0]
+            
+            with st.form("modifier_emplacement"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    nouveau_nom = st.text_input("Nom de l'emplacement", value=emplacement_data['Nom_Emplacement'])
+                    nouveau_type = st.selectbox(
+                        "Type de zone", 
+                        ["Atelier", "Stockage", "Magasin", "Réception"],
+                        index=["Atelier", "Stockage", "Magasin", "Réception"].index(emplacement_data['Type_Zone']) if emplacement_data['Type_Zone'] in ["Atelier", "Stockage", "Magasin", "Réception"] else 0
+                    )
+                
+                with col2:
+                    nouveau_batiment = st.text_input("Batiment", value=emplacement_data['Batiment'])
+                    nouveau_niveau = st.text_input("Niveau", value=emplacement_data['Niveau'])
+                    nouveau_responsable = st.text_input("Responsable", value=emplacement_data['Responsable'])
+                    nouvelle_capacite = st.number_input("Capacité maximale", min_value=1, value=int(emplacement_data['Capacite_Max']), step=1)
+                
+                submitted_modif = st.form_submit_button("✏️ Mettre à jour", use_container_width=True)
+                
+                if submitted_modif:
+                    # Mettre à jour les données
+                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Nom_Emplacement'] = nouveau_nom
+                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Type_Zone'] = nouveau_type
+                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Batiment'] = nouveau_batiment
+                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Niveau'] = nouveau_niveau
+                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Responsable'] = nouveau_responsable
+                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Capacite_Max'] = nouvelle_capacite
+                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Statut'] = 'Actif'
+                    
+                    if sauvegarder_emplacements(df_emplacements):
+                        st.success("✅ Emplacement mis à jour avec succès!")
+                        
+                        # Si le nom a changé, mettre à jour aussi l'inventaire
+                        if nouveau_nom != emplacement_a_modifier:
+                            df.loc[df['Emplacement'] == emplacement_a_modifier, 'Emplacement'] = nouveau_nom
+                            save_data(df)
+                            st.info("📦 Inventaire mis à jour avec le nouveau nom de l'emplacement")
+                        
+                        st.experimental_rerun()
+                    else:
+                        st.error("❌ Erreur lors de la sauvegarde")
+        else:
+            st.warning("Aucun emplacement à modifier.")
+    
+    with tab4:
+        st.subheader("📊 Statistiques détaillées par emplacement")
+        
+        if not df_emplacements.empty:
+            # Charger les demandes pour analyser l'activité des emplacements
+            df_demandes = charger_demandes()
+            
+            # Sélection de l'emplacement pour les détails
+            emplacement_selectionne = st.selectbox(
+                "Sélectionnez un emplacement pour voir les statistiques", 
+                df_emplacements['Nom_Emplacement'].unique(),
+                key="select_emplacement_stats"
+            )
+            
+            # Informations de l'emplacement sélectionné
+            emplacement_info = df_emplacements[df_emplacements['Nom_Emplacement'] == emplacement_selectionne].iloc[0]
+            
+            # Affichage des informations générales
+            st.markdown("---")
+            st.subheader(f"📋 Informations - {emplacement_info['Nom_Emplacement']}")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.info(f"**🏪 Capacité maximale :** {emplacement_info['Capacite_Max']}")
+                st.info(f"**👤 Responsable :** {emplacement_info['Responsable']}")
+            with col2:
+                st.info(f"**📍 Type de zone :** {emplacement_info['Type_Zone']}")
+                st.info(f"**🏢 Batiment :** {emplacement_info['Batiment']}")
+            with col3:
+                st.info(f"**🏢 Niveau :** {emplacement_info['Niveau']}")
+                st.info(f"**📅 Date création :** {emplacement_info['Date_Creation']}")
+            
+            if emplacement_info['Taux_Occupation']:
+                st.info(f"**🏢 Taux d'occupation :** {emplacement_info['Taux_Occupation']}%")
+            
+            # Statistiques détaillées
+            st.markdown("---")
+            st.subheader("📊 Statistiques")
+            
+            # Produits de cet emplacement
+            produits_emplacement = df[df['Emplacement'] == emplacement_selectionne]
+            
+            if not produits_emplacement.empty:
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("📦 Nombre de produits", len(produits_emplacement))
+                with col2:
+                    stock_total = produits_emplacement['Quantite'].sum()
+                    st.metric("📊 Stock total", stock_total)
+                with col3:
+                    valeur_stock = (produits_emplacement['Quantite'] * produits_emplacement['Prix_Unitaire']).sum()
+                    st.metric("💰 Valeur du stock", f"{valeur_stock:,.2f} €")
+                with col4:
+                    prix_moyen = produits_emplacement['Prix_Unitaire'].mean()
+                    st.metric("💵 Prix moyen", f"{prix_moyen:.2f} €")
+                
+                # Liste des produits
+                st.markdown("---")
+                st.subheader("📦 Produits de cet emplacement")
+                
+                # Ajouter des colonnes calculées pour l'affichage
+                produits_display = produits_emplacement.copy()
+                produits_display['Valeur_Stock'] = produits_display['Quantite'] * produits_display['Prix_Unitaire']
+                
+                # Statut de stock
+                produits_display['Statut_Stock'] = produits_display.apply(
+                    lambda row: "🔴 Critique" if row['Quantite'] < row['Stock_Min'] 
+                    else "🟡 Surstock" if row['Quantite'] > row['Stock_Max']
+                    else "🟠 Faible" if row['Quantite'] <= row['Stock_Min'] + (row['Stock_Max'] - row['Stock_Min']) * 0.3
+                    else "🟢 Normal", axis=1
+                )
+                
+                # Colonnes à afficher
+                colonnes_produits = ['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Stock_Max', 'Prix_Unitaire', 'Valeur_Stock', 'Statut_Stock', 'Emplacement']
+                st.dataframe(produits_display[colonnes_produits].round(2), use_container_width=True)
+                
+                # Alertes pour cet emplacement
+                alertes_critique = produits_emplacement[produits_emplacement['Quantite'] < produits_emplacement['Stock_Min']]
+                alertes_surstock = produits_emplacement[produits_emplacement['Quantite'] > produits_emplacement['Stock_Max']]
+                
+                # Produits bientôt en rupture (entre min et 30% de la plage min-max)
+                seuil_alerte_emplacement = produits_emplacement['Stock_Min'] + (produits_emplacement['Stock_Max'] - produits_emplacement['Stock_Min']) * 0.3
+                alertes_bientot = produits_emplacement[(produits_emplacement['Quantite'] >= produits_emplacement['Stock_Min']) & (produits_emplacement['Quantite'] <= seuil_alerte_emplacement)]
+                
+                if not alertes_critique.empty or not alertes_bientot.empty or not alertes_surstock.empty:
+                    st.markdown("---")
+                    st.subheader("⚠️ Alertes de stock")
+                    
+                    if not alertes_critique.empty:
+                        st.error(f"🔴 **{len(alertes_critique)} produit(s) en stock critique** nécessitent un réapprovisionnement urgent")
+                        alertes_critique_display = alertes_critique.copy()
+                        alertes_critique_display['Recommandation'] = alertes_critique_display['Stock_Max'] - alertes_critique_display['Quantite']
+                        st.dataframe(alertes_critique_display[['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Stock_Max', 'Recommandation']], use_container_width=True)
+                    
+                    if not alertes_bientot.empty:
+                        st.warning(f"🟠 **{len(alertes_bientot)} produit(s) bientôt en rupture** - réapprovisionnement recommandé")
+                        alertes_bientot_display = alertes_bientot.copy()
+                        alertes_bientot_display['Seuil_Alerte'] = seuil_alerte_emplacement[alertes_bientot.index].round(1)
+                        alertes_bientot_display['Recommandation'] = alertes_bientot_display['Stock_Max'] - alertes_bientot_display['Quantite']
+                        st.dataframe(alertes_bientot_display[['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Seuil_Alerte', 'Stock_Max', 'Recommandation']], use_container_width=True)
+                    
+                    if not alertes_surstock.empty:
+                        st.warning(f"🟡 **{len(alertes_surstock)} produit(s) en surstock**")
+                        st.dataframe(alertes_surstock[['Produits', 'Reference', 'Quantite', 'Stock_Max']], use_container_width=True)
+                
+                # Graphique de répartition des stocks pour cet emplacement
+                if len(produits_emplacement) > 1:
+                    st.markdown("---")
+                    st.subheader("📈 Répartition des stocks")
+                    
+                    fig_stock = px.bar(
+                        produits_emplacement, 
+                        x='Produits', 
+                        y='Quantite',
+                        title=f'Stock par produit - {emplacement_info["Nom_Emplacement"]}',
+                        labels={'Quantite': 'Quantité en stock', 'Produits': 'Produits'}
+                    )
+                    fig_stock.update_layout(xaxis_tickangle=45)
+                    st.plotly_chart(fig_stock, use_container_width=True)
+            else:
+                st.warning(f"Aucun produit trouvé pour l'emplacement {emplacement_info['Nom_Emplacement']}")
         else:
             st.warning("Aucune donnée disponible pour afficher les statistiques.")
 
