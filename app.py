@@ -823,9 +823,12 @@ def rechercher_produit(df, mode="selection"):
                 st.warning("Aucun produit trouvé avec cette référence.")
     
     else:  # Par nom
-        nom = st.text_input("Entrez le nom du produit")
-        if nom:
-            result = df[df['Produits'].str.contains(nom, case=False)]
+        # Créer une liste des noms de produits uniques pour la liste déroulante
+        noms_produits = [""] + sorted(df['Produits'].unique().tolist())
+        nom_selectionne = st.selectbox("Sélectionnez le nom du produit", noms_produits)
+        
+        if nom_selectionne:
+            result = df[df['Produits'] == nom_selectionne]
             if not result.empty:
                 if mode == "affichage":
                     st.dataframe(result)
