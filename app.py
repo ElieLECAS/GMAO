@@ -540,6 +540,39 @@ def ajouter_fournisseur(nom_fournisseur, contact_principal, email, telephone, ad
     else:
         return False, "Erreur lors de la sauvegarde"
 
+def ajouter_fournisseur_automatique(nom_fournisseur):
+    """Ajoute automatiquement un fournisseur s'il n'existe pas déjà dans le fichier fournisseurs.xlsx"""
+    df_fournisseurs = charger_fournisseurs()
+    
+    # Vérifier si le fournisseur existe déjà
+    if nom_fournisseur in df_fournisseurs['Nom_Fournisseur'].values:
+        return True  # Le fournisseur existe déjà, pas besoin de l'ajouter
+    
+    # Générer un nouvel ID
+    if not df_fournisseurs.empty:
+        dernier_id = df_fournisseurs['ID_Fournisseur'].str.extract(r'(\d+)').astype(int).max().iloc[0]
+        nouvel_id = f"FOUR{str(dernier_id + 1).zfill(3)}"
+    else:
+        nouvel_id = "FOUR001"
+    
+    # Créer le nouveau fournisseur avec des valeurs par défaut
+    nouveau_fournisseur = {
+        'ID_Fournisseur': nouvel_id,
+        'Nom_Fournisseur': nom_fournisseur,
+        'Contact_Principal': 'À définir',
+        'Email': '',
+        'Telephone': '',
+        'Adresse': 'À définir',
+        'Statut': 'Actif',
+        'Date_Creation': datetime.now().strftime("%Y-%m-%d"),
+        'Nb_Produits': 1,  # Il aura au moins 1 produit (celui qu'on est en train d'ajouter)
+        'Valeur_Stock_Total': 0.0
+    }
+    
+    df_fournisseurs = pd.concat([df_fournisseurs, pd.DataFrame([nouveau_fournisseur])], ignore_index=True)
+    
+    return sauvegarder_fournisseurs(df_fournisseurs)
+
 def mettre_a_jour_statistiques_fournisseurs():
     """Met à jour les statistiques des fournisseurs basées sur l'inventaire actuel"""
     global df
@@ -2065,7 +2098,19 @@ elif action == "Gestion des produits":
                     fournisseurs_tous = list(set(fournisseurs_existants + fournisseurs_defaut))
                     
                     emplacement = st.selectbox("Emplacement", emplacements_tous)
-                    fournisseur = st.selectbox("Fournisseur", fournisseurs_tous)
+                    
+                    # Option pour choisir un fournisseur existant ou en créer un nouveau
+                    choix_fournisseur = st.radio(
+                        "Fournisseur",
+                        ["Choisir dans la liste", "Nouveau fournisseur"],
+                        horizontal=True
+                    )
+                    
+                    if choix_fournisseur == "Choisir dans la liste":
+                        fournisseur = st.selectbox("Sélectionner un fournisseur", fournisseurs_tous)
+                    else:
+                        fournisseur = st.text_input("Nom du nouveau fournisseur", placeholder="Ex: FournX")
+                    
                     prix = st.number_input("Prix unitaire (€)", min_value=0.0, value=0.0, step=0.01)
                     
                     # Champs optionnels
@@ -2079,10 +2124,16 @@ elif action == "Gestion des produits":
                         st.error("❌ Le nom du produit est obligatoire")
                     elif stock_min >= stock_max:
                         st.error("❌ Le stock minimum doit être inférieur au stock maximum")
+                    elif choix_fournisseur == "Nouveau fournisseur" and not fournisseur.strip():
+                        st.error("❌ Veuillez saisir le nom du nouveau fournisseur")
                     else:
                         # Générer une référence automatique si non fournie
                         if not reference:
                             reference = generer_reference_qr(produit, produit)
+                        
+                        # Ajouter automatiquement le fournisseur s'il n'existe pas dans le fichier fournisseurs.xlsx
+                        if not ajouter_fournisseur_automatique(fournisseur):
+                            st.warning(f"⚠️ Impossible d'ajouter automatiquement le fournisseur '{fournisseur}' au fichier fournisseurs.xlsx")
                         
                         new_row = pd.DataFrame({
                             'Code': [reference],
@@ -2107,7 +2158,13 @@ elif action == "Gestion des produits":
                         df = pd.concat([df, new_row], ignore_index=True)
                         save_data(df)
                         log_mouvement(produit, "Ajout produit", quantite, quantite, 0, reference)
+                        
+                        # Mettre à jour les statistiques des fournisseurs après l'ajout du produit
+                        mettre_a_jour_statistiques_fournisseurs()
+                        
                         st.success(f"✅ Produit '{produit}' ajouté avec succès!")
+                        if fournisseur not in df['Fournisseur'].dropna().unique().tolist()[:-1]:  # Si c'est un nouveau fournisseur
+                            st.info(f"ℹ️ Le fournisseur '{fournisseur}' a été automatiquement ajouté au fichier fournisseurs.xlsx")
                         st.experimental_rerun()
         
         with sub_tab2:
@@ -2372,6 +2429,19 @@ elif action == "Gestion des produits":
                                         produits_mis_a_jour = 0
                                         produits_ignores = 0
                                         
+                                        # Ajouter automatiquement tous les nouveaux fournisseurs avant l'import
+                                        fournisseurs_uniques = df_import_clean['Fournisseur'].dropna().unique()
+                                        nouveaux_fournisseurs = []
+                                        for fournisseur in fournisseurs_uniques:
+                                            if fournisseur and fournisseur.strip() and fournisseur != 'À définir':
+                                                if ajouter_fournisseur_automatique(fournisseur):
+                                                    # Vérifier si c'était vraiment un nouveau fournisseur
+                                                    df_fournisseurs_temp = charger_fournisseurs()
+                                                    if fournisseur in df_fournisseurs_temp['Nom_Fournisseur'].values:
+                                                        # Compter seulement si ce n'était pas déjà dans la liste
+                                                        if fournisseur not in [f for f in df['Fournisseur'].dropna().unique() if f]:
+                                                            nouveaux_fournisseurs.append(fournisseur)
+                                        
                                         # Barre de progression
                                         progress_bar = st.progress(0)
                                         status_text = st.empty()
@@ -2428,6 +2498,9 @@ elif action == "Gestion des produits":
                                         # Sauvegarder les données
                                         save_data(df)
                                         
+                                        # Mettre à jour les statistiques des fournisseurs après l'import
+                                        mettre_a_jour_statistiques_fournisseurs()
+                                        
                                         # Finalisation
                                         progress_bar.progress(1.0)
                                         status_text.text("✅ Import terminé !")
@@ -2442,6 +2515,10 @@ elif action == "Gestion des produits":
                                             st.metric("🔄 Produits mis à jour", produits_mis_a_jour)
                                         with col3:
                                             st.metric("⏭️ Produits ignorés", produits_ignores)
+                                        
+                                        # Afficher les nouveaux fournisseurs ajoutés
+                                        if nouveaux_fournisseurs:
+                                            st.info(f"🏪 {len(nouveaux_fournisseurs)} nouveau(x) fournisseur(s) ajouté(s) automatiquement : {', '.join(nouveaux_fournisseurs)}")
                                         
                                         st.experimental_rerun()
                                         
@@ -2553,6 +2630,10 @@ elif action == "Gestion des produits":
                     if stock_min >= stock_max:
                         st.error("❌ Le stock minimum doit être inférieur au stock maximum")
                     else:
+                        # Ajouter automatiquement le fournisseur s'il n'existe pas dans le fichier fournisseurs.xlsx
+                        if not ajouter_fournisseur_automatique(fournisseur):
+                            st.warning(f"⚠️ Impossible d'ajouter automatiquement le fournisseur '{fournisseur}' au fichier fournisseurs.xlsx")
+                        
                         # Mettre à jour toutes les informations
                         df.loc[df['Produits'] == produit_to_edit, 'Quantite'] = quantite
                         df.loc[df['Produits'] == produit_to_edit, 'Stock_Min'] = stock_min
@@ -2584,6 +2665,10 @@ elif action == "Gestion des produits":
                             )
                         
                         save_data(df)
+                        
+                        # Mettre à jour les statistiques des fournisseurs après la modification
+                        mettre_a_jour_statistiques_fournisseurs()
+                        
                         st.success("✅ Produit mis à jour avec succès!")
                         
                         # Afficher un résumé des modifications
