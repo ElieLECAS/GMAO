@@ -986,9 +986,9 @@ if st.sidebar.button("📥 Entrée", use_container_width=True, help="Entrée de 
 if st.sidebar.button("📤 Sortie", use_container_width=True, help="Sortie de stock"):
     st.session_state.action = "Sortie de stock"
 
-if st.sidebar.button("📊 Inventaire", use_container_width=True, help="Ajustement d'inventaire"):
-    st.session_state.action = "Inventaire"
-
+if st.sidebar.button("📊 Régule", use_container_width=True, help="Ajustement d'inventaire"):
+    st.session_state.action = "Régule"
+        
 
 
 # Section QR Codes - Outils mobiles
@@ -2979,7 +2979,7 @@ elif action == "Sortie de stock":
     else:
         st.warning("Aucun produit disponible dans l'inventaire.")
 
-elif action == "Inventaire":
+elif action == "Régule":
     st.header("Ajustement d'inventaire")
     if not df.empty:
         produit_trouve = rechercher_produit(df)
@@ -3057,7 +3057,7 @@ elif action == "Inventaire":
                     save_data(df)
                     log_mouvement(
                         produit_trouve['Produits'],
-                        "Inventaire",
+                        "Régule",
                         abs(nouvelle_quantite - quantite_actuelle),
                         nouvelle_quantite,
                         quantite_actuelle,
