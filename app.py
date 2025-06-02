@@ -3413,10 +3413,7 @@ elif action == "Préparer l'inventaire":
  
             
             st.markdown("---")
-            col_stats_c1 = st.columns(1)
-            with col_stats_c1:
-                st.metric("Produits dans cette liste", total_produits_creation)
- 
+            st.metric("Produits dans cette liste", total_produits_creation)
 
             col_act_c1, col_act_c2 = st.columns([2,2])
             with col_act_c1:
