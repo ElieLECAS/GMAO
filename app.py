@@ -3278,7 +3278,7 @@ elif action == "Préparer l'inventaire":
         st.session_state.add_inv_counter = 0
 
     # Navigation dans la section inventaire
-    cols_nav_inv = st.columns(2)
+    cols_nav_inv = st.columns(3)
     with cols_nav_inv[0]:
         if st.button("📜 Voir les listes d'inventaire", use_container_width=True, type=("primary" if st.session_state.page_inventaire_active == "liste_globale" else "secondary")):
             st.session_state.page_inventaire_active = "liste_globale"
@@ -3290,6 +3290,10 @@ elif action == "Préparer l'inventaire":
             st.session_state.liste_inventaire_en_creation = {}
             st.session_state.nom_inventaire_en_creation = f"Inventaire du {datetime.now().strftime('%Y-%m-%d_%H%M')}"
             st.session_state.add_inv_counter +=1 # Pour reset les inputs de recherche
+            st.experimental_rerun()
+    with cols_nav_inv[2]:
+        if st.button("📊 Compter l'inventaire", use_container_width=True, type=("primary" if st.session_state.page_inventaire_active == "compter_inventaire" else "secondary")):
+            st.session_state.page_inventaire_active = "compter_inventaire"
             st.experimental_rerun()
     
     st.markdown("---")
@@ -3511,6 +3515,43 @@ elif action == "Préparer l'inventaire":
                             st.error(f"❌ {message}")
         else:
             st.info("Aucun produit ajouté à cette liste pour le moment.")
+
+    elif st.session_state.page_inventaire_active == "compter_inventaire":
+        st.subheader("📊 Compter l'inventaire")
+        
+        # Charger les listes disponibles
+        listes_avec_produits = obtenir_listes_inventaire_avec_produits()
+        
+        if listes_avec_produits:
+            # Sélection de la liste à compter
+            noms_listes = list(listes_avec_produits.keys())
+            liste_selectionnee = st.selectbox(
+                "📋 Sélectionnez la liste d'inventaire à compter",
+                [""] + noms_listes,
+                key="selection_liste_comptage"
+            )
+            
+            if liste_selectionnee:
+                data_liste = listes_avec_produits[liste_selectionnee]
+                st.success(f"✅ Liste sélectionnée : **{liste_selectionnee}**")
+                
+                # Informations sur la liste
+                col_info1, col_info2 = st.columns(2)
+                with col_info1:
+                    st.info(f"📅 **Date de création :** {data_liste.get('date_creation', 'N/A')}")
+                    st.info(f"📊 **Nombre de produits :** {data_liste.get('nb_produits', 0)}")
+                with col_info2:
+                    st.info(f"👤 **Créé par :** {data_liste.get('cree_par', 'N/A')}")
+                    st.info(f"📋 **Statut :** {data_liste.get('statut', 'N/A')}")
+                
+                st.markdown("---")
+                st.markdown("### 🔢 Comptage des produits")
+                st.info("Cette section permettra de compter les produits de la liste sélectionnée. Fonctionnalité en cours de développement...")
+                
+            else:
+                st.info("👆 Veuillez sélectionner une liste d'inventaire à compter.")
+        else:
+            st.warning("❌ Aucune liste d'inventaire disponible. Créez d'abord une liste dans l'onglet 'Créer une nouvelle liste'.")
 
 elif action == "Alertes de stock":
     st.header("🚨 Alertes de Stock")
