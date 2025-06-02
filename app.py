@@ -752,7 +752,13 @@ def charger_listes_inventaire():
     file_path = "data/listes_inventaire.xlsx"
     if os.path.exists(file_path):
         try:
-            return pd.read_excel(file_path, engine='openpyxl')
+            df = pd.read_excel(file_path, engine='openpyxl')
+            # S'assurer que les IDs et noms sont traités comme des strings
+            if 'ID_Liste' in df.columns:
+                df['ID_Liste'] = df['ID_Liste'].astype(str)
+            if 'Nom_Liste' in df.columns:
+                df['Nom_Liste'] = df['Nom_Liste'].astype(str)
+            return df
         except Exception as e:
             st.error(f"Erreur lors du chargement des listes d'inventaire: {str(e)}")
             return pd.DataFrame()
@@ -790,7 +796,15 @@ def charger_produits_liste_inventaire():
     file_path = "data/produits_listes_inventaire.xlsx"
     if os.path.exists(file_path):
         try:
-            return pd.read_excel(file_path, engine='openpyxl')
+            df = pd.read_excel(file_path, engine='openpyxl')
+            # Convertir la colonne Reference_Produit en string pour éviter l'affichage numérique
+            if 'Reference_Produit' in df.columns:
+                df['Reference_Produit'] = df['Reference_Produit'].apply(lambda x: 
+                    str(int(float(x))) if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() and float(x) == int(float(x))
+                    else str(x) if pd.notna(x) and str(x) not in ['nan', 'None', ''] 
+                    else ''
+                )
+            return df
         except Exception as e:
             st.error(f"Erreur lors du chargement des produits des listes d'inventaire: {str(e)}")
             return pd.DataFrame()
@@ -861,9 +875,11 @@ def ajouter_liste_inventaire(nom_liste, produits_dict, cree_par="Utilisateur"):
     # Ajouter les produits de la liste
     nouveaux_produits = []
     for ref, item_data in produits_dict.items():
+        # S'assurer que la référence est stockée comme string
+        reference_str = str(ref) if pd.notna(ref) else ''
         nouveau_produit = {
             'ID_Liste': nouvel_id_liste,
-            'Reference_Produit': ref,
+            'Reference_Produit': reference_str,
             'Nom_Produit': item_data['produit'],
             'Emplacement': item_data['emplacement'],
             'Quantite_Theorique': item_data['quantite_theorique'],
@@ -900,9 +916,11 @@ def obtenir_listes_inventaire_avec_produits():
         # Convertir en format dict pour compatibilité avec l'existant
         produits_dict = {}
         for _, produit_row in produits_liste.iterrows():
-            produits_dict[produit_row['Reference_Produit']] = {
+            # S'assurer que la référence est en string
+            reference_str = str(produit_row['Reference_Produit']) if pd.notna(produit_row['Reference_Produit']) else ''
+            produits_dict[reference_str] = {
                 'produit': produit_row['Nom_Produit'],
-                'reference': produit_row['Reference_Produit'],
+                'reference': reference_str,
                 'emplacement': produit_row['Emplacement'],
                 'quantite_theorique': produit_row['Quantite_Theorique'],
                 'categorie': produit_row['Categorie'],
@@ -3295,8 +3313,11 @@ elif action == "Préparer l'inventaire":
                     
                     if data_inv.get('produits'):
                         df_inv_saved = pd.DataFrame(list(data_inv['produits'].values()))
+                        # S'assurer que la colonne reference est traitée comme string pour l'affichage
+                        if 'reference' in df_inv_saved.columns:
+                            df_inv_saved['reference'] = df_inv_saved['reference'].astype(str)
                         # S'assurer que 'quantite_theorique' n'est pas dans les colonnes à afficher
-                        colonnes_a_afficher = ['produit', 'reference', 'emplacement', 'categorie']
+                        colonnes_a_afficher = ['produit', 'reference', 'emplacement', 'categorie', 'fournisseur']
                         # Filtrer pour ne garder que les colonnes existantes dans le DataFrame
                         colonnes_existantes = [col for col in colonnes_a_afficher if col in df_inv_saved.columns]
                         st.dataframe(df_inv_saved[colonnes_existantes], use_container_width=True)
@@ -3319,55 +3340,101 @@ elif action == "Préparer l'inventaire":
         
         # Nouvel affichage : liste complète des produits avec boutons d'ajout
         if not df.empty:
-            st.write(f"**Tous les produits disponibles ({len(df)}):**")
+            # Filtres
+            st.markdown("**🔍 Filtres :**")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                # Filtre par fournisseur
+                fournisseurs_disponibles = ["Tous"] + sorted([f for f in df['Fournisseur'].dropna().unique() if f != 'N/A' and f != ''])
+                filtre_fournisseur = st.selectbox(
+                    "🏪 Fournisseur", 
+                    fournisseurs_disponibles,
+                    key=f"filtre_fournisseur_inv_{st.session_state.add_inv_counter}"
+                )
+            
+            with col2:
+                # Filtre par emplacement
+                emplacements_disponibles = ["Tous"] + sorted([e for e in df['Emplacement'].dropna().unique() if e != 'N/A' and e != ''])
+                filtre_emplacement = st.selectbox(
+                    "📍 Emplacement", 
+                    emplacements_disponibles,
+                    key=f"filtre_emplacement_inv_{st.session_state.add_inv_counter}"
+                )
+            
+            with col3:
+                # Filtre par catégorie
+                categories_disponibles = ["Toutes"] + sorted([c for c in df['Categorie'].dropna().unique() if c != 'N/A' and c != ''])
+                filtre_categorie = st.selectbox(
+                    "🏷️ Catégorie", 
+                    categories_disponibles,
+                    key=f"filtre_categorie_inv_{st.session_state.add_inv_counter}"
+                )
+            
+            # Appliquer les filtres
+            df_filtre = df.copy()
+            if filtre_fournisseur != "Tous":
+                df_filtre = df_filtre[df_filtre['Fournisseur'] == filtre_fournisseur]
+            if filtre_emplacement != "Tous":
+                df_filtre = df_filtre[df_filtre['Emplacement'] == filtre_emplacement]
+            if filtre_categorie != "Toutes":
+                df_filtre = df_filtre[df_filtre['Categorie'] == filtre_categorie]
+            
+            st.write(f"**Produits disponibles ({len(df_filtre)}):**")
             
             # Pagination pour éviter de surcharger l'affichage
             produits_par_page = 10
             if 'page_produits_inv' not in st.session_state:
                 st.session_state.page_produits_inv = 0
             
-            total_pages = (len(df) - 1) // produits_par_page + 1
+            # Réinitialiser la page si le nombre de produits filtrés a changé
+            total_pages = max(1, (len(df_filtre) - 1) // produits_par_page + 1) if len(df_filtre) > 0 else 1
+            if st.session_state.page_produits_inv >= total_pages:
+                st.session_state.page_produits_inv = 0
             
             # Navigation de pagination
-            col_prev, col_page, col_next = st.columns([1, 2, 1])
-            with col_prev:
-                if st.button("⬅️ Précédent", disabled=(st.session_state.page_produits_inv == 0)):
-                    st.session_state.page_produits_inv = max(0, st.session_state.page_produits_inv - 1)
-                    st.experimental_rerun()
-            with col_page:
-                st.write(f"Page {st.session_state.page_produits_inv + 1} sur {total_pages}")
-            with col_next:
-                if st.button("➡️ Suivant", disabled=(st.session_state.page_produits_inv >= total_pages - 1)):
-                    st.session_state.page_produits_inv = min(total_pages - 1, st.session_state.page_produits_inv + 1)
-                    st.experimental_rerun()
-            
-            # Calculer les indices pour la page actuelle
-            debut = st.session_state.page_produits_inv * produits_par_page
-            fin = min(debut + produits_par_page, len(df))
-            
-            # Afficher les produits de la page actuelle
-            for idx in range(debut, fin):
-                produit = df.iloc[idx]
-                col_prod, col_add_btn = st.columns([4, 1])
-                with col_prod:
-                    st.write(f"**{produit['Produits']}**")
-                    st.caption(f"Réf: {produit['Reference']} | Empl: {produit['Emplacement']} | Cat: {produit.get('Categorie', 'N/A')}")
-                with col_add_btn:
-                    add_key = f"add_inv_complet_{produit['Reference']}_{st.session_state.add_inv_counter}"
-                    if produit['Reference'] in st.session_state.liste_inventaire_en_creation:
-                        st.button("✔️ Ajouté", key=add_key, disabled=True, use_container_width=True)
-                    else:
-                        if st.button("➕ Ajouter à la liste à inventorier", key=add_key, use_container_width=True, type="secondary"):
-                            st.session_state.liste_inventaire_en_creation[produit['Reference']] = {
-                                'produit': produit['Produits'],
-                                'reference': produit['Reference'],
-                                'emplacement': produit['Emplacement'],
-                                'quantite_theorique': int(produit['Quantite']),
-                                'categorie': produit.get('Categorie', 'N/A'),
-                                'fournisseur': produit.get('Fournisseur', 'N/A')
-                            }
-                            st.experimental_rerun()
-                st.divider()
+            if len(df_filtre) > 0:
+                col_prev, col_page, col_next = st.columns([1, 2, 1])
+                with col_prev:
+                    if st.button("⬅️ Précédent", disabled=(st.session_state.page_produits_inv == 0)):
+                        st.session_state.page_produits_inv = max(0, st.session_state.page_produits_inv - 1)
+                        st.experimental_rerun()
+                with col_page:
+                    st.write(f"Page {st.session_state.page_produits_inv + 1} sur {total_pages}")
+                with col_next:
+                    if st.button("➡️ Suivant", disabled=(st.session_state.page_produits_inv >= total_pages - 1)):
+                        st.session_state.page_produits_inv = min(total_pages - 1, st.session_state.page_produits_inv + 1)
+                        st.experimental_rerun()
+                
+                # Calculer les indices pour la page actuelle
+                debut = st.session_state.page_produits_inv * produits_par_page
+                fin = min(debut + produits_par_page, len(df_filtre))
+                
+                # Afficher les produits de la page actuelle
+                for idx in range(debut, fin):
+                    produit = df_filtre.iloc[idx]
+                    col_prod, col_add_btn = st.columns([4, 1])
+                    with col_prod:
+                        st.write(f"**{produit['Produits']}**")
+                        st.caption(f"Réf: {produit['Reference']} | Empl: {produit['Emplacement']} | Cat: {produit.get('Categorie', 'N/A')} | Fourn: {produit.get('Fournisseur', 'N/A')}")
+                    with col_add_btn:
+                        add_key = f"add_inv_complet_{produit['Reference']}_{st.session_state.add_inv_counter}"
+                        if produit['Reference'] in st.session_state.liste_inventaire_en_creation:
+                            st.button("✔️ Ajouté", key=add_key, disabled=True, use_container_width=True)
+                        else:
+                            if st.button("➕ Ajouter à la liste à inventorier", key=add_key, use_container_width=True, type="secondary"):
+                                st.session_state.liste_inventaire_en_creation[produit['Reference']] = {
+                                    'produit': produit['Produits'],
+                                    'reference': produit['Reference'],
+                                    'emplacement': produit['Emplacement'],
+                                    'quantite_theorique': int(produit['Quantite']),
+                                    'categorie': produit.get('Categorie', 'N/A'),
+                                    'fournisseur': produit.get('Fournisseur', 'N/A')
+                                }
+                                st.experimental_rerun()
+                    st.divider()
+            else:
+                st.warning("Aucun produit ne correspond aux filtres sélectionnés.")
         else:
             st.warning("Aucun produit disponible dans l'inventaire.")
 
@@ -3401,7 +3468,6 @@ elif action == "Préparer l'inventaire":
                 with col_action:
                     if st.button("🗑️", key=f"remove_inv_creation_{ref}_{st.session_state.add_inv_counter}", help="Retirer"):
                         items_a_supprimer_creation.append(ref)
-                # st.divider() # Peut-être trop de séparateurs ici
 
             if items_a_supprimer_creation:
                 for ref_to_remove in items_a_supprimer_creation:
@@ -3410,7 +3476,6 @@ elif action == "Préparer l'inventaire":
                 st.experimental_rerun()
             
             total_produits_creation = len(st.session_state.liste_inventaire_en_creation)
- 
             
             st.markdown("---")
             st.metric("Produits dans cette liste", total_produits_creation)
