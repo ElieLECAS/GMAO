@@ -969,7 +969,6 @@ if st.sidebar.button("🚨 Alertes stock", use_container_width=True):
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📦 **Demandes**")
 
-
 if st.sidebar.button("📋 Demande de matériel", use_container_width=True, help="Demander du matériel"):
     st.session_state.action = "Demande de matériel"
 
@@ -989,7 +988,8 @@ if st.sidebar.button("📤 Sortie", use_container_width=True, help="Sortie de st
 if st.sidebar.button("📊 Régule", use_container_width=True, help="Ajustement d'inventaire"):
     st.session_state.action = "Régule"
         
-
+if st.sidebar.button("📝 Préparer l'inventaire", use_container_width=True, help="Créer une liste de produits à inventorier"):
+    st.session_state.action = "Préparer l'inventaire"
 
 # Section QR Codes - Outils mobiles
 # st.sidebar.markdown("---")
@@ -3070,6 +3070,194 @@ elif action == "Régule":
     else:
         st.warning("Aucun produit disponible dans l'inventaire.")
 
+elif action == "Préparer l'inventaire":
+    st.header("📊 Gestion des Inventaires")
+
+    # Initialiser les états de session nécessaires pour la gestion des inventaires
+    if 'inventaires_sauvegardes' not in st.session_state:
+        st.session_state.inventaires_sauvegardes = {}  # ex: {"Nom Inventaire 1": {produits...}, ...}
+    if 'page_inventaire_active' not in st.session_state:
+        st.session_state.page_inventaire_active = "liste_globale" # ou "creer_liste"
+    if 'liste_inventaire_en_creation' not in st.session_state:
+        st.session_state.liste_inventaire_en_creation = {}
+    if 'nom_inventaire_en_creation' not in st.session_state:
+        st.session_state.nom_inventaire_en_creation = ""
+    if 'add_inv_counter' not in st.session_state: # Compteur pour clés uniques
+        st.session_state.add_inv_counter = 0
+
+    # Navigation dans la section inventaire
+    cols_nav_inv = st.columns(2)
+    with cols_nav_inv[0]:
+        if st.button("📜 Voir les listes d'inventaire", use_container_width=True, type=("primary" if st.session_state.page_inventaire_active == "liste_globale" else "secondary")):
+            st.session_state.page_inventaire_active = "liste_globale"
+            st.experimental_rerun()
+    with cols_nav_inv[1]:
+        if st.button("➕ Créer une nouvelle liste", use_container_width=True, type=("primary" if st.session_state.page_inventaire_active == "creer_liste" else "secondary")):
+            st.session_state.page_inventaire_active = "creer_liste"
+            # Réinitialiser la liste en création quand on change de page
+            st.session_state.liste_inventaire_en_creation = {}
+            st.session_state.nom_inventaire_en_creation = f"Inventaire du {datetime.now().strftime('%Y-%m-%d_%H%M')}"
+            st.session_state.add_inv_counter +=1 # Pour reset les inputs de recherche
+            st.experimental_rerun()
+    
+    st.markdown("---")
+
+    if st.session_state.page_inventaire_active == "liste_globale":
+        st.subheader("📜 Listes d'inventaire sauvegardées")
+        if st.session_state.inventaires_sauvegardes:
+            for nom_inv, data_inv in st.session_state.inventaires_sauvegardes.items():
+                with st.expander(f"**{nom_inv}** ({len(data_inv.get('produits', {}))} produits)"):
+                    st.write(f"*Date de création (simulée) : {data_inv.get('date_creation', 'N/A')}*")
+                    df_inv_saved = pd.DataFrame(list(data_inv.get('produits', {}).values()))
+                    if not df_inv_saved.empty:
+                        # S'assurer que 'quantite_theorique' n'est pas dans les colonnes à afficher
+                        colonnes_a_afficher = ['produit', 'reference', 'emplacement', 'categorie']
+                        # Filtrer pour ne garder que les colonnes existantes dans le DataFrame
+                        colonnes_existantes = [col for col in colonnes_a_afficher if col in df_inv_saved.columns]
+                        st.dataframe(df_inv_saved[colonnes_existantes], use_container_width=True)
+                    else:
+                        st.write("Aucun produit dans cette liste.")
+                    # TODO: Ajouter des boutons pour voir/modifier/supprimer la liste sauvegardée
+        else:
+            st.info("Aucune liste d'inventaire n'a été sauvegardée pour le moment. Cliquez sur 'Créer une nouvelle liste' pour commencer.")
+
+    elif st.session_state.page_inventaire_active == "creer_liste":
+        st.subheader("➕ Créer une nouvelle liste d'inventaire")
+
+        st.session_state.nom_inventaire_en_creation = st.text_input(
+            "Nom de la liste d'inventaire *", 
+            value=st.session_state.nom_inventaire_en_creation,
+            key=f"nom_inv_creation_{st.session_state.add_inv_counter}"
+        )
+        
+        st.markdown("#### 🛒 Ajouter des produits à la liste")
+        # Interface de recherche et ajout (similaire à la version précédente)
+        search_term_inv = st.text_input(
+            "🔍 Rechercher un produit (nom ou référence)",
+            placeholder="Tapez pour rechercher...",
+            key=f"search_inv_input_{st.session_state.add_inv_counter}" 
+        )
+
+        df_pour_inventaire = df.copy()
+
+        if search_term_inv:
+            search_results_inv = df_pour_inventaire[
+                df_pour_inventaire['Produits'].str.contains(search_term_inv, case=False, na=False) |
+                df_pour_inventaire['Reference'].astype(str).str.contains(search_term_inv, case=False, na=False)
+            ]
+        else:
+            search_results_inv = pd.DataFrame() 
+
+        if not search_results_inv.empty:
+            st.write(f"**Résultats ({len(search_results_inv)}):**")
+            for idx, produit in search_results_inv.head(5).iterrows(): # Limiter pour performance
+                col_prod, col_add_btn = st.columns([3, 1.5]) # Ajustement des colonnes
+                with col_prod:
+                    st.write(f"**{produit['Produits']}**")
+                    st.caption(f"Réf: {produit['Reference']} | Empl: {produit['Emplacement']}")
+                # Suppression de la colonne col_stock et de st.metric pour la quantité
+                with col_add_btn:
+                    add_key = f"add_inv_encours_{produit['Reference']}_{st.session_state.add_inv_counter}"
+                    if produit['Reference'] in st.session_state.liste_inventaire_en_creation:
+                        st.button("✔️ Ajouté", key=add_key, disabled=True, use_container_width=True)
+                    else:
+                        if st.button("➕ Ajouter à la liste", key=add_key, use_container_width=True, type="secondary"):
+                            st.session_state.liste_inventaire_en_creation[produit['Reference']] = {
+                                'produit': produit['Produits'],
+                                'reference': produit['Reference'],
+                                'emplacement': produit['Emplacement'],
+                                'quantite_theorique': int(produit['Quantite']),
+                                'categorie': produit.get('Categorie', 'N/A'),
+                                'fournisseur': produit.get('Fournisseur', 'N/A')
+                                # La quantité inventoriée sera ajoutée plus tard
+                            }
+                            # Pas besoin de rerun ici, l'ajout se reflète dans la section "Liste en cours"
+                            st.experimental_rerun() # Forcer le rafraîchissement pour voir le bouton "Ajouté"
+                st.divider()
+            if len(search_results_inv) > 5:
+                st.caption(f"Affichage des 5 premiers résultats sur {len(search_results_inv)}. Affinez votre recherche.")
+        elif search_term_inv:
+            st.info("Aucun produit trouvé pour cette recherche.")
+
+        st.markdown("--- ")
+        st.markdown(f"#### 📜 Produits dans la liste : *{st.session_state.nom_inventaire_en_creation or 'Nouvelle Liste'}*")
+
+        if st.session_state.liste_inventaire_en_creation:
+            items_a_supprimer_creation = []
+            
+            # Ajustement des colonnes d'en-tête (5 colonnes visibles + action)
+            c1, c2, c3, c4, c5 = st.columns([2.5, 1.5, 2, 1.5, 0.5]) 
+            c1.markdown("**Produit**")
+            c2.markdown("**Référence**")
+            c3.markdown("**Emplacement**")
+            c4.markdown("**Catégorie**") # Qté Théo. supprimée
+            # c5 est pour le bouton supprimer, pas d'en-tête explicite
+
+            for ref, item_data in st.session_state.liste_inventaire_en_creation.items():
+                # Ajustement des colonnes pour chaque ligne de produit (5 colonnes visibles + action)
+                col1, col2, col3, col4, col_action = st.columns([2.5, 1.5, 2, 1.5, 0.5])
+                with col1:
+                    st.write(item_data['produit'])
+                    st.caption(f"Fourn: {item_data.get('fournisseur', 'N/A')}")
+                with col2:
+                    st.write(item_data['reference'])
+                with col3:
+                    st.write(item_data['emplacement'])
+                with col4: # Anciennement pour Qté Théo, maintenant pour Catégorie
+                    st.write(item_data.get('categorie', 'N/A'))
+                # La quantité théorique (item_data['quantite_theorique']) n'est plus affichée ici
+                with col_action:
+                    if st.button("🗑️", key=f"remove_inv_creation_{ref}_{st.session_state.add_inv_counter}", help="Retirer"):
+                        items_a_supprimer_creation.append(ref)
+                # st.divider() # Peut-être trop de séparateurs ici
+
+            if items_a_supprimer_creation:
+                for ref_to_remove in items_a_supprimer_creation:
+                    if ref_to_remove in st.session_state.liste_inventaire_en_creation:
+                        del st.session_state.liste_inventaire_en_creation[ref_to_remove]
+                st.experimental_rerun()
+            
+            total_produits_creation = len(st.session_state.liste_inventaire_en_creation)
+            total_qte_theorique_creation = sum(item['quantite_theorique'] for item in st.session_state.liste_inventaire_en_creation.values())
+            
+            st.markdown("---")
+            col_stats_c1, col_stats_c2 = st.columns(2)
+            with col_stats_c1:
+                st.metric("Produits dans cette liste", total_produits_creation)
+            with col_stats_c2:
+                st.metric("Qté théorique à vérifier", total_qte_theorique_creation)
+
+            col_act_c1, col_act_c2 = st.columns([2,2])
+            with col_act_c1:
+                 if st.button("🗑️ Vider la liste en cours", use_container_width=True):
+                    st.session_state.liste_inventaire_en_creation = {}
+                    st.experimental_rerun()
+            with col_act_c2:
+                if st.button("💾 Sauvegarder cette liste d'inventaire", use_container_width=True, type="primary"):
+                    nom_inv = st.session_state.nom_inventaire_en_creation.strip()
+                    if not nom_inv:
+                        st.error("❌ Veuillez donner un nom à votre liste d'inventaire.")
+                    elif not st.session_state.liste_inventaire_en_creation:
+                        st.warning("⚠️ La liste est vide. Ajoutez des produits avant de sauvegarder.")
+                    elif nom_inv in st.session_state.inventaires_sauvegardes:
+                        st.error(f"❌ Une liste d'inventaire nommée '{nom_inv}' existe déjà. Veuillez choisir un autre nom.")
+                    else:
+                        st.session_state.inventaires_sauvegardes[nom_inv] = {
+                            'produits': st.session_state.liste_inventaire_en_creation.copy(),
+                            'date_creation': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            'nom': nom_inv
+                            # 'statut': 'En préparation' # Pourrait être ajouté plus tard
+                        }
+                        st.success(f"✅ Liste d'inventaire '{nom_inv}' sauvegardée (en session) !")
+                        # Réinitialiser pour une nouvelle liste et revenir à la vue globale
+                        st.session_state.liste_inventaire_en_creation = {}
+                        st.session_state.nom_inventaire_en_creation = ""
+                        st.session_state.add_inv_counter += 1
+                        st.session_state.page_inventaire_active = "liste_globale"
+                        st.experimental_rerun()
+        else:
+            st.info("Aucun produit ajouté à cette liste pour le moment.")
+
 elif action == "Alertes de stock":
     st.header("🚨 Alertes de Stock")
     
@@ -4029,7 +4217,7 @@ elif action == "Fournisseurs":
                 
                 # Ajouter des colonnes calculées pour l'affichage
                 produits_display = produits_fournisseur.copy()
-                produits_display['Valeur_Stock'] = produits_display['Quantite'] * produits_display['Prix_Unitaire']
+                produits_display['Valeur_Stock'] = produits_display['Quantite'] * produits_fournisseur['Prix_Unitaire']
                 
                 # Statut de stock
                 produits_display['Statut_Stock'] = produits_display.apply(
@@ -4311,7 +4499,7 @@ elif action == "Gestion des emplacements":
                 
                 # Ajouter des colonnes calculées pour l'affichage
                 produits_display = produits_emplacement.copy()
-                produits_display['Valeur_Stock'] = produits_display['Quantite'] * produits_display['Prix_Unitaire']
+                produits_display['Valeur_Stock'] = produits_display['Quantite'] * produits_emplacement['Prix_Unitaire']
                 
                 # Statut de stock
                 produits_display['Statut_Stock'] = produits_display.apply(
