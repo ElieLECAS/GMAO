@@ -747,6 +747,180 @@ def mettre_a_jour_statistiques_emplacements():
     sauvegarder_emplacements(df_emplacements)
     return df_emplacements
 
+def charger_listes_inventaire():
+    """Charge toutes les listes d'inventaire depuis le fichier Excel"""
+    file_path = "data/listes_inventaire.xlsx"
+    if os.path.exists(file_path):
+        try:
+            return pd.read_excel(file_path, engine='openpyxl')
+        except Exception as e:
+            st.error(f"Erreur lors du chargement des listes d'inventaire: {str(e)}")
+            return pd.DataFrame()
+    else:
+        # Créer le fichier avec une structure vide
+        return creer_fichier_listes_inventaire_initial()
+
+def creer_fichier_listes_inventaire_initial():
+    """Crée le fichier initial des listes d'inventaire"""
+    listes_initiales = {
+        'ID_Liste': [],
+        'Nom_Liste': [],
+        'Date_Creation': [],
+        'Statut': [],
+        'Nb_Produits': [],
+        'Cree_Par': []
+    }
+    
+    df_listes = pd.DataFrame(listes_initiales)
+    os.makedirs("data", exist_ok=True)
+    df_listes.to_excel("data/listes_inventaire.xlsx", index=False, engine='openpyxl')
+    return df_listes
+
+def sauvegarder_listes_inventaire(df_listes):
+    """Sauvegarde les listes d'inventaire dans le fichier Excel"""
+    try:
+        df_listes.to_excel("data/listes_inventaire.xlsx", index=False, engine='openpyxl')
+        return True
+    except Exception as e:
+        st.error(f"Erreur lors de la sauvegarde des listes d'inventaire: {str(e)}")
+        return False
+
+def charger_produits_liste_inventaire():
+    """Charge tous les produits des listes d'inventaire depuis le fichier Excel"""
+    file_path = "data/produits_listes_inventaire.xlsx"
+    if os.path.exists(file_path):
+        try:
+            return pd.read_excel(file_path, engine='openpyxl')
+        except Exception as e:
+            st.error(f"Erreur lors du chargement des produits des listes d'inventaire: {str(e)}")
+            return pd.DataFrame()
+    else:
+        # Créer le fichier avec une structure vide
+        return creer_fichier_produits_listes_inventaire_initial()
+
+def creer_fichier_produits_listes_inventaire_initial():
+    """Crée le fichier initial des produits des listes d'inventaire"""
+    produits_listes_initiaux = {
+        'ID_Liste': [],
+        'Reference_Produit': [],
+        'Nom_Produit': [],
+        'Emplacement': [],
+        'Quantite_Theorique': [],
+        'Categorie': [],
+        'Fournisseur': [],
+        'Date_Ajout': []
+    }
+    
+    df_produits_listes = pd.DataFrame(produits_listes_initiaux)
+    os.makedirs("data", exist_ok=True)
+    df_produits_listes.to_excel("data/produits_listes_inventaire.xlsx", index=False, engine='openpyxl')
+    return df_produits_listes
+
+def sauvegarder_produits_listes_inventaire(df_produits_listes):
+    """Sauvegarde les produits des listes d'inventaire dans le fichier Excel"""
+    try:
+        df_produits_listes.to_excel("data/produits_listes_inventaire.xlsx", index=False, engine='openpyxl')
+        return True
+    except Exception as e:
+        st.error(f"Erreur lors de la sauvegarde des produits des listes d'inventaire: {str(e)}")
+        return False
+
+def ajouter_liste_inventaire(nom_liste, produits_dict, cree_par="Utilisateur"):
+    """Ajoute une nouvelle liste d'inventaire avec ses produits"""
+    df_listes = charger_listes_inventaire()
+    df_produits_listes = charger_produits_liste_inventaire()
+    
+    # Vérifier si la liste existe déjà
+    if nom_liste in df_listes['Nom_Liste'].values:
+        return False, "Cette liste d'inventaire existe déjà"
+    
+    # Générer un ID unique pour la liste
+    if df_listes.empty:
+        nouvel_id_liste = "INV001"
+    else:
+        # Trouver le prochain ID disponible
+        ids_existants = df_listes['ID_Liste'].tolist()
+        if ids_existants:
+            numero_max = max([int(id_liste[3:]) for id_liste in ids_existants if id_liste.startswith('INV')])
+            nouvel_id_liste = f"INV{str(numero_max + 1).zfill(3)}"
+        else:
+            nouvel_id_liste = "INV001"
+    
+    # Ajouter la nouvelle liste
+    nouvelle_liste = {
+        'ID_Liste': nouvel_id_liste,
+        'Nom_Liste': nom_liste,
+        'Date_Creation': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'Statut': 'En préparation',
+        'Nb_Produits': len(produits_dict),
+        'Cree_Par': cree_par
+    }
+    
+    df_listes = pd.concat([df_listes, pd.DataFrame([nouvelle_liste])], ignore_index=True)
+    
+    # Ajouter les produits de la liste
+    nouveaux_produits = []
+    for ref, item_data in produits_dict.items():
+        nouveau_produit = {
+            'ID_Liste': nouvel_id_liste,
+            'Reference_Produit': ref,
+            'Nom_Produit': item_data['produit'],
+            'Emplacement': item_data['emplacement'],
+            'Quantite_Theorique': item_data['quantite_theorique'],
+            'Categorie': item_data.get('categorie', 'N/A'),
+            'Fournisseur': item_data.get('fournisseur', 'N/A'),
+            'Date_Ajout': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        nouveaux_produits.append(nouveau_produit)
+    
+    if nouveaux_produits:
+        df_nouveaux_produits = pd.DataFrame(nouveaux_produits)
+        df_produits_listes = pd.concat([df_produits_listes, df_nouveaux_produits], ignore_index=True)
+    
+    # Sauvegarder les deux fichiers
+    if sauvegarder_listes_inventaire(df_listes) and sauvegarder_produits_listes_inventaire(df_produits_listes):
+        return True, f"Liste d'inventaire '{nom_liste}' sauvegardée avec succès"
+    else:
+        return False, "Erreur lors de la sauvegarde"
+
+def obtenir_listes_inventaire_avec_produits():
+    """Récupère toutes les listes d'inventaire avec leurs produits"""
+    df_listes = charger_listes_inventaire()
+    df_produits_listes = charger_produits_liste_inventaire()
+    
+    listes_avec_produits = {}
+    
+    for _, liste_row in df_listes.iterrows():
+        id_liste = liste_row['ID_Liste']
+        nom_liste = liste_row['Nom_Liste']
+        
+        # Récupérer les produits de cette liste
+        produits_liste = df_produits_listes[df_produits_listes['ID_Liste'] == id_liste]
+        
+        # Convertir en format dict pour compatibilité avec l'existant
+        produits_dict = {}
+        for _, produit_row in produits_liste.iterrows():
+            produits_dict[produit_row['Reference_Produit']] = {
+                'produit': produit_row['Nom_Produit'],
+                'reference': produit_row['Reference_Produit'],
+                'emplacement': produit_row['Emplacement'],
+                'quantite_theorique': produit_row['Quantite_Theorique'],
+                'categorie': produit_row['Categorie'],
+                'fournisseur': produit_row['Fournisseur']
+            }
+        
+        listes_avec_produits[nom_liste] = {
+            'id_liste': id_liste,
+            'produits': produits_dict,
+            'date_creation': liste_row['Date_Creation'],
+            'statut': liste_row['Statut'],
+            'nb_produits': liste_row['Nb_Produits'],
+            'cree_par': liste_row['Cree_Par']
+        }
+    
+    return listes_avec_produits
+
+# Sélecteur de quantité mobile
 def mobile_quantity_selector(label, min_value=1, max_value=100, default_value=1, key_prefix="qty"):
     """
     Sélecteur de quantité optimisé pour mobile avec gros boutons + et -
@@ -3104,12 +3278,23 @@ elif action == "Préparer l'inventaire":
 
     if st.session_state.page_inventaire_active == "liste_globale":
         st.subheader("📜 Listes d'inventaire sauvegardées")
-        if st.session_state.inventaires_sauvegardes:
-            for nom_inv, data_inv in st.session_state.inventaires_sauvegardes.items():
-                with st.expander(f"**{nom_inv}** ({len(data_inv.get('produits', {}))} produits)"):
-                    st.write(f"*Date de création (simulée) : {data_inv.get('date_creation', 'N/A')}*")
-                    df_inv_saved = pd.DataFrame(list(data_inv.get('produits', {}).values()))
-                    if not df_inv_saved.empty:
+        
+        # Charger les listes depuis Excel
+        listes_avec_produits = obtenir_listes_inventaire_avec_produits()
+        
+        if listes_avec_produits:
+            for nom_inv, data_inv in listes_avec_produits.items():
+                with st.expander(f"**{nom_inv}** ({data_inv.get('nb_produits', 0)} produits) - {data_inv.get('statut', 'N/A')}"):
+                    col_info1, col_info2 = st.columns(2)
+                    with col_info1:
+                        st.write(f"*ID : {data_inv.get('id_liste', 'N/A')}*")
+                        st.write(f"*Date de création : {data_inv.get('date_creation', 'N/A')}*")
+                    with col_info2:
+                        st.write(f"*Créé par : {data_inv.get('cree_par', 'N/A')}*")
+                        st.write(f"*Statut : {data_inv.get('statut', 'N/A')}*")
+                    
+                    if data_inv.get('produits'):
+                        df_inv_saved = pd.DataFrame(list(data_inv['produits'].values()))
                         # S'assurer que 'quantite_theorique' n'est pas dans les colonnes à afficher
                         colonnes_a_afficher = ['produit', 'reference', 'emplacement', 'categorie']
                         # Filtrer pour ne garder que les colonnes existantes dans le DataFrame
@@ -3131,37 +3316,48 @@ elif action == "Préparer l'inventaire":
         )
         
         st.markdown("#### 🛒 Ajouter des produits à la liste")
-        # Interface de recherche et ajout (similaire à la version précédente)
-        search_term_inv = st.text_input(
-            "🔍 Rechercher un produit (nom ou référence)",
-            placeholder="Tapez pour rechercher...",
-            key=f"search_inv_input_{st.session_state.add_inv_counter}" 
-        )
-
-        df_pour_inventaire = df.copy()
-
-        if search_term_inv:
-            search_results_inv = df_pour_inventaire[
-                df_pour_inventaire['Produits'].str.contains(search_term_inv, case=False, na=False) |
-                df_pour_inventaire['Reference'].astype(str).str.contains(search_term_inv, case=False, na=False)
-            ]
-        else:
-            search_results_inv = pd.DataFrame() 
-
-        if not search_results_inv.empty:
-            st.write(f"**Résultats ({len(search_results_inv)}):**")
-            for idx, produit in search_results_inv.head(5).iterrows(): # Limiter pour performance
-                col_prod, col_add_btn = st.columns([3, 1.5]) # Ajustement des colonnes
+        
+        # Nouvel affichage : liste complète des produits avec boutons d'ajout
+        if not df.empty:
+            st.write(f"**Tous les produits disponibles ({len(df)}):**")
+            
+            # Pagination pour éviter de surcharger l'affichage
+            produits_par_page = 10
+            if 'page_produits_inv' not in st.session_state:
+                st.session_state.page_produits_inv = 0
+            
+            total_pages = (len(df) - 1) // produits_par_page + 1
+            
+            # Navigation de pagination
+            col_prev, col_page, col_next = st.columns([1, 2, 1])
+            with col_prev:
+                if st.button("⬅️ Précédent", disabled=(st.session_state.page_produits_inv == 0)):
+                    st.session_state.page_produits_inv = max(0, st.session_state.page_produits_inv - 1)
+                    st.experimental_rerun()
+            with col_page:
+                st.write(f"Page {st.session_state.page_produits_inv + 1} sur {total_pages}")
+            with col_next:
+                if st.button("➡️ Suivant", disabled=(st.session_state.page_produits_inv >= total_pages - 1)):
+                    st.session_state.page_produits_inv = min(total_pages - 1, st.session_state.page_produits_inv + 1)
+                    st.experimental_rerun()
+            
+            # Calculer les indices pour la page actuelle
+            debut = st.session_state.page_produits_inv * produits_par_page
+            fin = min(debut + produits_par_page, len(df))
+            
+            # Afficher les produits de la page actuelle
+            for idx in range(debut, fin):
+                produit = df.iloc[idx]
+                col_prod, col_add_btn = st.columns([4, 1])
                 with col_prod:
                     st.write(f"**{produit['Produits']}**")
-                    st.caption(f"Réf: {produit['Reference']} | Empl: {produit['Emplacement']}")
-                # Suppression de la colonne col_stock et de st.metric pour la quantité
+                    st.caption(f"Réf: {produit['Reference']} | Empl: {produit['Emplacement']} | Cat: {produit.get('Categorie', 'N/A')}")
                 with col_add_btn:
-                    add_key = f"add_inv_encours_{produit['Reference']}_{st.session_state.add_inv_counter}"
+                    add_key = f"add_inv_complet_{produit['Reference']}_{st.session_state.add_inv_counter}"
                     if produit['Reference'] in st.session_state.liste_inventaire_en_creation:
                         st.button("✔️ Ajouté", key=add_key, disabled=True, use_container_width=True)
                     else:
-                        if st.button("➕ Ajouter à la liste", key=add_key, use_container_width=True, type="secondary"):
+                        if st.button("➕ Ajouter à la liste à inventorier", key=add_key, use_container_width=True, type="secondary"):
                             st.session_state.liste_inventaire_en_creation[produit['Reference']] = {
                                 'produit': produit['Produits'],
                                 'reference': produit['Reference'],
@@ -3169,15 +3365,11 @@ elif action == "Préparer l'inventaire":
                                 'quantite_theorique': int(produit['Quantite']),
                                 'categorie': produit.get('Categorie', 'N/A'),
                                 'fournisseur': produit.get('Fournisseur', 'N/A')
-                                # La quantité inventoriée sera ajoutée plus tard
                             }
-                            # Pas besoin de rerun ici, l'ajout se reflète dans la section "Liste en cours"
-                            st.experimental_rerun() # Forcer le rafraîchissement pour voir le bouton "Ajouté"
+                            st.experimental_rerun()
                 st.divider()
-            if len(search_results_inv) > 5:
-                st.caption(f"Affichage des 5 premiers résultats sur {len(search_results_inv)}. Affinez votre recherche.")
-        elif search_term_inv:
-            st.info("Aucun produit trouvé pour cette recherche.")
+        else:
+            st.warning("Aucun produit disponible dans l'inventaire.")
 
         st.markdown("--- ")
         st.markdown(f"#### 📜 Produits dans la liste : *{st.session_state.nom_inventaire_en_creation or 'Nouvelle Liste'}*")
@@ -3190,7 +3382,7 @@ elif action == "Préparer l'inventaire":
             c1.markdown("**Produit**")
             c2.markdown("**Référence**")
             c3.markdown("**Emplacement**")
-            c4.markdown("**Catégorie**") # Qté Théo. supprimée
+            c4.markdown("**Catégorie**")
             # c5 est pour le bouton supprimer, pas d'en-tête explicite
 
             for ref, item_data in st.session_state.liste_inventaire_en_creation.items():
@@ -3218,14 +3410,13 @@ elif action == "Préparer l'inventaire":
                 st.experimental_rerun()
             
             total_produits_creation = len(st.session_state.liste_inventaire_en_creation)
-            total_qte_theorique_creation = sum(item['quantite_theorique'] for item in st.session_state.liste_inventaire_en_creation.values())
+ 
             
             st.markdown("---")
-            col_stats_c1, col_stats_c2 = st.columns(2)
+            col_stats_c1 = st.columns(1)
             with col_stats_c1:
                 st.metric("Produits dans cette liste", total_produits_creation)
-            with col_stats_c2:
-                st.metric("Qté théorique à vérifier", total_qte_theorique_creation)
+ 
 
             col_act_c1, col_act_c2 = st.columns([2,2])
             with col_act_c1:
@@ -3239,22 +3430,23 @@ elif action == "Préparer l'inventaire":
                         st.error("❌ Veuillez donner un nom à votre liste d'inventaire.")
                     elif not st.session_state.liste_inventaire_en_creation:
                         st.warning("⚠️ La liste est vide. Ajoutez des produits avant de sauvegarder.")
-                    elif nom_inv in st.session_state.inventaires_sauvegardes:
-                        st.error(f"❌ Une liste d'inventaire nommée '{nom_inv}' existe déjà. Veuillez choisir un autre nom.")
                     else:
-                        st.session_state.inventaires_sauvegardes[nom_inv] = {
-                            'produits': st.session_state.liste_inventaire_en_creation.copy(),
-                            'date_creation': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            'nom': nom_inv
-                            # 'statut': 'En préparation' # Pourrait être ajouté plus tard
-                        }
-                        st.success(f"✅ Liste d'inventaire '{nom_inv}' sauvegardée (en session) !")
-                        # Réinitialiser pour une nouvelle liste et revenir à la vue globale
-                        st.session_state.liste_inventaire_en_creation = {}
-                        st.session_state.nom_inventaire_en_creation = ""
-                        st.session_state.add_inv_counter += 1
-                        st.session_state.page_inventaire_active = "liste_globale"
-                        st.experimental_rerun()
+                        # Utiliser la nouvelle fonction de sauvegarde Excel
+                        success, message = ajouter_liste_inventaire(
+                            nom_inv, 
+                            st.session_state.liste_inventaire_en_creation
+                        )
+                        
+                        if success:
+                            st.success(f"✅ {message}")
+                            # Réinitialiser pour une nouvelle liste et revenir à la vue globale
+                            st.session_state.liste_inventaire_en_creation = {}
+                            st.session_state.nom_inventaire_en_creation = ""
+                            st.session_state.add_inv_counter += 1
+                            st.session_state.page_inventaire_active = "liste_globale"
+                            st.experimental_rerun()
+                        else:
+                            st.error(f"❌ {message}")
         else:
             st.info("Aucun produit ajouté à cette liste pour le moment.")
 
