@@ -606,74 +606,64 @@ def mettre_a_jour_demande(demande_id, nouveau_statut, traite_par, commentaires="
         st.error("Fichier des demandes non trouvé")
 
 def charger_tables_atelier():
-    """Charge toutes les tables d'atelier depuis le fichier Excel"""
-    file_path = "data/tables_atelier.xlsx"
-    if os.path.exists(file_path):
-        try:
-            return pd.read_excel(file_path, engine='openpyxl')
-        except Exception as e:
-            st.error(f"Erreur lors du chargement des tables d'atelier: {str(e)}")
-            return pd.DataFrame()
-    else:
-        # Créer le fichier avec des données initiales
-        tables_initiales = {
-            'ID_Table': ['ALU01', 'ALU02', 'PVC03', 'PVC04', 'BOIS05', 'BOIS06', 'METAL07', 'METAL08'],
-            'Nom_Table': ['Table Aluminium 01', 'Table Aluminium 02', 'Table PVC 03', 'Table PVC 04', 
-                         'Table Bois 05', 'Table Bois 06', 'Table Métal 07', 'Table Métal 08'],
-            'Type_Atelier': ['Aluminium', 'Aluminium', 'PVC', 'PVC', 'Bois', 'Bois', 'Métallerie', 'Métallerie'],
-            'Emplacement': ['Atelier A - Zone 1', 'Atelier A - Zone 2', 'Atelier B - Zone 1', 'Atelier B - Zone 2',
-                           'Atelier C - Zone 1', 'Atelier C - Zone 2', 'Atelier D - Zone 1', 'Atelier D - Zone 2'],
-            'Responsable': ['Jean Dupont', 'Marie Martin', 'Pierre Durand', 'Sophie Leroy',
-                           'Michel Bernard', 'Claire Moreau', 'Antoine Petit', 'Isabelle Roux'],
-            'Statut': ['Actif', 'Actif', 'Actif', 'Actif', 'Actif', 'Actif', 'Actif', 'Actif'],
-            'Date_Creation': ['2024-01-15', '2024-01-15', '2024-01-20', '2024-01-20',
-                             '2024-02-01', '2024-02-01', '2024-02-10', '2024-02-10']
-        }
-        df_tables = pd.DataFrame(tables_initiales)
-        os.makedirs("data", exist_ok=True)
-        df_tables.to_excel(file_path, index=False, engine='openpyxl')
-        return df_tables
+    """Charge toutes les tables d'atelier depuis l'API uniquement"""
+    try:
+        if api_client.test_connection():
+            df = api_client.get_tables_atelier()
+            
+            if not df.empty:
+                st.success(f"✅ {len(df)} tables d'atelier chargées depuis l'API")
+                return df
+            else:
+                st.info("ℹ️ Aucune table d'atelier trouvée dans la base de données")
+                # Créer un DataFrame vide avec les colonnes nécessaires
+                return pd.DataFrame(columns=['ID_Table', 'Nom_Table', 'Type_Atelier', 
+                                           'Emplacement', 'Responsable', 'Statut', 'Date_Creation'])
+                
+    except Exception as e:
+        st.error(f"❌ Erreur lors du chargement des tables d'atelier via l'API: {str(e)}")
+        return pd.DataFrame(columns=['ID_Table', 'Nom_Table', 'Type_Atelier', 
+                                   'Emplacement', 'Responsable', 'Statut', 'Date_Creation'])
 
 def sauvegarder_tables_atelier(df_tables):
-    """Sauvegarde les tables d'atelier dans le fichier Excel"""
-    try:
-        df_tables.to_excel("data/tables_atelier.xlsx", index=False, engine='openpyxl')
-        return True
-    except Exception as e:
-        st.error(f"Erreur lors de la sauvegarde des tables d'atelier: {str(e)}")
-        return False
+    """Les tables d'atelier sont maintenant gérées uniquement via l'API"""
+    st.warning("⚠️ Les tables d'atelier sont maintenant gérées uniquement via l'API. Utilisez les fonctions d'ajout/modification.")
+    return False
 
 def ajouter_table_atelier(id_table, nom_table, type_atelier, emplacement, responsable):
-    """Ajoute une nouvelle table d'atelier"""
-    df_tables = charger_tables_atelier()
-    
-    # Vérifier si l'ID existe déjà
-    if id_table in df_tables['ID_Table'].values:
-        return False, "Cette ID de table existe déjà"
-    
-    nouvelle_table = {
-        'ID_Table': id_table,
-        'Nom_Table': nom_table,
-        'Type_Atelier': type_atelier,
-        'Emplacement': emplacement,
-        'Responsable': responsable,
-        'Statut': 'Actif',
-        'Date_Creation': datetime.now().strftime("%Y-%m-%d")
-    }
-    
-    df_tables = pd.concat([df_tables, pd.DataFrame([nouvelle_table])], ignore_index=True)
-    
-    if sauvegarder_tables_atelier(df_tables):
-        return True, "Table d'atelier ajoutée avec succès"
-    else:
-        return False, "Erreur lors de la sauvegarde"
+    """Ajoute une nouvelle table d'atelier via l'API uniquement"""
+    try:
+        if not api_client.test_connection():
+            return False, "Impossible de se connecter à l'API"
+        
+        # Vérifier si l'ID existe déjà
+        existing_table = api_client.get_table_atelier_by_id_table(id_table)
+        if existing_table:
+            return False, "Cette ID de table existe déjà"
+        
+        table_data = {
+            'ID_Table': id_table,
+            'Nom_Table': nom_table,
+            'Type_Atelier': type_atelier,
+            'Emplacement': emplacement,
+            'Responsable': responsable,
+            'Statut': 'Actif'
+        }
+        
+        result = api_client.create_table_atelier(table_data)
+        
+        if result:
+            return True, "Table d'atelier ajoutée avec succès"
+        else:
+            return False, "Erreur lors de l'ajout de la table d'atelier"
+            
+    except Exception as e:
+        st.error(f"❌ Erreur lors de l'ajout de la table d'atelier: {str(e)}")
+        return False, "Erreur lors de l'ajout de la table d'atelier"
 
 def charger_fournisseurs():
-    """
-    Charge tous les fournisseurs depuis l'API ou Excel en fallback
-    """
+    """Charge tous les fournisseurs depuis l'API uniquement"""
     try:
-        # Essayer d'abord de charger depuis l'API
         if api_client.test_connection():
             df = api_client.get_fournisseurs()
             
@@ -685,23 +675,13 @@ def charger_fournisseurs():
                 # Créer un DataFrame vide avec les colonnes nécessaires
                 return pd.DataFrame(columns=['ID_Fournisseur', 'Nom_Fournisseur', 'Contact_Principal', 
                                            'Email', 'Telephone', 'Adresse', 'Statut', 'Nb_Produits', 
-                                           'Valeur_Stock_Total'])
+                                           'Valeur_Stock_Total', 'Date_Creation'])
                 
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors du chargement via l'API: {str(e)}")
-    
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Chargement des fournisseurs depuis Excel (mode fallback)")
-    
-    file_path = "data/fournisseurs.xlsx"
-    if os.path.exists(file_path):
-        try:
-            return pd.read_excel(file_path, engine='openpyxl')
-        except Exception as e:
-            st.error(f"Erreur lors de la lecture du fichier des fournisseurs: {str(e)}")
-            return creer_fichier_fournisseurs_initial()
-    else:
-        return creer_fichier_fournisseurs_initial()
+        st.error(f"❌ Erreur lors du chargement des fournisseurs via l'API: {str(e)}")
+        return pd.DataFrame(columns=['ID_Fournisseur', 'Nom_Fournisseur', 'Contact_Principal', 
+                                   'Email', 'Telephone', 'Adresse', 'Statut', 'Nb_Produits', 
+                                   'Valeur_Stock_Total', 'Date_Creation'])
 
 def creer_fichier_fournisseurs_initial():
     """Crée le fichier initial des fournisseurs basé sur l'inventaire existant"""
@@ -750,80 +730,38 @@ def creer_fichier_fournisseurs_initial():
     return df_fournisseurs
 
 def sauvegarder_fournisseurs(df_fournisseurs):
-    """Sauvegarde les fournisseurs dans le fichier Excel"""
-    try:
-        df_fournisseurs.to_excel("data/fournisseurs.xlsx", index=False, engine='openpyxl')
-        return True
-    except Exception as e:
-        st.error(f"Erreur lors de la sauvegarde des fournisseurs: {str(e)}")
-        return False
+    """Les fournisseurs sont maintenant gérés uniquement via l'API"""
+    st.warning("⚠️ Les fournisseurs sont maintenant gérés uniquement via l'API. Utilisez les fonctions d'ajout/modification.")
+    return False
 
 def ajouter_fournisseur(nom_fournisseur, contact_principal, email, telephone, adresse):
-    """
-    Ajoute un nouveau fournisseur via l'API ou Excel en fallback
-    """
+    """Ajoute un nouveau fournisseur via l'API uniquement"""
     try:
-        # Essayer d'abord d'ajouter via l'API
-        if api_client.test_connection():
-            # Générer un ID fournisseur unique
-            id_fournisseur = f"F{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            
-            fournisseur_data = {
-                'ID_Fournisseur': id_fournisseur,
-                'Nom_Fournisseur': nom_fournisseur,
-                'Contact_Principal': contact_principal,
-                'Email': email,
-                'Telephone': telephone,
-                'Adresse': adresse
-            }
-            
-            result = api_client.create_fournisseur(fournisseur_data)
-            
-            if result:
-                st.success("✅ Fournisseur ajouté via l'API")
-                return True
-            else:
-                st.warning("⚠️ Erreur lors de l'ajout du fournisseur via l'API")
-                
-    except Exception as e:
-        st.warning(f"⚠️ Erreur lors de l'ajout via l'API: {str(e)}")
-    
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Ajout du fournisseur dans Excel (mode fallback)")
-    
-    try:
-        # Charger les fournisseurs existants
-        df_fournisseurs = charger_fournisseurs()
+        if not api_client.test_connection():
+            return False, "Impossible de se connecter à l'API"
         
         # Générer un ID fournisseur unique
         id_fournisseur = f"F{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
-        # Créer le nouveau fournisseur
-        nouveau_fournisseur = {
+        fournisseur_data = {
             'ID_Fournisseur': id_fournisseur,
             'Nom_Fournisseur': nom_fournisseur,
             'Contact_Principal': contact_principal,
             'Email': email,
             'Telephone': telephone,
-            'Adresse': adresse,
-            'Statut': 'Actif',
-            'Date_Creation': datetime.now().strftime("%Y-%m-%d"),
-            'Nb_Produits': 0,
-            'Valeur_Stock_Total': 0.0
+            'Adresse': adresse
         }
         
-        # Ajouter le nouveau fournisseur au DataFrame
-        df_fournisseurs = pd.concat([df_fournisseurs, pd.DataFrame([nouveau_fournisseur])], ignore_index=True)
+        result = api_client.create_fournisseur(fournisseur_data)
         
-        # Sauvegarder
-        sauvegarder_fournisseurs(df_fournisseurs)
-        
-        st.success("✅ Fournisseur ajouté dans Excel")
-        return True
-        
+        if result:
+            return True, "Fournisseur ajouté avec succès"
+        else:
+            return False, "Erreur lors de l'ajout du fournisseur"
+            
     except Exception as e:
-        st.error(f"Erreur lors de l'ajout du fournisseur: {str(e)}")
-        return False
+        st.error(f"❌ Erreur lors de l'ajout du fournisseur: {str(e)}")
+        return False, "Erreur lors de l'ajout du fournisseur"
 
 def ajouter_fournisseur_automatique(nom_fournisseur):
     """Ajoute automatiquement un fournisseur s'il n'existe pas déjà dans le fichier fournisseurs.xlsx"""
@@ -889,11 +827,8 @@ def mettre_a_jour_statistiques_fournisseurs():
     return df_fournisseurs
 
 def charger_emplacements():
-    """
-    Charge tous les emplacements depuis l'API ou Excel en fallback
-    """
+    """Charge tous les emplacements depuis l'API uniquement"""
     try:
-        # Essayer d'abord de charger depuis l'API
         if api_client.test_connection():
             df = api_client.get_emplacements()
             
@@ -905,23 +840,13 @@ def charger_emplacements():
                 # Créer un DataFrame vide avec les colonnes nécessaires
                 return pd.DataFrame(columns=['ID_Emplacement', 'Nom_Emplacement', 'Type_Zone', 
                                            'Batiment', 'Niveau', 'Responsable', 'Capacite_Max', 
-                                           'Statut', 'Nb_Produits', 'Taux_Occupation'])
+                                           'Statut', 'Nb_Produits', 'Taux_Occupation', 'Date_Creation'])
                 
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors du chargement via l'API: {str(e)}")
-    
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Chargement des emplacements depuis Excel (mode fallback)")
-    
-    file_path = "data/emplacements.xlsx"
-    if os.path.exists(file_path):
-        try:
-            return pd.read_excel(file_path, engine='openpyxl')
-        except Exception as e:
-            st.error(f"Erreur lors de la lecture du fichier des emplacements: {str(e)}")
-            return creer_fichier_emplacements_initial()
-    else:
-        return creer_fichier_emplacements_initial()
+        st.error(f"❌ Erreur lors du chargement des emplacements via l'API: {str(e)}")
+        return pd.DataFrame(columns=['ID_Emplacement', 'Nom_Emplacement', 'Type_Zone', 
+                                   'Batiment', 'Niveau', 'Responsable', 'Capacite_Max', 
+                                   'Statut', 'Nb_Produits', 'Taux_Occupation', 'Date_Creation'])
 
 def creer_fichier_emplacements_initial():
     """Crée le fichier initial des emplacements basé sur l'inventaire existant"""
@@ -983,11 +908,45 @@ def sauvegarder_emplacements(df_emplacements):
         return False
 
 def ajouter_emplacement(nom_emplacement, type_zone, batiment, niveau, responsable, capacite_max):
-    """
-    Ajoute un nouvel emplacement via l'API ou Excel en fallback
-    """
+    """Ajoute un nouvel emplacement via l'API uniquement"""
     try:
-        # Essayer d'abord d'ajouter via l'API
+        if not api_client.test_connection():
+            return False, "Impossible de se connecter à l'API"
+        
+        # Générer un ID emplacement unique
+        id_emplacement = f"E{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        emplacement_data = {
+            'ID_Emplacement': id_emplacement,
+            'Nom_Emplacement': nom_emplacement,
+            'Type_Zone': type_zone,
+            'Batiment': batiment,
+            'Niveau': niveau,
+            'Responsable': responsable,
+            'Capacite_Max': capacite_max
+        }
+        
+        result = api_client.create_emplacement(emplacement_data)
+        
+        if result:
+            return True, "Emplacement ajouté avec succès"
+        else:
+            return False, "Erreur lors de l'ajout de l'emplacement"
+            
+    except Exception as e:
+        st.error(f"❌ Erreur lors de l'ajout de l'emplacement: {str(e)}")
+        return False, "Erreur lors de l'ajout de l'emplacement"
+
+def ajouter_emplacement_automatique(nom_emplacement):
+    """Ajoute automatiquement un emplacement s'il n'existe pas déjà dans la base de données des emplacements"""
+    df_emplacements = charger_emplacements()
+    
+    # Vérifier si l'emplacement existe déjà
+    if not df_emplacements.empty and nom_emplacement in df_emplacements['Nom_Emplacement'].values:
+        return True  # L'emplacement existe déjà, pas besoin de l'ajouter
+    
+    # Essayer d'ajouter via l'API
+    try:
         if api_client.test_connection():
             # Générer un ID emplacement unique
             id_emplacement = f"E{datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -995,69 +954,53 @@ def ajouter_emplacement(nom_emplacement, type_zone, batiment, niveau, responsabl
             emplacement_data = {
                 'ID_Emplacement': id_emplacement,
                 'Nom_Emplacement': nom_emplacement,
-                'Type_Zone': type_zone,
-                'Batiment': batiment,
-                'Niveau': niveau,
-                'Responsable': responsable,
-                'Capacite_Max': capacite_max
+                'Type_Zone': 'À définir',
+                'Batiment': 'À définir',
+                'Niveau': 'À définir',
+                'Responsable': 'À définir',
+                'Capacite_Max': 100
             }
             
             result = api_client.create_emplacement(emplacement_data)
+            return result is not None
+        else:
+            # Fallback vers le fichier Excel si l'API n'est pas disponible
+            return ajouter_emplacement_automatique_excel(nom_emplacement)
             
-            if result:
-                st.success("✅ Emplacement ajouté via l'API")
-                return True, "Emplacement ajouté avec succès"
-            else:
-                st.warning("⚠️ Erreur lors de l'ajout de l'emplacement via l'API")
-                
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors de l'ajout via l'API: {str(e)}")
+        st.warning(f"⚠️ Erreur lors de l'ajout automatique de l'emplacement via l'API: {str(e)}")
+        # Fallback vers le fichier Excel
+        return ajouter_emplacement_automatique_excel(nom_emplacement)
+
+def ajouter_emplacement_automatique_excel(nom_emplacement):
+    """Ajoute automatiquement un emplacement dans le fichier Excel (fallback)"""
+    df_emplacements = charger_emplacements()
     
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Ajout de l'emplacement dans Excel (mode fallback)")
+    # Générer un nouvel ID
+    if not df_emplacements.empty:
+        dernier_id = df_emplacements['ID_Emplacement'].str.extract(r'(\d+)').astype(int).max().iloc[0]
+        nouvel_id = f"EMP{str(dernier_id + 1).zfill(3)}"
+    else:
+        nouvel_id = "EMP001"
     
-    try:
-        # Charger les emplacements existants
-        df_emplacements = charger_emplacements()
-        
-        # Vérifier si l'emplacement existe déjà
-        if nom_emplacement in df_emplacements['Nom_Emplacement'].values:
-            return False, "Cet emplacement existe déjà"
-        
-        # Générer un ID unique
-        if df_emplacements.empty:
-            nouvel_id = "EMP001"
-        else:
-            # Trouver le prochain ID disponible
-            ids_existants = df_emplacements['ID_Emplacement'].tolist()
-            numero_max = max([int(id_emp[3:]) for id_emp in ids_existants if id_emp.startswith('EMP')])
-            nouvel_id = f"EMP{str(numero_max + 1).zfill(3)}"
-        
-        nouvel_emplacement = {
-            'ID_Emplacement': nouvel_id,
-            'Nom_Emplacement': nom_emplacement,
-            'Type_Zone': type_zone,
-            'Batiment': batiment,
-            'Niveau': niveau,
-            'Responsable': responsable,
-            'Capacite_Max': capacite_max,
-            'Statut': 'Actif',
-            'Date_Creation': datetime.now().strftime("%Y-%m-%d"),
-            'Nb_Produits': 0,
-            'Taux_Occupation': 0.0
-        }
-        
-        df_emplacements = pd.concat([df_emplacements, pd.DataFrame([nouvel_emplacement])], ignore_index=True)
-        
-        if sauvegarder_emplacements(df_emplacements):
-            st.success("✅ Emplacement ajouté dans Excel")
-            return True, "Emplacement ajouté avec succès"
-        else:
-            return False, "Erreur lors de la sauvegarde"
-        
-    except Exception as e:
-        st.error(f"Erreur lors de l'ajout de l'emplacement: {str(e)}")
-        return False, "Erreur lors de l'ajout de l'emplacement"
+    # Créer le nouvel emplacement avec des valeurs par défaut
+    nouvel_emplacement = {
+        'ID_Emplacement': nouvel_id,
+        'Nom_Emplacement': nom_emplacement,
+        'Type_Zone': 'À définir',
+        'Batiment': 'À définir',
+        'Niveau': 'À définir',
+        'Responsable': 'À définir',
+        'Capacite_Max': 100,
+        'Statut': 'Actif',
+        'Date_Creation': datetime.now().strftime("%Y-%m-%d"),
+        'Nb_Produits': 1,  # Il aura au moins 1 produit (celui qu'on est en train d'ajouter)
+        'Taux_Occupation': 1.0
+    }
+    
+    df_emplacements = pd.concat([df_emplacements, pd.DataFrame([nouvel_emplacement])], ignore_index=True)
+    
+    return sauvegarder_emplacements(df_emplacements)
 
 def mettre_a_jour_statistiques_emplacements():
     """Met à jour les statistiques des emplacements basées sur l'inventaire actuel"""
@@ -2631,9 +2574,12 @@ elif action == "Gestion des produits":
                     emplacements_defaut = ["Atelier A", "Atelier B", "Stockage", "Magasin", "Zone de réception"]
                     emplacements_tous = list(set(emplacements_existants + emplacements_defaut))
                     
-                    fournisseurs_existants = df['Fournisseur'].dropna().unique().tolist() if not df.empty else []
-                    fournisseurs_defaut = ["Fournisseur A", "Fournisseur B", "Fournisseur C"]
-                    fournisseurs_tous = list(set(fournisseurs_existants + fournisseurs_defaut))
+                    # Liste des fournisseurs existants dans la base de données des fournisseurs
+                    df_fournisseurs = charger_fournisseurs()
+                    if not df_fournisseurs.empty:
+                        fournisseurs_existants = sorted(df_fournisseurs['Nom_Fournisseur'].unique().tolist())
+                    else:
+                        fournisseurs_existants = []
                     
                     emplacement = st.selectbox("Emplacement", emplacements_tous)
                     
@@ -2645,7 +2591,11 @@ elif action == "Gestion des produits":
                     )
                     
                     if choix_fournisseur == "Choisir dans la liste":
-                        fournisseur = st.selectbox("Sélectionner un fournisseur", fournisseurs_tous)
+                        if fournisseurs_existants:
+                            fournisseur = st.selectbox("Sélectionner un fournisseur", fournisseurs_existants)
+                        else:
+                            st.warning("⚠️ Aucun fournisseur dans la base de données. Veuillez d'abord créer des fournisseurs.")
+                            fournisseur = st.text_input("Nom du nouveau fournisseur", placeholder="Ex: FournX")
                     else:
                         fournisseur = st.text_input("Nom du nouveau fournisseur", placeholder="Ex: FournX")
                     
@@ -2672,6 +2622,10 @@ elif action == "Gestion des produits":
                         # Ajouter automatiquement le fournisseur s'il n'existe pas dans le fichier fournisseurs.xlsx
                         if not ajouter_fournisseur_automatique(fournisseur):
                             st.warning(f"⚠️ Impossible d'ajouter automatiquement le fournisseur '{fournisseur}' au fichier fournisseurs.xlsx")
+                        
+                        # Ajouter automatiquement l'emplacement s'il n'existe pas dans la base de données des emplacements
+                        if not ajouter_emplacement_automatique(emplacement):
+                            st.warning(f"⚠️ Impossible d'ajouter automatiquement l'emplacement '{emplacement}' à la base de données des emplacements")
                         
                         new_row = pd.DataFrame({
                             'Code': [reference],
@@ -3068,172 +3022,6 @@ elif action == "Gestion des produits":
                     except Exception as e:
                         st.error(f"❌ Erreur lors de la lecture du fichier : {str(e)}")
                         st.info("💡 Vérifiez que votre fichier respecte le format attendu")
-    
-    with tab3:
-        st.subheader("✏️ Modifier un produit")
-        
-        if not df.empty:
-            produit_to_edit = st.selectbox("Sélectionner le produit à modifier", df['Produits'].unique())
-            produit_data = df[df['Produits'] == produit_to_edit].iloc[0]
-            
-            # Affichage des informations actuelles du produit
-            st.markdown("### 📋 Informations actuelles")
-            col_info1, col_info2, col_info3 = st.columns(3)
-            with col_info1:
-                st.info(f"**📦 Quantité actuelle :** {produit_data['Quantite']}")
-                st.info(f"**📍 Emplacement :** {produit_data['Emplacement']}")
-            with col_info2:
-                st.info(f"**🔻 Stock min :** {produit_data['Stock_Min']}")
-                st.info(f"**🔺 Stock max :** {produit_data['Stock_Max']}")
-            with col_info3:
-                st.info(f"**🏪 Fournisseur :** {produit_data['Fournisseur']}")
-                st.info(f"**💰 Prix :** {produit_data['Prix_Unitaire']} €")
-            
-            st.markdown("---")
-            
-            with st.form("modifier_produit"):
-                st.markdown("### ✏️ Modifications")
-                
-                # Première ligne : Quantité et Prix
-                col1, col2 = st.columns(2)
-                with col1:
-                    quantite = st.number_input("Nouvelle quantité", value=int(produit_data['Quantite']), min_value=0)
-                with col2:
-                    prix_unitaire = st.number_input("Prix unitaire (€)", value=float(produit_data['Prix_Unitaire']), min_value=0.0, step=0.01)
-                
-                # Deuxième ligne : Stock min et max
-                col1, col2 = st.columns(2)
-                with col1:
-                    stock_min = st.number_input("Stock minimum", min_value=0, value=int(produit_data['Stock_Min']))
-                with col2:
-                    stock_max = st.number_input("Stock maximum", min_value=1, value=int(produit_data['Stock_Max']))
-                
-                # Troisième ligne : Emplacement et Fournisseur
-                col1, col2 = st.columns(2)
-                with col1:
-                    # Liste des emplacements existants
-                    emplacements_existants = sorted(df['Emplacement'].dropna().unique().tolist())
-                    try:
-                        emplacement_index = emplacements_existants.index(produit_data['Emplacement'])
-                    except ValueError:
-                        emplacement_index = 0
-                    
-                    emplacement = st.selectbox(
-                        "Nouvel emplacement", 
-                        emplacements_existants, 
-                        index=emplacement_index
-                    )
-                
-                with col2:
-                    # Liste des fournisseurs existants
-                    fournisseurs_existants = sorted(df['Fournisseur'].dropna().unique().tolist())
-                    try:
-                        fournisseur_index = fournisseurs_existants.index(produit_data['Fournisseur'])
-                    except ValueError:
-                        fournisseur_index = 0
-                    
-                    fournisseur = st.selectbox(
-                        "Nouveau fournisseur", 
-                        fournisseurs_existants, 
-                        index=fournisseur_index,
-                        help="Sélectionnez un fournisseur existant dans la liste"
-                    )
-                
-                # Champs optionnels supplémentaires
-                with st.expander("🔧 Paramètres avancés (optionnel)"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        reference_fournisseur = st.text_input(
-                            "Référence fournisseur", 
-                            value=produit_data.get('Reference_Fournisseur', ''),
-                            help="Référence du produit chez le fournisseur"
-                        )
-                        unite_stockage = st.text_input(
-                            "Unité de stockage", 
-                            value=produit_data.get('Unite_Stockage', 'Unité')
-                        )
-                    with col2:
-                        categorie = st.text_input(
-                            "Catégorie", 
-                            value=produit_data.get('Categorie', 'Général')
-                        )
-                        secteur = st.text_input(
-                            "Secteur", 
-                            value=produit_data.get('Secteur', 'Général')
-                        )
-                
-                submitted = st.form_submit_button("✅ Mettre à jour le produit", type="primary", use_container_width=True)
-                
-                if submitted:
-                    if stock_min >= stock_max:
-                        st.error("❌ Le stock minimum doit être inférieur au stock maximum")
-                    else:
-                        # Ajouter automatiquement le fournisseur s'il n'existe pas dans le fichier fournisseurs.xlsx
-                        if not ajouter_fournisseur_automatique(fournisseur):
-                            st.warning(f"⚠️ Impossible d'ajouter automatiquement le fournisseur '{fournisseur}' au fichier fournisseurs.xlsx")
-                        
-                        # Mettre à jour toutes les informations
-                        df.loc[df['Produits'] == produit_to_edit, 'Quantite'] = quantite
-                        df.loc[df['Produits'] == produit_to_edit, 'Stock_Min'] = stock_min
-                        df.loc[df['Produits'] == produit_to_edit, 'Stock_Max'] = stock_max
-                        df.loc[df['Produits'] == produit_to_edit, 'Emplacement'] = emplacement
-                        df.loc[df['Produits'] == produit_to_edit, 'Fournisseur'] = fournisseur
-                        df.loc[df['Produits'] == produit_to_edit, 'Prix_Unitaire'] = prix_unitaire
-                        
-                        # Mettre à jour les champs optionnels s'ils existent
-                        if 'Reference_Fournisseur' in df.columns:
-                            df.loc[df['Produits'] == produit_to_edit, 'Reference_Fournisseur'] = reference_fournisseur
-                        if 'Unite_Stockage' in df.columns:
-                            df.loc[df['Produits'] == produit_to_edit, 'Unite_Stockage'] = unite_stockage
-                        if 'Categorie' in df.columns:
-                            df.loc[df['Produits'] == produit_to_edit, 'Categorie'] = categorie
-                        if 'Secteur' in df.columns:
-                            df.loc[df['Produits'] == produit_to_edit, 'Secteur'] = secteur
-                        
-                        # Enregistrer les modifications et logger si la quantité a changé
-                        ancienne_quantite = int(produit_data['Quantite'])
-                        if quantite != ancienne_quantite:
-                            log_mouvement(
-                                produit_to_edit,
-                                "Modification - Ajustement quantité",
-                                abs(quantite - ancienne_quantite),
-                                quantite,
-                                ancienne_quantite,
-                                produit_data['Reference']
-                            )
-                        
-                        save_data(df)
-                        
-                        # Mettre à jour les statistiques des fournisseurs après la modification
-                        mettre_a_jour_statistiques_fournisseurs()
-                        
-                        st.success("✅ Produit mis à jour avec succès!")
-                        
-                        # Afficher un résumé des modifications
-                        with st.expander("📄 Résumé des modifications"):
-                            modifications = []
-                            if quantite != ancienne_quantite:
-                                modifications.append(f"📦 Quantité : {ancienne_quantite} → {quantite}")
-                            if stock_min != int(produit_data['Stock_Min']):
-                                modifications.append(f"🔻 Stock min : {produit_data['Stock_Min']} → {stock_min}")
-                            if stock_max != int(produit_data['Stock_Max']):
-                                modifications.append(f"🔺 Stock max : {produit_data['Stock_Max']} → {stock_max}")
-                            if emplacement != produit_data['Emplacement']:
-                                modifications.append(f"📍 Emplacement : {produit_data['Emplacement']} → {emplacement}")
-                            if fournisseur != produit_data['Fournisseur']:
-                                modifications.append(f"🏪 Fournisseur : {produit_data['Fournisseur']} → {fournisseur}")
-                            if prix_unitaire != float(produit_data['Prix_Unitaire']):
-                                modifications.append(f"💰 Prix : {produit_data['Prix_Unitaire']} € → {prix_unitaire} €")
-                            
-                            if modifications:
-                                for modif in modifications:
-                                    st.write(f"• {modif}")
-                            else:
-                                st.info("Aucune modification détectée")
-                        
-                        st.experimental_rerun()
-        else:
-            st.warning("Aucun produit disponible pour modification.")
     
     with tab4:
         st.subheader("📱 QR Code des Produits")
@@ -4917,288 +4705,6 @@ elif action == "Fournisseurs":
                     st.plotly_chart(fig_stock, use_container_width=True)
             else:
                 st.warning(f"Aucun produit trouvé pour le fournisseur {fournisseur_selectionne}")
-        else:
-            st.warning("Aucune donnée disponible pour afficher les statistiques.")
-
-elif action == "Gestion des emplacements":
-    st.header("🏪 Gestion des Emplacements")
-    
-    # Charger et mettre à jour les emplacements
-    df_emplacements = mettre_a_jour_statistiques_emplacements()
-    
-    # Onglets pour différentes actions
-    tab1, tab2, tab3, tab4 = st.tabs(["📋 Liste des emplacements", "➕ Ajouter un emplacement", "✏️ Modifier un emplacement", "📊 Statistiques détaillées"])
-    
-    with tab1:
-        st.subheader("📋 Liste des emplacements")
-        
-        if not df_emplacements.empty:
-            # Filtres
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                types_emplacement = ["Tous"] + sorted(df_emplacements['Type_Zone'].unique().tolist())
-                filtre_type = st.selectbox("Filtrer par type", types_emplacement, key="filtre_type_liste_emplacements")
-            with col2:
-                statuts = ["Tous"] + sorted(df_emplacements['Statut'].unique().tolist())
-                filtre_statut = st.selectbox("Filtrer par statut", statuts, key="filtre_statut_liste_emplacements")
-            with col3:
-                responsables = ["Tous"] + sorted(df_emplacements['Responsable'].unique().tolist())
-                filtre_responsable = st.selectbox("Filtrer par responsable", responsables)
-            
-            # Application des filtres
-            df_filtre = df_emplacements.copy()
-            if filtre_type != "Tous":
-                df_filtre = df_filtre[df_filtre['Type_Zone'] == filtre_type]
-            if filtre_statut != "Tous":
-                df_filtre = df_filtre[df_filtre['Statut'] == filtre_statut]
-            if filtre_responsable != "Tous":
-                df_filtre = df_filtre[df_filtre['Responsable'] == filtre_responsable]
-            
-            # Affichage du tableau
-            st.dataframe(df_filtre, use_container_width=True)
-            
-            # Statistiques
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("📊 Total emplacements", len(df_filtre))
-            with col2:
-                actifs = len(df_filtre[df_filtre['Statut'] == 'Actif'])
-                st.metric("✅ Emplacements actifs", actifs)
-            with col3:
-                types_uniques = df_filtre['Type_Zone'].nunique()
-                st.metric("🏪 Types d'emplacements", types_uniques)
-            with col4:
-                responsables_uniques = df_filtre['Responsable'].nunique()
-                st.metric("👥 Responsables", responsables_uniques)
-        else:
-            st.warning("Aucun emplacement enregistré.")
-    
-    with tab2:
-        st.subheader("➕ Ajouter un nouvel emplacement")
-        
-        with st.form("ajouter_emplacement"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                nom_emplacement = st.text_input(
-                    "Nom de l'emplacement *", 
-                    placeholder="Ex: Atelier A - Zone 1"
-                )
-                
-                type_zone = st.selectbox(
-                    "Type de zone *", 
-                    ["Atelier", "Stockage", "Magasin", "Réception"]
-                )
-                
-                responsable = st.text_input(
-                    "Responsable *", 
-                    placeholder="Ex: Jean Dupont"
-                )
-            
-            with col2:
-                batiment = st.text_input(
-                    "Batiment *", 
-                    placeholder="Ex: Bâtiment 1"
-                )
-                
-                niveau = st.text_input(
-                    "Niveau *", 
-                    placeholder="Ex: RDC"
-                )
-                
-                capacite_max = st.number_input("Capacité maximale", min_value=1, value=100, step=1)
-            
-            
-            submitted = st.form_submit_button("➕ Ajouter l'emplacement", use_container_width=True)
-            
-            if submitted:
-                if not all([nom_emplacement, type_zone, batiment, niveau, responsable, capacite_max]):
-                    st.error("❌ Veuillez remplir tous les champs obligatoires")
-                else:
-                    success, message = ajouter_emplacement(nom_emplacement, type_zone, batiment, niveau, responsable, capacite_max)
-                    if success:
-                        st.success(f"✅ {message}")
-                        st.experimental_rerun()
-                    else:
-                        st.error(f"❌ {message}")
-    
-    with tab3:
-        st.subheader("✏️ Modifier un emplacement")
-        
-        if not df_emplacements.empty:
-            emplacement_a_modifier = st.selectbox(
-                "Sélectionnez l'emplacement à modifier", 
-                df_emplacements['Nom_Emplacement'].unique(),
-                key="select_emplacement_modifier"
-            )
-            
-            emplacement_data = df_emplacements[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier].iloc[0]
-            
-            with st.form("modifier_emplacement"):
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    nouveau_nom = st.text_input("Nom de l'emplacement", value=emplacement_data['Nom_Emplacement'])
-                    nouveau_type = st.selectbox(
-                        "Type de zone", 
-                        ["Atelier", "Stockage", "Magasin", "Réception"],
-                        index=["Atelier", "Stockage", "Magasin", "Réception"].index(emplacement_data['Type_Zone']) if emplacement_data['Type_Zone'] in ["Atelier", "Stockage", "Magasin", "Réception"] else 0
-                    )
-                
-                with col2:
-                    nouveau_batiment = st.text_input("Batiment", value=emplacement_data['Batiment'])
-                    nouveau_niveau = st.text_input("Niveau", value=emplacement_data['Niveau'])
-                    nouveau_responsable = st.text_input("Responsable", value=emplacement_data['Responsable'])
-                    nouvelle_capacite = st.number_input("Capacité maximale", min_value=1, value=int(emplacement_data['Capacite_Max']), step=1)
-                
-                submitted_modif = st.form_submit_button("✏️ Mettre à jour", use_container_width=True)
-                
-                if submitted_modif:
-                    # Mettre à jour les données
-                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Nom_Emplacement'] = nouveau_nom
-                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Type_Zone'] = nouveau_type
-                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Batiment'] = nouveau_batiment
-                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Niveau'] = nouveau_niveau
-                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Responsable'] = nouveau_responsable
-                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Capacite_Max'] = nouvelle_capacite
-                    df_emplacements.loc[df_emplacements['Nom_Emplacement'] == emplacement_a_modifier, 'Statut'] = 'Actif'
-                    
-                    if sauvegarder_emplacements(df_emplacements):
-                        st.success("✅ Emplacement mis à jour avec succès!")
-                        
-                        # Si le nom a changé, mettre à jour aussi l'inventaire
-                        if nouveau_nom != emplacement_a_modifier:
-                            df.loc[df['Emplacement'] == emplacement_a_modifier, 'Emplacement'] = nouveau_nom
-                            save_data(df)
-                            st.info("📦 Inventaire mis à jour avec le nouveau nom de l'emplacement")
-                        
-                        st.experimental_rerun()
-                    else:
-                        st.error("❌ Erreur lors de la sauvegarde")
-        else:
-            st.warning("Aucun emplacement à modifier.")
-    
-    with tab4:
-        st.subheader("📊 Statistiques détaillées par emplacement")
-        
-        if not df_emplacements.empty:
-            # Charger les demandes pour analyser l'activité des emplacements
-            df_demandes = charger_demandes()
-            
-            # Sélection de l'emplacement pour les détails
-            emplacement_selectionne = st.selectbox(
-                "Sélectionnez un emplacement pour voir les statistiques", 
-                df_emplacements['Nom_Emplacement'].unique(),
-                key="select_emplacement_stats"
-            )
-            
-            # Informations de l'emplacement sélectionné
-            emplacement_info = df_emplacements[df_emplacements['Nom_Emplacement'] == emplacement_selectionne].iloc[0]
-            
-            # Affichage des informations générales
-            st.markdown("---")
-            st.subheader(f"📋 Informations - {emplacement_info['Nom_Emplacement']}")
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.info(f"**🏪 Capacité maximale :** {emplacement_info['Capacite_Max']}")
-                st.info(f"**👤 Responsable :** {emplacement_info['Responsable']}")
-            with col2:
-                st.info(f"**📍 Type de zone :** {emplacement_info['Type_Zone']}")
-                st.info(f"**🏢 Batiment :** {emplacement_info['Batiment']}")
-            with col3:
-                st.info(f"**🏢 Niveau :** {emplacement_info['Niveau']}")
-                st.info(f"**📅 Date création :** {emplacement_info['Date_Creation']}")
-            
-            if emplacement_info['Taux_Occupation']:
-                st.info(f"**🏢 Taux d'occupation :** {emplacement_info['Taux_Occupation']}%")
-            
-            # Statistiques détaillées
-            st.markdown("---")
-            st.subheader("📊 Statistiques")
-            
-            # Produits de cet emplacement
-            produits_emplacement = df[df['Emplacement'] == emplacement_selectionne]
-            
-            if not produits_emplacement.empty:
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("📦 Nombre de produits", len(produits_emplacement))
-                with col2:
-                    stock_total = produits_emplacement['Quantite'].sum()
-                    st.metric("📊 Stock total", stock_total)
-                with col3:
-                    valeur_stock = (produits_emplacement['Quantite'] * produits_emplacement['Prix_Unitaire']).sum()
-                    st.metric("💰 Valeur du stock", f"{valeur_stock:,.2f} €")
-                with col4:
-                    prix_moyen = produits_emplacement['Prix_Unitaire'].mean()
-                    st.metric("💵 Prix moyen", f"{prix_moyen:.2f} €")
-                
-                # Liste des produits
-                st.markdown("---")
-                st.subheader("📦 Produits de cet emplacement")
-                
-                # Ajouter des colonnes calculées pour l'affichage
-                produits_display = produits_emplacement.copy()
-                produits_display['Valeur_Stock'] = produits_display['Quantite'] * produits_emplacement['Prix_Unitaire']
-                
-                # Statut de stock
-                produits_display['Statut_Stock'] = produits_emplacement.apply(
-                    lambda row: "🔴 Critique" if row['Quantite'] < row['Stock_Min'] 
-                    else "🟡 Surstock" if row['Quantite'] > row['Stock_Max']
-                    else "🟠 Faible" if row['Quantite'] <= row['Stock_Min'] + (row['Stock_Max'] - row['Stock_Min']) * 0.3
-                    else "🟢 Normal", axis=1
-                )
-                
-                # Colonnes à afficher
-                colonnes_produits = ['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Stock_Max', 'Prix_Unitaire', 'Valeur_Stock', 'Statut_Stock', 'Emplacement']
-                st.dataframe(produits_display[colonnes_produits].round(2), use_container_width=True)
-                
-                # Alertes pour cet emplacement
-                alertes_critique = produits_emplacement[produits_emplacement['Quantite'] < produits_emplacement['Stock_Min']]
-                alertes_surstock = produits_emplacement[produits_emplacement['Quantite'] > produits_emplacement['Stock_Max']]
-                
-                # Produits bientôt en rupture (entre min et 30% de la plage min-max)
-                seuil_alerte_emplacement = produits_emplacement['Stock_Min'] + (produits_emplacement['Stock_Max'] - produits_emplacement['Stock_Min']) * 0.3
-                alertes_bientot = produits_emplacement[(produits_emplacement['Quantite'] >= produits_emplacement['Stock_Min']) & (produits_emplacement['Quantite'] <= seuil_alerte_emplacement)]
-                
-                if not alertes_critique.empty or not alertes_bientot.empty or not alertes_surstock.empty:
-                    st.markdown("---")
-                    st.subheader("⚠️ Alertes de stock")
-                    
-                    if not alertes_critique.empty:
-                        st.error(f"🔴 **{len(alertes_critique)} produit(s) en stock critique** nécessitent un réapprovisionnement urgent")
-                        alertes_critique_display = alertes_critique.copy()
-                        alertes_critique_display['Recommandation'] = alertes_critique_display['Stock_Max'] - alertes_critique_display['Quantite']
-                        st.dataframe(alertes_critique_display[['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Stock_Max', 'Recommandation']], use_container_width=True)
-                    
-                    if not alertes_bientot.empty:
-                        st.warning(f"🟠 **{len(alertes_bientot)} produit(s) bientôt en rupture** - réapprovisionnement recommandé")
-                        alertes_bientot_display = alertes_bientot.copy()
-                        alertes_bientot_display['Seuil_Alerte'] = seuil_alerte_emplacement[alertes_bientot.index].round(1)
-                        alertes_bientot_display['Recommandation'] = alertes_bientot_display['Stock_Max'] - alertes_bientot_display['Quantite']
-                        st.dataframe(alertes_bientot_display[['Produits', 'Reference', 'Quantite', 'Stock_Min', 'Seuil_Alerte', 'Stock_Max', 'Recommandation']], use_container_width=True)
-                    
-                    if not alertes_surstock.empty:
-                        st.warning(f"🟡 **{len(alertes_surstock)} produit(s) en surstock**")
-                        st.dataframe(alertes_surstock[['Produits', 'Reference', 'Quantite', 'Stock_Max']], use_container_width=True)
-                
-                # Graphique de répartition des stocks pour cet emplacement
-                if len(produits_emplacement) > 1:
-                    st.markdown("---")
-                    st.subheader("📈 Répartition des stocks")
-                    
-                    fig_stock = px.bar(
-                        produits_emplacement, 
-                        x='Produits', 
-                        y='Quantite',
-                        title=f'Stock par produit - {emplacement_info["Nom_Emplacement"]}',
-                        labels={'Quantite': 'Quantité en stock', 'Produits': 'Produits'}
-                    )
-                    fig_stock.update_layout(xaxis_tickangle=45)
-                    st.plotly_chart(fig_stock, use_container_width=True)
-            else:
-                st.warning(f"Aucun produit trouvé pour l'emplacement {emplacement_info['Nom_Emplacement']}")
         else:
             st.warning("Aucune donnée disponible pour afficher les statistiques.")
 

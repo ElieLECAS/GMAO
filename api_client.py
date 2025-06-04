@@ -230,6 +230,10 @@ class APIClient:
                 'valeur_stock_total': 'Valeur_Stock_Total'
             }
             df = df.rename(columns=column_mapping)
+            
+            # Add Date_Creation column if it doesn't exist (for compatibility with app.py)
+            if 'Date_Creation' not in df.columns:
+                df['Date_Creation'] = 'Non disponible'
         
         return df
     
@@ -272,6 +276,10 @@ class APIClient:
                 'taux_occupation': 'Taux_Occupation'
             }
             df = df.rename(columns=column_mapping)
+            
+            # Add Date_Creation column if it doesn't exist (for compatibility with app.py)
+            if 'Date_Creation' not in df.columns:
+                df['Date_Creation'] = 'Non disponible'
         
         return df
     
@@ -288,6 +296,70 @@ class APIClient:
         }
         
         return self._make_request("POST", "/emplacements/", data=api_data)
+    
+    # =====================================================
+    # GESTION DES TABLES D'ATELIER
+    # =====================================================
+    
+    def get_tables_atelier(self) -> pd.DataFrame:
+        """Récupère toutes les tables d'atelier"""
+        data = self._make_request("GET", "/tables-atelier/", params={"limit": 1000})
+        
+        if data is None:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(data)
+        if not df.empty:
+            column_mapping = {
+                'id_table': 'ID_Table',
+                'nom_table': 'Nom_Table',
+                'type_atelier': 'Type_Atelier',
+                'emplacement': 'Emplacement',
+                'responsable': 'Responsable',
+                'statut': 'Statut',
+                'date_creation': 'Date_Creation'
+            }
+            df = df.rename(columns=column_mapping)
+            
+            # Convert date_creation to string format if it exists
+            if 'Date_Creation' in df.columns:
+                df['Date_Creation'] = pd.to_datetime(df['Date_Creation'], errors='coerce').dt.strftime('%Y-%m-%d')
+            else:
+                df['Date_Creation'] = 'Non disponible'
+        
+        return df
+    
+    def create_table_atelier(self, table_data: dict) -> dict:
+        """Crée une nouvelle table d'atelier"""
+        api_data = {
+            'id_table': table_data.get('ID_Table', ''),
+            'nom_table': table_data.get('Nom_Table', ''),
+            'type_atelier': table_data.get('Type_Atelier', ''),
+            'emplacement': table_data.get('Emplacement', ''),
+            'responsable': table_data.get('Responsable', ''),
+            'statut': table_data.get('Statut', 'Actif')
+        }
+        
+        return self._make_request("POST", "/tables-atelier/", data=api_data)
+    
+    def update_table_atelier(self, table_id: int, table_data: dict) -> dict:
+        """Met à jour une table d'atelier existante"""
+        api_data = {
+            'nom_table': table_data.get('Nom_Table'),
+            'type_atelier': table_data.get('Type_Atelier'),
+            'emplacement': table_data.get('Emplacement'),
+            'responsable': table_data.get('Responsable'),
+            'statut': table_data.get('Statut')
+        }
+        
+        # Supprimer les valeurs None
+        api_data = {k: v for k, v in api_data.items() if v is not None}
+        
+        return self._make_request("PUT", f"/tables-atelier/{table_id}", data=api_data)
+    
+    def get_table_atelier_by_id_table(self, id_table: str) -> dict:
+        """Récupère une table d'atelier par son ID table"""
+        return self._make_request("GET", f"/tables-atelier/id/{id_table}")
     
     # =====================================================
     # GESTION DES DEMANDES

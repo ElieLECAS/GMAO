@@ -277,36 +277,3 @@ CREATE TRIGGER trigger_update_liste_inventaire_stats
     AFTER INSERT OR UPDATE OR DELETE ON produits_listes_inventaire
     FOR EACH ROW
     EXECUTE FUNCTION update_liste_inventaire_stats();
-
--- =====================================================
--- DONNÉES INITIALES (OPTIONNEL)
--- =====================================================
-
--- Insérer quelques fournisseurs par défaut s'ils n'existent pas
-INSERT INTO fournisseurs (id_fournisseur, nom_fournisseur, contact_principal, statut) 
-VALUES 
-    ('FOUR001', 'BOSCHAT', 'À définir', 'Actif'),
-    ('FOUR002', 'SFS', 'À définir', 'Actif'),
-    ('FOUR003', 'FOURNISSEUR GÉNÉRIQUE', 'À définir', 'Actif')
-ON CONFLICT (id_fournisseur) DO NOTHING;
-
--- Insérer quelques emplacements par défaut s'ils n'existent pas
-INSERT INTO emplacements (id_emplacement, nom_emplacement, type_zone, batiment, responsable) 
-VALUES 
-    ('EMP001', 'E1', 'Stockage', 'MS3.0', 'Responsable Stock'),
-    ('EMP002', 'E2', 'Stockage', 'MS3.0', 'Responsable Stock'),
-    ('EMP003', 'E3', 'Stockage', 'MS3.0', 'Responsable Stock')
-ON CONFLICT (id_emplacement) DO NOTHING;
-
--- Insérer quelques tables d'atelier par défaut
-INSERT INTO tables_atelier (id_table, nom_table, type_atelier, emplacement, responsable) 
-VALUES 
-    ('ALU01', 'Table Aluminium 01', 'Aluminium', 'Atelier A - Zone 1', 'Jean Dupont'),
-    ('ALU02', 'Table Aluminium 02', 'Aluminium', 'Atelier A - Zone 2', 'Marie Martin'),
-    ('PVC03', 'Table PVC 03', 'PVC', 'Atelier B - Zone 1', 'Pierre Durand'),
-    ('PVC04', 'Table PVC 04', 'PVC', 'Atelier B - Zone 2', 'Sophie Leroy'),
-    ('BOIS05', 'Table Bois 05', 'Bois', 'Atelier C - Zone 1', 'Michel Bernard'),
-    ('BOIS06', 'Table Bois 06', 'Bois', 'Atelier C - Zone 2', 'Claire Moreau'),
-    ('METAL07', 'Table Métal 07', 'Métallerie', 'Atelier D - Zone 1', 'Antoine Petit'),
-    ('METAL08', 'Table Métal 08', 'Métallerie', 'Atelier D - Zone 2', 'Isabelle Roux')
-ON CONFLICT (id_table) DO NOTHING;
