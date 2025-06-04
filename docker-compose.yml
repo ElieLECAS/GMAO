@@ -6,17 +6,21 @@ services:
         image: postgres:15
         container_name: gmao-postgres
         environment:
-            POSTGRES_DB: gmao_db
-            POSTGRES_USER: gmao_user
-            POSTGRES_PASSWORD: gmao_password
+            POSTGRES_DB: ${POSTGRES_DB}
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
         ports:
-            - "5432:5432"
+            - "${POSTGRES_PORT}:5432"
         volumes:
             - postgres_data:/var/lib/postgresql/data
             - ./api/init.sql:/docker-entrypoint-initdb.d/init.sql
         restart: unless-stopped
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U gmao_user -d gmao_db"]
+            test:
+                [
+                    "CMD-SHELL",
+                    "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}",
+                ]
             interval: 30s
             timeout: 10s
             retries: 3
@@ -26,9 +30,9 @@ services:
         build: ./api
         container_name: gmao-api
         ports:
-            - "8000:8000"
+            - "8010:8000"
         environment:
-            - DATABASE_URL=postgresql://gmao_user:gmao_password@postgres:5432/gmao_db
+            - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
             - PYTHONUNBUFFERED=1
         volumes:
             - ./api:/app
@@ -41,7 +45,7 @@ services:
     gmao-app:
         build: .
         ports:
-            - "8501:8501"
+            - "8502:8501"
         volumes:
             - ./data:/app/data
         environment:
