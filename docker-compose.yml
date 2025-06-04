@@ -1,6 +1,43 @@
 version: "3.8"
 
 services:
+    # Base de données PostgreSQL
+    postgres:
+        image: postgres:15
+        container_name: gmao-postgres
+        environment:
+            POSTGRES_DB: gmao_db
+            POSTGRES_USER: gmao_user
+            POSTGRES_PASSWORD: gmao_password
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            - ./api/init.sql:/docker-entrypoint-initdb.d/init.sql
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U gmao_user -d gmao_db"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+    # API FastAPI pour la gestion de stock
+    api:
+        build: ./api
+        container_name: gmao-api
+        ports:
+            - "8000:8000"
+        environment:
+            - DATABASE_URL=postgresql://gmao_user:gmao_password@postgres:5432/gmao_db
+            - PYTHONUNBUFFERED=1
+        volumes:
+            - ./api:/app
+        depends_on:
+            postgres:
+                condition: service_healthy
+        restart: unless-stopped
+
+    # Application Streamlit existante (optionnel)
     gmao-app:
         build: .
         ports:
@@ -10,3 +47,6 @@ services:
         environment:
             - PYTHONUNBUFFERED=1
         restart: unless-stopped
+
+volumes:
+    postgres_data:
