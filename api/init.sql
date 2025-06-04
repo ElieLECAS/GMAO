@@ -91,16 +91,3 @@ CREATE TRIGGER trigger_update_stock
     AFTER INSERT ON mouvements_stock
     FOR EACH ROW
     EXECUTE FUNCTION update_stock_actuel();
-
--- Données de test
-INSERT INTO categories (nom, description) VALUES 
-    ('Pièces mécaniques', 'Pièces et composants mécaniques'),
-    ('Électronique', 'Composants électroniques et électriques'),
-    ('Consommables', 'Produits consommables et fournitures'),
-    ('Outils', 'Outils et équipements de maintenance')
-ON CONFLICT (nom) DO NOTHING;
-
-INSERT INTO fournisseurs (nom, contact, email, telephone) VALUES 
-    ('Fournisseur A', 'Jean Dupont', 'contact@fournisseur-a.com', '01.23.45.67.89'),
-    ('Fournisseur B', 'Marie Martin', 'info@fournisseur-b.com', '01.98.76.54.32')
-ON CONFLICT DO NOTHING; 
