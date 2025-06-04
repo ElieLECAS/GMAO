@@ -1,88 +1,148 @@
-from sqlalchemy import Column, Integer, String, Text, DECIMAL, TIMESTAMP, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, String, Text, DECIMAL, TIMESTAMP, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
-class Categorie(Base):
-    __tablename__ = "categories"
+class Inventaire(Base):
+    """Table principale des produits en stock"""
+    __tablename__ = "inventaire"
     
     id = Column(Integer, primary_key=True, index=True)
-    nom = Column(String(100), unique=True, nullable=False)
-    description = Column(Text)
+    code = Column(String(50), nullable=False)
+    reference_fournisseur = Column(String(100))
+    produits = Column(String(500), nullable=False)
+    unite_stockage = Column(String(20))
+    unite_commande = Column(String(50))
+    stock_min = Column(Integer, default=0)
+    stock_max = Column(Integer, default=100)
+    site = Column(String(100))
+    lieu = Column(String(100))
+    emplacement = Column(String(100))
+    fournisseur = Column(String(200))
+    prix_unitaire = Column(DECIMAL(10, 2), default=0)
+    categorie = Column(String(100))
+    secteur = Column(String(100))
+    reference = Column(String(20), unique=True, nullable=False, index=True)  # Référence QR unique
+    quantite = Column(Integer, default=0)
+    date_entree = Column(Date, server_default=func.current_date())
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
-    
-    # Relations
-    produits = relationship("Produit", back_populates="categorie")
 
 class Fournisseur(Base):
+    """Table des fournisseurs"""
     __tablename__ = "fournisseurs"
     
     id = Column(Integer, primary_key=True, index=True)
-    nom = Column(String(100), nullable=False)
-    contact = Column(String(100))
-    email = Column(String(100))
-    telephone = Column(String(20))
+    id_fournisseur = Column(String(20), unique=True, nullable=False, index=True)
+    nom_fournisseur = Column(String(200), nullable=False, index=True)
+    contact_principal = Column(String(200))
+    email = Column(String(200))
+    telephone = Column(String(50))
     adresse = Column(Text)
+    statut = Column(String(20), default='Actif')
+    date_creation = Column(Date, server_default=func.current_date())
+    nb_produits = Column(Integer, default=0)
+    valeur_stock_total = Column(DECIMAL(12, 2), default=0)
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
-    
-    # Relations
-    produits = relationship("Produit", back_populates="fournisseur")
 
-class Produit(Base):
-    __tablename__ = "produits"
+class Emplacement(Base):
+    """Table des emplacements de stockage"""
+    __tablename__ = "emplacements"
     
     id = Column(Integer, primary_key=True, index=True)
-    nom = Column(String(200), nullable=False)
-    description = Column(Text)
-    reference = Column(String(50), unique=True, index=True)
-    code_barre = Column(String(50))
-    categorie_id = Column(Integer, ForeignKey("categories.id"))
-    fournisseur_id = Column(Integer, ForeignKey("fournisseurs.id"))
-    prix_unitaire = Column(DECIMAL(10, 2))
-    stock_min = Column(Integer, default=0)
-    stock_max = Column(Integer, default=1000)
-    unite = Column(String(20), default="pièce")
+    id_emplacement = Column(String(20), unique=True, nullable=False, index=True)
+    nom_emplacement = Column(String(200), nullable=False, index=True)
+    type_zone = Column(String(100))
+    batiment = Column(String(100))
+    niveau = Column(String(50))
+    responsable = Column(String(200))
+    capacite_max = Column(Integer, default=100)
+    statut = Column(String(20), default='Actif')
+    date_creation = Column(Date, server_default=func.current_date())
+    nb_produits = Column(Integer, default=0)
+    taux_occupation = Column(DECIMAL(5, 2), default=0)
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
-    
-    # Relations
-    categorie = relationship("Categorie", back_populates="produits")
-    fournisseur = relationship("Fournisseur", back_populates="produits")
-    mouvements = relationship("MouvementStock", back_populates="produit")
-    stock = relationship("StockActuel", back_populates="produit", uselist=False)
 
-class MouvementStock(Base):
-    __tablename__ = "mouvements_stock"
+class Demande(Base):
+    """Table des demandes de matériel"""
+    __tablename__ = "demandes"
     
     id = Column(Integer, primary_key=True, index=True)
-    produit_id = Column(Integer, ForeignKey("produits.id"), nullable=False)
-    type_mouvement = Column(String(20), nullable=False)
-    quantite = Column(Integer, nullable=False)
-    stock_avant = Column(Integer, nullable=False)
-    stock_apres = Column(Integer, nullable=False)
-    motif = Column(String(200))
-    reference_document = Column(String(100))
+    id_demande = Column(String(50), unique=True, nullable=False, index=True)
+    date_demande = Column(TIMESTAMP, nullable=False, index=True)
+    demandeur = Column(String(200), nullable=False, index=True)
+    produits_demandes = Column(Text, nullable=False)  # JSON stocké comme texte
+    motif = Column(Text)
+    statut = Column(String(50), default='En attente', index=True)
+    date_traitement = Column(TIMESTAMP)
+    traite_par = Column(String(200))
+    commentaires = Column(Text)
     created_at = Column(TIMESTAMP, server_default=func.now())
-    created_by = Column(String(100))
-    
-    # Contrainte pour type_mouvement
-    __table_args__ = (
-        CheckConstraint("type_mouvement IN ('ENTREE', 'SORTIE', 'AJUSTEMENT')", name="check_type_mouvement"),
-    )
-    
-    # Relations
-    produit = relationship("Produit", back_populates="mouvements")
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
-class StockActuel(Base):
-    __tablename__ = "stock_actuel"
+class Historique(Base):
+    """Table de l'historique des mouvements de stock"""
+    __tablename__ = "historique"
     
-    produit_id = Column(Integer, ForeignKey("produits.id"), primary_key=True)
-    quantite_disponible = Column(Integer, nullable=False, default=0)
-    derniere_entree = Column(TIMESTAMP)
-    derniere_sortie = Column(TIMESTAMP)
+    id = Column(Integer, primary_key=True, index=True)
+    date_mouvement = Column(TIMESTAMP, nullable=False, index=True)
+    reference = Column(String(20), index=True)  # Référence du produit
+    produit = Column(String(500), nullable=False)
+    nature = Column(String(50), nullable=False, index=True)  # Entrée, Sortie, Ajustement
+    quantite_mouvement = Column(Integer, nullable=False)
+    quantite_avant = Column(Integer, nullable=False)
+    quantite_apres = Column(Integer, nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+class TableAtelier(Base):
+    """Table des tables d'atelier"""
+    __tablename__ = "tables_atelier"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    id_table = Column(String(20), unique=True, nullable=False, index=True)
+    nom_table = Column(String(200), nullable=False)
+    type_atelier = Column(String(100), nullable=False, index=True)
+    emplacement = Column(String(200), nullable=False)
+    responsable = Column(String(200), nullable=False, index=True)
+    statut = Column(String(20), default='Actif')
+    date_creation = Column(Date, server_default=func.current_date())
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+
+class ListeInventaire(Base):
+    """Table des listes d'inventaire"""
+    __tablename__ = "listes_inventaire"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    id_liste = Column(String(20), unique=True, nullable=False, index=True)
+    nom_liste = Column(String(300), nullable=False)
+    date_creation = Column(TIMESTAMP, nullable=False)
+    statut = Column(String(50), default='En préparation', index=True)
+    nb_produits = Column(Integer, default=0)
+    cree_par = Column(String(200), default='Utilisateur')
+    created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
     
     # Relations
-    produit = relationship("Produit", back_populates="stock") 
+    produits = relationship("ProduitListeInventaire", back_populates="liste", cascade="all, delete-orphan")
+
+class ProduitListeInventaire(Base):
+    """Table des produits dans les listes d'inventaire"""
+    __tablename__ = "produits_listes_inventaire"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    id_liste = Column(String(20), ForeignKey("listes_inventaire.id_liste", ondelete="CASCADE"), nullable=False)
+    reference_produit = Column(String(20), nullable=False, index=True)
+    nom_produit = Column(String(500), nullable=False)
+    emplacement = Column(String(100))
+    quantite_theorique = Column(Integer, nullable=False)
+    quantite_comptee = Column(Integer)
+    categorie = Column(String(100))
+    fournisseur = Column(String(200))
+    date_ajout = Column(TIMESTAMP, nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    
+    # Relations
+    liste = relationship("ListeInventaire", back_populates="produits") 

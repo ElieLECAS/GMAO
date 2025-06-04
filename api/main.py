@@ -13,8 +13,8 @@ models.Base.metadata.create_all(bind=engine)
 # Initialiser FastAPI
 app = FastAPI(
     title="GMAO - API de Gestion de Stock",
-    description="API pour la gestion de stock dans le système GMAO",
-    version="1.0.0"
+    description="API pour la gestion de stock dans le système GMAO - Compatible avec l'application Streamlit",
+    version="2.0.0"
 )
 
 # Configuration CORS
@@ -26,63 +26,137 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routes pour les catégories
-@app.get("/categories/", response_model=List[schemas.Categorie])
-def read_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Récupérer toutes les catégories"""
-    categories = crud.get_categories(db, skip=skip, limit=limit)
-    return categories
+# =====================================================
+# ROUTES POUR L'INVENTAIRE (PRODUITS)
+# =====================================================
 
-@app.post("/categories/", response_model=schemas.Categorie)
-def create_categorie(categorie: schemas.CategorieCreate, db: Session = Depends(get_db)):
-    """Créer une nouvelle catégorie"""
-    return crud.create_categorie(db=db, categorie=categorie)
+@app.get("/inventaire/", response_model=List[schemas.InventaireResponse])
+def read_inventaire(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupérer tous les produits de l'inventaire"""
+    inventaire = crud.get_inventaire(db, skip=skip, limit=limit)
+    return inventaire
 
-@app.get("/categories/{categorie_id}", response_model=schemas.Categorie)
-def read_categorie(categorie_id: int, db: Session = Depends(get_db)):
-    """Récupérer une catégorie par ID"""
-    db_categorie = crud.get_categorie(db, categorie_id=categorie_id)
-    if db_categorie is None:
-        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
-    return db_categorie
+@app.post("/inventaire/", response_model=schemas.InventaireResponse)
+def create_inventaire(inventaire: schemas.InventaireCreate, db: Session = Depends(get_db)):
+    """Créer un nouveau produit dans l'inventaire"""
+    # Vérifier si la référence existe déjà
+    db_inventaire = crud.get_inventaire_by_reference(db, reference=inventaire.reference)
+    if db_inventaire:
+        raise HTTPException(status_code=400, detail="Un produit avec cette référence existe déjà")
+    
+    # Vérifier si le code existe déjà
+    db_inventaire_code = crud.get_inventaire_by_code(db, code=inventaire.code)
+    if db_inventaire_code:
+        raise HTTPException(status_code=400, detail="Un produit avec ce code existe déjà")
+    
+    return crud.create_inventaire(db=db, inventaire=inventaire)
 
-@app.put("/categories/{categorie_id}", response_model=schemas.Categorie)
-def update_categorie(categorie_id: int, categorie: schemas.CategorieUpdate, db: Session = Depends(get_db)):
-    """Mettre à jour une catégorie"""
-    db_categorie = crud.update_categorie(db, categorie_id=categorie_id, categorie=categorie)
-    if db_categorie is None:
-        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
-    return db_categorie
+@app.get("/inventaire/{inventaire_id}", response_model=schemas.InventaireResponse)
+def read_inventaire_by_id(inventaire_id: int, db: Session = Depends(get_db)):
+    """Récupérer un produit par son ID"""
+    db_inventaire = crud.get_inventaire_by_id(db, inventaire_id=inventaire_id)
+    if db_inventaire is None:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    return db_inventaire
 
-@app.delete("/categories/{categorie_id}")
-def delete_categorie(categorie_id: int, db: Session = Depends(get_db)):
-    """Supprimer une catégorie"""
-    db_categorie = crud.delete_categorie(db, categorie_id=categorie_id)
-    if db_categorie is None:
-        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
-    return {"message": "Catégorie supprimée avec succès"}
+@app.get("/inventaire/reference/{reference}", response_model=schemas.InventaireResponse)
+def read_inventaire_by_reference(reference: str, db: Session = Depends(get_db)):
+    """Récupérer un produit par sa référence QR"""
+    db_inventaire = crud.get_inventaire_by_reference(db, reference=reference)
+    if db_inventaire is None:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    return db_inventaire
 
-# Routes pour les fournisseurs
-@app.get("/fournisseurs/", response_model=List[schemas.Fournisseur])
+@app.get("/inventaire/code/{code}", response_model=schemas.InventaireResponse)
+def read_inventaire_by_code(code: str, db: Session = Depends(get_db)):
+    """Récupérer un produit par son code"""
+    db_inventaire = crud.get_inventaire_by_code(db, code=code)
+    if db_inventaire is None:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    return db_inventaire
+
+@app.get("/inventaire/search/", response_model=List[schemas.InventaireResponse])
+def search_inventaire(
+    search: str = Query(..., description="Terme de recherche"),
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """Rechercher des produits par terme de recherche"""
+    inventaire = crud.search_inventaire(db, search_term=search, skip=skip, limit=limit)
+    return inventaire
+
+@app.put("/inventaire/{inventaire_id}", response_model=schemas.InventaireResponse)
+def update_inventaire(inventaire_id: int, inventaire: schemas.InventaireUpdate, db: Session = Depends(get_db)):
+    """Mettre à jour un produit de l'inventaire"""
+    db_inventaire = crud.update_inventaire(db, inventaire_id=inventaire_id, inventaire=inventaire)
+    if db_inventaire is None:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    return db_inventaire
+
+@app.delete("/inventaire/{inventaire_id}")
+def delete_inventaire(inventaire_id: int, db: Session = Depends(get_db)):
+    """Supprimer un produit de l'inventaire"""
+    db_inventaire = crud.delete_inventaire(db, inventaire_id=inventaire_id)
+    if db_inventaire is None:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    return {"message": "Produit supprimé avec succès"}
+
+@app.get("/inventaire/emplacement/{emplacement}", response_model=List[schemas.InventaireResponse])
+def read_inventaire_by_emplacement(emplacement: str, db: Session = Depends(get_db)):
+    """Récupérer tous les produits d'un emplacement"""
+    inventaire = crud.get_inventaire_by_emplacement(db, emplacement=emplacement)
+    return inventaire
+
+@app.get("/inventaire/fournisseur/{fournisseur}", response_model=List[schemas.InventaireResponse])
+def read_inventaire_by_fournisseur(fournisseur: str, db: Session = Depends(get_db)):
+    """Récupérer tous les produits d'un fournisseur"""
+    inventaire = crud.get_inventaire_by_fournisseur(db, fournisseur=fournisseur)
+    return inventaire
+
+@app.get("/inventaire/stock-faible/", response_model=List[schemas.InventaireResponse])
+def read_inventaire_stock_faible(db: Session = Depends(get_db)):
+    """Récupérer les produits avec un stock faible"""
+    inventaire = crud.get_inventaire_stock_faible(db)
+    return inventaire
+
+# =====================================================
+# ROUTES POUR LES FOURNISSEURS
+# =====================================================
+
+@app.get("/fournisseurs/", response_model=List[schemas.FournisseurResponse])
 def read_fournisseurs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """Récupérer tous les fournisseurs"""
     fournisseurs = crud.get_fournisseurs(db, skip=skip, limit=limit)
     return fournisseurs
 
-@app.post("/fournisseurs/", response_model=schemas.Fournisseur)
+@app.post("/fournisseurs/", response_model=schemas.FournisseurResponse)
 def create_fournisseur(fournisseur: schemas.FournisseurCreate, db: Session = Depends(get_db)):
     """Créer un nouveau fournisseur"""
+    # Vérifier si l'ID fournisseur existe déjà
+    db_fournisseur = crud.get_fournisseur_by_id_fournisseur(db, id_fournisseur=fournisseur.id_fournisseur)
+    if db_fournisseur:
+        raise HTTPException(status_code=400, detail="Un fournisseur avec cet ID existe déjà")
+    
     return crud.create_fournisseur(db=db, fournisseur=fournisseur)
 
-@app.get("/fournisseurs/{fournisseur_id}", response_model=schemas.Fournisseur)
+@app.get("/fournisseurs/{fournisseur_id}", response_model=schemas.FournisseurResponse)
 def read_fournisseur(fournisseur_id: int, db: Session = Depends(get_db)):
-    """Récupérer un fournisseur par ID"""
-    db_fournisseur = crud.get_fournisseur(db, fournisseur_id=fournisseur_id)
+    """Récupérer un fournisseur par son ID"""
+    db_fournisseur = crud.get_fournisseur_by_id(db, fournisseur_id=fournisseur_id)
     if db_fournisseur is None:
         raise HTTPException(status_code=404, detail="Fournisseur non trouvé")
     return db_fournisseur
 
-@app.put("/fournisseurs/{fournisseur_id}", response_model=schemas.Fournisseur)
+@app.get("/fournisseurs/id/{id_fournisseur}", response_model=schemas.FournisseurResponse)
+def read_fournisseur_by_id_fournisseur(id_fournisseur: str, db: Session = Depends(get_db)):
+    """Récupérer un fournisseur par son ID fournisseur"""
+    db_fournisseur = crud.get_fournisseur_by_id_fournisseur(db, id_fournisseur=id_fournisseur)
+    if db_fournisseur is None:
+        raise HTTPException(status_code=404, detail="Fournisseur non trouvé")
+    return db_fournisseur
+
+@app.put("/fournisseurs/{fournisseur_id}", response_model=schemas.FournisseurResponse)
 def update_fournisseur(fournisseur_id: int, fournisseur: schemas.FournisseurUpdate, db: Session = Depends(get_db)):
     """Mettre à jour un fournisseur"""
     db_fournisseur = crud.update_fournisseur(db, fournisseur_id=fournisseur_id, fournisseur=fournisseur)
@@ -98,155 +172,270 @@ def delete_fournisseur(fournisseur_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Fournisseur non trouvé")
     return {"message": "Fournisseur supprimé avec succès"}
 
-# Routes pour les produits
-@app.get("/produits/", response_model=List[schemas.Produit])
-def read_produits(
-    skip: int = 0, 
-    limit: int = 100, 
-    search: Optional[str] = Query(None, description="Recherche par nom, référence ou description"),
-    db: Session = Depends(get_db)
-):
-    """Récupérer tous les produits avec recherche optionnelle"""
-    produits = crud.get_produits(db, skip=skip, limit=limit, search=search)
+# =====================================================
+# ROUTES POUR LES EMPLACEMENTS
+# =====================================================
+
+@app.get("/emplacements/", response_model=List[schemas.EmplacementResponse])
+def read_emplacements(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupérer tous les emplacements"""
+    emplacements = crud.get_emplacements(db, skip=skip, limit=limit)
+    return emplacements
+
+@app.post("/emplacements/", response_model=schemas.EmplacementResponse)
+def create_emplacement(emplacement: schemas.EmplacementCreate, db: Session = Depends(get_db)):
+    """Créer un nouvel emplacement"""
+    # Vérifier si l'ID emplacement existe déjà
+    db_emplacement = crud.get_emplacement_by_id_emplacement(db, id_emplacement=emplacement.id_emplacement)
+    if db_emplacement:
+        raise HTTPException(status_code=400, detail="Un emplacement avec cet ID existe déjà")
+    
+    return crud.create_emplacement(db=db, emplacement=emplacement)
+
+@app.get("/emplacements/{emplacement_id}", response_model=schemas.EmplacementResponse)
+def read_emplacement(emplacement_id: int, db: Session = Depends(get_db)):
+    """Récupérer un emplacement par son ID"""
+    db_emplacement = crud.get_emplacement_by_id(db, emplacement_id=emplacement_id)
+    if db_emplacement is None:
+        raise HTTPException(status_code=404, detail="Emplacement non trouvé")
+    return db_emplacement
+
+@app.put("/emplacements/{emplacement_id}", response_model=schemas.EmplacementResponse)
+def update_emplacement(emplacement_id: int, emplacement: schemas.EmplacementUpdate, db: Session = Depends(get_db)):
+    """Mettre à jour un emplacement"""
+    db_emplacement = crud.update_emplacement(db, emplacement_id=emplacement_id, emplacement=emplacement)
+    if db_emplacement is None:
+        raise HTTPException(status_code=404, detail="Emplacement non trouvé")
+    return db_emplacement
+
+@app.delete("/emplacements/{emplacement_id}")
+def delete_emplacement(emplacement_id: int, db: Session = Depends(get_db)):
+    """Supprimer un emplacement"""
+    db_emplacement = crud.delete_emplacement(db, emplacement_id=emplacement_id)
+    if db_emplacement is None:
+        raise HTTPException(status_code=404, detail="Emplacement non trouvé")
+    return {"message": "Emplacement supprimé avec succès"}
+
+# =====================================================
+# ROUTES POUR LES DEMANDES
+# =====================================================
+
+@app.get("/demandes/", response_model=List[schemas.DemandeResponse])
+def read_demandes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupérer toutes les demandes"""
+    demandes = crud.get_demandes(db, skip=skip, limit=limit)
+    return demandes
+
+@app.post("/demandes/", response_model=schemas.DemandeResponse)
+def create_demande(demande: schemas.DemandeCreate, db: Session = Depends(get_db)):
+    """Créer une nouvelle demande"""
+    # Vérifier si l'ID demande existe déjà
+    db_demande = crud.get_demande_by_id_demande(db, id_demande=demande.id_demande)
+    if db_demande:
+        raise HTTPException(status_code=400, detail="Une demande avec cet ID existe déjà")
+    
+    return crud.create_demande(db=db, demande=demande)
+
+@app.get("/demandes/{demande_id}", response_model=schemas.DemandeResponse)
+def read_demande(demande_id: int, db: Session = Depends(get_db)):
+    """Récupérer une demande par son ID"""
+    db_demande = crud.get_demande_by_id(db, demande_id=demande_id)
+    if db_demande is None:
+        raise HTTPException(status_code=404, detail="Demande non trouvée")
+    return db_demande
+
+@app.get("/demandes/statut/{statut}", response_model=List[schemas.DemandeResponse])
+def read_demandes_by_statut(statut: str, db: Session = Depends(get_db)):
+    """Récupérer les demandes par statut"""
+    demandes = crud.get_demandes_by_statut(db, statut=statut)
+    return demandes
+
+@app.get("/demandes/demandeur/{demandeur}", response_model=List[schemas.DemandeResponse])
+def read_demandes_by_demandeur(demandeur: str, db: Session = Depends(get_db)):
+    """Récupérer les demandes par demandeur"""
+    demandes = crud.get_demandes_by_demandeur(db, demandeur=demandeur)
+    return demandes
+
+@app.put("/demandes/{demande_id}", response_model=schemas.DemandeResponse)
+def update_demande(demande_id: int, demande: schemas.DemandeUpdate, db: Session = Depends(get_db)):
+    """Mettre à jour une demande"""
+    db_demande = crud.update_demande(db, demande_id=demande_id, demande=demande)
+    if db_demande is None:
+        raise HTTPException(status_code=404, detail="Demande non trouvée")
+    return db_demande
+
+# =====================================================
+# ROUTES POUR L'HISTORIQUE
+# =====================================================
+
+@app.get("/historique/", response_model=List[schemas.HistoriqueResponse])
+def read_historique(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupérer l'historique des mouvements"""
+    historique = crud.get_historique(db, skip=skip, limit=limit)
+    return historique
+
+@app.get("/historique/reference/{reference}", response_model=List[schemas.HistoriqueResponse])
+def read_historique_by_reference(reference: str, db: Session = Depends(get_db)):
+    """Récupérer l'historique d'un produit par sa référence"""
+    historique = crud.get_historique_by_reference(db, reference=reference)
+    return historique
+
+@app.get("/historique/nature/{nature}", response_model=List[schemas.HistoriqueResponse])
+def read_historique_by_nature(nature: str, db: Session = Depends(get_db)):
+    """Récupérer l'historique par type de mouvement"""
+    historique = crud.get_historique_by_nature(db, nature=nature)
+    return historique
+
+# =====================================================
+# ROUTES POUR LES TABLES D'ATELIER
+# =====================================================
+
+@app.get("/tables-atelier/", response_model=List[schemas.TableAtelierResponse])
+def read_tables_atelier(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupérer toutes les tables d'atelier"""
+    tables = crud.get_tables_atelier(db, skip=skip, limit=limit)
+    return tables
+
+@app.post("/tables-atelier/", response_model=schemas.TableAtelierResponse)
+def create_table_atelier(table: schemas.TableAtelierCreate, db: Session = Depends(get_db)):
+    """Créer une nouvelle table d'atelier"""
+    # Vérifier si l'ID table existe déjà
+    db_table = crud.get_table_atelier_by_id_table(db, id_table=table.id_table)
+    if db_table:
+        raise HTTPException(status_code=400, detail="Une table avec cet ID existe déjà")
+    
+    return crud.create_table_atelier(db=db, table=table)
+
+@app.get("/tables-atelier/{table_id}", response_model=schemas.TableAtelierResponse)
+def read_table_atelier(table_id: int, db: Session = Depends(get_db)):
+    """Récupérer une table d'atelier par son ID"""
+    db_table = crud.get_table_atelier_by_id(db, table_id=table_id)
+    if db_table is None:
+        raise HTTPException(status_code=404, detail="Table d'atelier non trouvée")
+    return db_table
+
+@app.get("/tables-atelier/type/{type_atelier}", response_model=List[schemas.TableAtelierResponse])
+def read_tables_atelier_by_type(type_atelier: str, db: Session = Depends(get_db)):
+    """Récupérer les tables d'atelier par type"""
+    tables = crud.get_tables_atelier_by_type(db, type_atelier=type_atelier)
+    return tables
+
+@app.put("/tables-atelier/{table_id}", response_model=schemas.TableAtelierResponse)
+def update_table_atelier(table_id: int, table: schemas.TableAtelierUpdate, db: Session = Depends(get_db)):
+    """Mettre à jour une table d'atelier"""
+    db_table = crud.update_table_atelier(db, table_id=table_id, table=table)
+    if db_table is None:
+        raise HTTPException(status_code=404, detail="Table d'atelier non trouvée")
+    return db_table
+
+@app.delete("/tables-atelier/{table_id}")
+def delete_table_atelier(table_id: int, db: Session = Depends(get_db)):
+    """Supprimer une table d'atelier"""
+    db_table = crud.delete_table_atelier(db, table_id=table_id)
+    if db_table is None:
+        raise HTTPException(status_code=404, detail="Table d'atelier non trouvée")
+    return {"message": "Table d'atelier supprimée avec succès"}
+
+# =====================================================
+# ROUTES POUR LES LISTES D'INVENTAIRE
+# =====================================================
+
+@app.get("/listes-inventaire/", response_model=List[schemas.ListeInventaireResponse])
+def read_listes_inventaire(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupérer toutes les listes d'inventaire"""
+    listes = crud.get_listes_inventaire(db, skip=skip, limit=limit)
+    return listes
+
+@app.post("/listes-inventaire/", response_model=schemas.ListeInventaireResponse)
+def create_liste_inventaire(liste: schemas.ListeInventaireCreate, db: Session = Depends(get_db)):
+    """Créer une nouvelle liste d'inventaire"""
+    # Vérifier si l'ID liste existe déjà
+    db_liste = crud.get_liste_inventaire_by_id_liste(db, id_liste=liste.id_liste)
+    if db_liste:
+        raise HTTPException(status_code=400, detail="Une liste avec cet ID existe déjà")
+    
+    return crud.create_liste_inventaire(db=db, liste=liste)
+
+@app.get("/listes-inventaire/{liste_id}", response_model=schemas.ListeInventaireResponse)
+def read_liste_inventaire(liste_id: int, db: Session = Depends(get_db)):
+    """Récupérer une liste d'inventaire par son ID"""
+    db_liste = crud.get_liste_inventaire_by_id(db, liste_id=liste_id)
+    if db_liste is None:
+        raise HTTPException(status_code=404, detail="Liste d'inventaire non trouvée")
+    return db_liste
+
+@app.put("/listes-inventaire/{liste_id}", response_model=schemas.ListeInventaireResponse)
+def update_liste_inventaire(liste_id: int, liste: schemas.ListeInventaireUpdate, db: Session = Depends(get_db)):
+    """Mettre à jour une liste d'inventaire"""
+    db_liste = crud.update_liste_inventaire(db, liste_id=liste_id, liste=liste)
+    if db_liste is None:
+        raise HTTPException(status_code=404, detail="Liste d'inventaire non trouvée")
+    return db_liste
+
+@app.delete("/listes-inventaire/{liste_id}")
+def delete_liste_inventaire(liste_id: int, db: Session = Depends(get_db)):
+    """Supprimer une liste d'inventaire"""
+    db_liste = crud.delete_liste_inventaire(db, liste_id=liste_id)
+    if db_liste is None:
+        raise HTTPException(status_code=404, detail="Liste d'inventaire non trouvée")
+    return {"message": "Liste d'inventaire supprimée avec succès"}
+
+@app.get("/listes-inventaire/{id_liste}/produits", response_model=List[schemas.ProduitListeInventaireResponse])
+def read_produits_liste_inventaire(id_liste: str, db: Session = Depends(get_db)):
+    """Récupérer tous les produits d'une liste d'inventaire"""
+    produits = crud.get_produits_liste_inventaire(db, id_liste=id_liste)
     return produits
 
-@app.post("/produits/", response_model=schemas.Produit)
-def create_produit(produit: schemas.ProduitCreate, db: Session = Depends(get_db)):
-    """Créer un nouveau produit"""
-    # Vérifier si la référence existe déjà
-    if produit.reference:
-        db_produit = crud.get_produit_by_reference(db, reference=produit.reference)
-        if db_produit:
-            raise HTTPException(status_code=400, detail="Un produit avec cette référence existe déjà")
-    
-    return crud.create_produit(db=db, produit=produit)
+@app.post("/listes-inventaire/produits/", response_model=schemas.ProduitListeInventaireResponse)
+def create_produit_liste_inventaire(produit: schemas.ProduitListeInventaireCreate, db: Session = Depends(get_db)):
+    """Ajouter un produit à une liste d'inventaire"""
+    return crud.create_produit_liste_inventaire(db=db, produit=produit)
 
-@app.get("/produits/{produit_id}", response_model=schemas.Produit)
-def read_produit(produit_id: int, db: Session = Depends(get_db)):
-    """Récupérer un produit par ID"""
-    db_produit = crud.get_produit(db, produit_id=produit_id)
+@app.put("/listes-inventaire/produits/{produit_id}", response_model=schemas.ProduitListeInventaireResponse)
+def update_produit_liste_inventaire(produit_id: int, produit: schemas.ProduitListeInventaireUpdate, db: Session = Depends(get_db)):
+    """Mettre à jour un produit dans une liste d'inventaire"""
+    db_produit = crud.update_produit_liste_inventaire(db, produit_id=produit_id, produit=produit)
     if db_produit is None:
-        raise HTTPException(status_code=404, detail="Produit non trouvé")
+        raise HTTPException(status_code=404, detail="Produit non trouvé dans la liste d'inventaire")
     return db_produit
 
-@app.put("/produits/{produit_id}", response_model=schemas.Produit)
-def update_produit(produit_id: int, produit: schemas.ProduitUpdate, db: Session = Depends(get_db)):
-    """Mettre à jour un produit"""
-    db_produit = crud.update_produit(db, produit_id=produit_id, produit=produit)
-    if db_produit is None:
-        raise HTTPException(status_code=404, detail="Produit non trouvé")
-    return db_produit
+# =====================================================
+# ROUTES POUR LES MOUVEMENTS DE STOCK
+# =====================================================
 
-@app.delete("/produits/{produit_id}")
-def delete_produit(produit_id: int, db: Session = Depends(get_db)):
-    """Supprimer un produit"""
-    db_produit = crud.delete_produit(db, produit_id=produit_id)
-    if db_produit is None:
-        raise HTTPException(status_code=404, detail="Produit non trouvé")
-    return {"message": "Produit supprimé avec succès"}
-
-# Routes pour les mouvements de stock
-@app.get("/mouvements-stock/", response_model=List[schemas.MouvementStock])
-def read_mouvements_stock(
-    skip: int = 0, 
-    limit: int = 100, 
-    produit_id: Optional[int] = Query(None, description="Filtrer par produit"),
-    db: Session = Depends(get_db)
-):
-    """Récupérer tous les mouvements de stock"""
-    mouvements = crud.get_mouvements_stock(db, skip=skip, limit=limit, produit_id=produit_id)
-    return mouvements
-
-@app.post("/mouvements-stock/", response_model=schemas.MouvementStock)
-def create_mouvement_stock(mouvement: schemas.MouvementStockCreate, db: Session = Depends(get_db)):
-    """Créer un nouveau mouvement de stock"""
-    try:
-        return crud.create_mouvement_stock(db=db, mouvement=mouvement)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.get("/mouvements-stock/{mouvement_id}", response_model=schemas.MouvementStock)
-def read_mouvement_stock(mouvement_id: int, db: Session = Depends(get_db)):
-    """Récupérer un mouvement de stock par ID"""
-    db_mouvement = crud.get_mouvement_stock(db, mouvement_id=mouvement_id)
-    if db_mouvement is None:
-        raise HTTPException(status_code=404, detail="Mouvement de stock non trouvé")
-    return db_mouvement
-
-# Routes pour le stock actuel
-@app.get("/stock/", response_model=List[schemas.StockActuel])
-def read_stocks_actuels(
-    skip: int = 0, 
-    limit: int = 100, 
-    stock_faible: bool = Query(False, description="Afficher seulement les stocks faibles"),
-    db: Session = Depends(get_db)
-):
-    """Récupérer tous les stocks actuels"""
-    stocks = crud.get_stocks_actuels(db, skip=skip, limit=limit, stock_faible=stock_faible)
-    return stocks
-
-@app.get("/stock/{produit_id}", response_model=schemas.StockActuel)
-def read_stock_actuel(produit_id: int, db: Session = Depends(get_db)):
-    """Récupérer le stock actuel d'un produit"""
-    db_stock = crud.get_stock_actuel(db, produit_id=produit_id)
-    if db_stock is None:
-        raise HTTPException(status_code=404, detail="Stock non trouvé pour ce produit")
-    return db_stock
-
-# Routes spécialisées
-@app.get("/produits-avec-stock/", response_model=List[schemas.ProduitAvecStock])
-def read_produits_avec_stock(
-    skip: int = 0, 
-    limit: int = 100, 
-    search: Optional[str] = Query(None, description="Recherche par nom, référence ou description"),
-    db: Session = Depends(get_db)
-):
-    """Récupérer tous les produits avec leur stock actuel"""
-    produits = crud.get_produits_avec_stock(db, skip=skip, limit=limit, search=search)
-    
-    # Transformer les données pour inclure le stock actuel
-    result = []
-    for produit in produits:
-        produit_data = {
-            "id": produit.id,
-            "nom": produit.nom,
-            "description": produit.description,
-            "reference": produit.reference,
-            "code_barre": produit.code_barre,
-            "prix_unitaire": produit.prix_unitaire,
-            "stock_min": produit.stock_min,
-            "stock_max": produit.stock_max,
-            "unite": produit.unite,
-            "categorie": produit.categorie,
-            "fournisseur": produit.fournisseur,
-            "stock_actuel": produit.stock.quantite_disponible if produit.stock else 0,
-            "derniere_entree": produit.stock.derniere_entree if produit.stock else None,
-            "derniere_sortie": produit.stock.derniere_sortie if produit.stock else None
-        }
-        result.append(produit_data)
-    
+@app.post("/mouvements-stock/", response_model=schemas.MouvementStockResponse)
+def effectuer_mouvement_stock(mouvement: schemas.MouvementStockCreate, db: Session = Depends(get_db)):
+    """Effectuer un mouvement de stock"""
+    result = crud.effectuer_mouvement_stock(db=db, mouvement=mouvement)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
     return result
 
-# Route de santé
+# =====================================================
+# ROUTES UTILITAIRES
+# =====================================================
+
 @app.get("/health")
 def health_check():
     """Vérification de l'état de l'API"""
-    return {"status": "OK", "message": "API GMAO - Gestion de Stock opérationnelle"}
+    return {"status": "healthy", "message": "API GMAO fonctionnelle"}
 
-# Route racine
 @app.get("/")
 def read_root():
     """Page d'accueil de l'API"""
     return {
-        "message": "Bienvenue sur l'API GMAO - Gestion de Stock",
-        "version": "1.0.0",
-        "documentation": "/docs",
+        "message": "API GMAO - Gestion de Stock",
+        "version": "2.0.0",
+        "description": "API compatible avec l'application Streamlit GMAO",
         "endpoints": {
-            "categories": "/categories/",
+            "inventaire": "/inventaire/",
             "fournisseurs": "/fournisseurs/",
-            "produits": "/produits/",
+            "emplacements": "/emplacements/",
+            "demandes": "/demandes/",
+            "historique": "/historique/",
+            "tables_atelier": "/tables-atelier/",
+            "listes_inventaire": "/listes-inventaire/",
             "mouvements_stock": "/mouvements-stock/",
-            "stock": "/stock/",
-            "produits_avec_stock": "/produits-avec-stock/"
+            "documentation": "/docs"
         }
     } 

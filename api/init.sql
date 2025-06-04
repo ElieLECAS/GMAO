@@ -1,93 +1,312 @@
 -- Script d'initialisation de la base de données GMAO
--- Tables pour la gestion de stock
+-- Schéma basé sur les fichiers Excel de l'application Streamlit
 
--- Table des catégories de produits
-CREATE TABLE IF NOT EXISTS categories (
+-- =====================================================
+-- TABLE PRINCIPALE: INVENTAIRE (PRODUITS)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS inventaire (
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL UNIQUE,
-    description TEXT,
+    code VARCHAR(50) NOT NULL,
+    reference_fournisseur VARCHAR(100),
+    produits VARCHAR(500) NOT NULL,
+    unite_stockage VARCHAR(20),
+    unite_commande VARCHAR(50),
+    stock_min INTEGER DEFAULT 0,
+    stock_max INTEGER DEFAULT 100,
+    site VARCHAR(100),
+    lieu VARCHAR(100),
+    emplacement VARCHAR(100),
+    fournisseur VARCHAR(200),
+    prix_unitaire DECIMAL(10,2) DEFAULT 0,
+    categorie VARCHAR(100),
+    secteur VARCHAR(100),
+    reference VARCHAR(20) UNIQUE NOT NULL, -- Référence QR unique de 10 chiffres
+    quantite INTEGER DEFAULT 0,
+    date_entree DATE DEFAULT CURRENT_DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des fournisseurs
+-- =====================================================
+-- TABLE: FOURNISSEURS
+-- =====================================================
 CREATE TABLE IF NOT EXISTS fournisseurs (
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL,
-    contact VARCHAR(100),
-    email VARCHAR(100),
-    telephone VARCHAR(20),
+    id_fournisseur VARCHAR(20) UNIQUE NOT NULL,
+    nom_fournisseur VARCHAR(200) NOT NULL,
+    contact_principal VARCHAR(200),
+    email VARCHAR(200),
+    telephone VARCHAR(50),
     adresse TEXT,
+    statut VARCHAR(20) DEFAULT 'Actif',
+    date_creation DATE DEFAULT CURRENT_DATE,
+    nb_produits INTEGER DEFAULT 0,
+    valeur_stock_total DECIMAL(12,2) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des produits/articles
-CREATE TABLE IF NOT EXISTS produits (
+-- =====================================================
+-- TABLE: EMPLACEMENTS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS emplacements (
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(200) NOT NULL,
-    description TEXT,
-    reference VARCHAR(50) UNIQUE,
-    code_barre VARCHAR(50),
-    categorie_id INTEGER REFERENCES categories(id),
-    fournisseur_id INTEGER REFERENCES fournisseurs(id),
-    prix_unitaire DECIMAL(10,2),
-    stock_min INTEGER DEFAULT 0,
-    stock_max INTEGER DEFAULT 1000,
-    unite VARCHAR(20) DEFAULT 'pièce',
+    id_emplacement VARCHAR(20) UNIQUE NOT NULL,
+    nom_emplacement VARCHAR(200) NOT NULL,
+    type_zone VARCHAR(100),
+    batiment VARCHAR(100),
+    niveau VARCHAR(50),
+    responsable VARCHAR(200),
+    capacite_max INTEGER DEFAULT 100,
+    statut VARCHAR(20) DEFAULT 'Actif',
+    date_creation DATE DEFAULT CURRENT_DATE,
+    nb_produits INTEGER DEFAULT 0,
+    taux_occupation DECIMAL(5,2) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des mouvements de stock
-CREATE TABLE IF NOT EXISTS mouvements_stock (
+-- =====================================================
+-- TABLE: DEMANDES DE MATERIEL
+-- =====================================================
+CREATE TABLE IF NOT EXISTS demandes (
     id SERIAL PRIMARY KEY,
-    produit_id INTEGER NOT NULL REFERENCES produits(id),
-    type_mouvement VARCHAR(20) NOT NULL CHECK (type_mouvement IN ('ENTREE', 'SORTIE', 'AJUSTEMENT')),
-    quantite INTEGER NOT NULL,
-    stock_avant INTEGER NOT NULL,
-    stock_apres INTEGER NOT NULL,
-    motif VARCHAR(200),
-    reference_document VARCHAR(100),
+    id_demande VARCHAR(50) UNIQUE NOT NULL,
+    date_demande TIMESTAMP NOT NULL,
+    demandeur VARCHAR(200) NOT NULL,
+    produits_demandes TEXT NOT NULL, -- JSON stocké comme texte
+    motif TEXT,
+    statut VARCHAR(50) DEFAULT 'En attente',
+    date_traitement TIMESTAMP,
+    traite_par VARCHAR(200),
+    commentaires TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(100)
-);
-
--- Table du stock actuel (vue matérialisée pour performance)
-CREATE TABLE IF NOT EXISTS stock_actuel (
-    produit_id INTEGER PRIMARY KEY REFERENCES produits(id),
-    quantite_disponible INTEGER NOT NULL DEFAULT 0,
-    derniere_entree TIMESTAMP,
-    derniere_sortie TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index pour améliorer les performances
-CREATE INDEX IF NOT EXISTS idx_produits_reference ON produits(reference);
-CREATE INDEX IF NOT EXISTS idx_produits_categorie ON produits(categorie_id);
-CREATE INDEX IF NOT EXISTS idx_mouvements_produit ON mouvements_stock(produit_id);
-CREATE INDEX IF NOT EXISTS idx_mouvements_date ON mouvements_stock(created_at);
+-- =====================================================
+-- TABLE: HISTORIQUE DES MOUVEMENTS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS historique (
+    id SERIAL PRIMARY KEY,
+    date_mouvement TIMESTAMP NOT NULL,
+    reference VARCHAR(20), -- Référence du produit
+    produit VARCHAR(500) NOT NULL,
+    nature VARCHAR(50) NOT NULL, -- Entrée, Sortie, Ajustement
+    quantite_mouvement INTEGER NOT NULL,
+    quantite_avant INTEGER NOT NULL,
+    quantite_apres INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- Fonction pour mettre à jour le stock automatiquement
-CREATE OR REPLACE FUNCTION update_stock_actuel()
+-- =====================================================
+-- TABLE: TABLES D'ATELIER
+-- =====================================================
+CREATE TABLE IF NOT EXISTS tables_atelier (
+    id SERIAL PRIMARY KEY,
+    id_table VARCHAR(20) UNIQUE NOT NULL,
+    nom_table VARCHAR(200) NOT NULL,
+    type_atelier VARCHAR(100) NOT NULL,
+    emplacement VARCHAR(200) NOT NULL,
+    responsable VARCHAR(200) NOT NULL,
+    statut VARCHAR(20) DEFAULT 'Actif',
+    date_creation DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- TABLE: LISTES D'INVENTAIRE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS listes_inventaire (
+    id SERIAL PRIMARY KEY,
+    id_liste VARCHAR(20) UNIQUE NOT NULL,
+    nom_liste VARCHAR(300) NOT NULL,
+    date_creation TIMESTAMP NOT NULL,
+    statut VARCHAR(50) DEFAULT 'En préparation',
+    nb_produits INTEGER DEFAULT 0,
+    cree_par VARCHAR(200) DEFAULT 'Utilisateur',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- TABLE: PRODUITS DES LISTES D'INVENTAIRE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS produits_listes_inventaire (
+    id SERIAL PRIMARY KEY,
+    id_liste VARCHAR(20) NOT NULL,
+    reference_produit VARCHAR(20) NOT NULL,
+    nom_produit VARCHAR(500) NOT NULL,
+    emplacement VARCHAR(100),
+    quantite_theorique INTEGER NOT NULL,
+    quantite_comptee INTEGER,
+    categorie VARCHAR(100),
+    fournisseur VARCHAR(200),
+    date_ajout TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_liste) REFERENCES listes_inventaire(id_liste) ON DELETE CASCADE
+);
+
+-- =====================================================
+-- INDEX POUR AMÉLIORER LES PERFORMANCES
+-- =====================================================
+
+-- Index sur la table inventaire
+CREATE INDEX IF NOT EXISTS idx_inventaire_code ON inventaire(code);
+CREATE INDEX IF NOT EXISTS idx_inventaire_reference ON inventaire(reference);
+CREATE INDEX IF NOT EXISTS idx_inventaire_fournisseur ON inventaire(fournisseur);
+CREATE INDEX IF NOT EXISTS idx_inventaire_emplacement ON inventaire(emplacement);
+CREATE INDEX IF NOT EXISTS idx_inventaire_categorie ON inventaire(categorie);
+
+-- Index sur les fournisseurs
+CREATE INDEX IF NOT EXISTS idx_fournisseurs_nom ON fournisseurs(nom_fournisseur);
+CREATE INDEX IF NOT EXISTS idx_fournisseurs_id ON fournisseurs(id_fournisseur);
+
+-- Index sur les emplacements
+CREATE INDEX IF NOT EXISTS idx_emplacements_nom ON emplacements(nom_emplacement);
+CREATE INDEX IF NOT EXISTS idx_emplacements_id ON emplacements(id_emplacement);
+
+-- Index sur les demandes
+CREATE INDEX IF NOT EXISTS idx_demandes_statut ON demandes(statut);
+CREATE INDEX IF NOT EXISTS idx_demandes_demandeur ON demandes(demandeur);
+CREATE INDEX IF NOT EXISTS idx_demandes_date ON demandes(date_demande);
+
+-- Index sur l'historique
+CREATE INDEX IF NOT EXISTS idx_historique_reference ON historique(reference);
+CREATE INDEX IF NOT EXISTS idx_historique_date ON historique(date_mouvement);
+CREATE INDEX IF NOT EXISTS idx_historique_nature ON historique(nature);
+
+-- Index sur les tables d'atelier
+CREATE INDEX IF NOT EXISTS idx_tables_atelier_type ON tables_atelier(type_atelier);
+CREATE INDEX IF NOT EXISTS idx_tables_atelier_responsable ON tables_atelier(responsable);
+
+-- Index sur les listes d'inventaire
+CREATE INDEX IF NOT EXISTS idx_listes_inventaire_statut ON listes_inventaire(statut);
+CREATE INDEX IF NOT EXISTS idx_produits_listes_reference ON produits_listes_inventaire(reference_produit);
+
+-- =====================================================
+-- FONCTIONS ET TRIGGERS
+-- =====================================================
+
+-- Fonction pour mettre à jour les statistiques des fournisseurs
+CREATE OR REPLACE FUNCTION update_fournisseur_stats()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Mettre à jour ou insérer dans stock_actuel
-    INSERT INTO stock_actuel (produit_id, quantite_disponible, updated_at)
-    VALUES (NEW.produit_id, NEW.stock_apres, CURRENT_TIMESTAMP)
-    ON CONFLICT (produit_id) 
-    DO UPDATE SET 
-        quantite_disponible = NEW.stock_apres,
-        updated_at = CURRENT_TIMESTAMP,
-        derniere_entree = CASE WHEN NEW.type_mouvement = 'ENTREE' THEN CURRENT_TIMESTAMP ELSE stock_actuel.derniere_entree END,
-        derniere_sortie = CASE WHEN NEW.type_mouvement = 'SORTIE' THEN CURRENT_TIMESTAMP ELSE stock_actuel.derniere_sortie END;
+    -- Mettre à jour le nombre de produits et la valeur totale du stock pour le fournisseur
+    UPDATE fournisseurs 
+    SET 
+        nb_produits = (
+            SELECT COUNT(*) 
+            FROM inventaire 
+            WHERE fournisseur = fournisseurs.nom_fournisseur
+        ),
+        valeur_stock_total = (
+            SELECT COALESCE(SUM(quantite * prix_unitaire), 0)
+            FROM inventaire 
+            WHERE fournisseur = fournisseurs.nom_fournisseur
+        ),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE nom_fournisseur = COALESCE(NEW.fournisseur, OLD.fournisseur);
     
-    RETURN NEW;
+    RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger pour mettre à jour automatiquement le stock
-CREATE TRIGGER trigger_update_stock
-    AFTER INSERT ON mouvements_stock
+-- Trigger pour mettre à jour les stats des fournisseurs
+CREATE TRIGGER trigger_update_fournisseur_stats
+    AFTER INSERT OR UPDATE OR DELETE ON inventaire
     FOR EACH ROW
-    EXECUTE FUNCTION update_stock_actuel();
+    EXECUTE FUNCTION update_fournisseur_stats();
+
+-- Fonction pour mettre à jour les statistiques des emplacements
+CREATE OR REPLACE FUNCTION update_emplacement_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Mettre à jour le nombre de produits et le taux d'occupation pour l'emplacement
+    UPDATE emplacements 
+    SET 
+        nb_produits = (
+            SELECT COUNT(*) 
+            FROM inventaire 
+            WHERE emplacement = emplacements.nom_emplacement
+        ),
+        taux_occupation = (
+            SELECT CASE 
+                WHEN emplacements.capacite_max > 0 THEN 
+                    ROUND((COUNT(*)::DECIMAL / emplacements.capacite_max * 100), 2)
+                ELSE 0 
+            END
+            FROM inventaire 
+            WHERE emplacement = emplacements.nom_emplacement
+        ),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE nom_emplacement = COALESCE(NEW.emplacement, OLD.emplacement);
+    
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger pour mettre à jour les stats des emplacements
+CREATE TRIGGER trigger_update_emplacement_stats
+    AFTER INSERT OR UPDATE OR DELETE ON inventaire
+    FOR EACH ROW
+    EXECUTE FUNCTION update_emplacement_stats();
+
+-- Fonction pour mettre à jour le nombre de produits dans les listes d'inventaire
+CREATE OR REPLACE FUNCTION update_liste_inventaire_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Mettre à jour le nombre de produits dans la liste
+    UPDATE listes_inventaire 
+    SET 
+        nb_produits = (
+            SELECT COUNT(*) 
+            FROM produits_listes_inventaire 
+            WHERE id_liste = listes_inventaire.id_liste
+        ),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id_liste = COALESCE(NEW.id_liste, OLD.id_liste);
+    
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger pour mettre à jour les stats des listes d'inventaire
+CREATE TRIGGER trigger_update_liste_inventaire_stats
+    AFTER INSERT OR UPDATE OR DELETE ON produits_listes_inventaire
+    FOR EACH ROW
+    EXECUTE FUNCTION update_liste_inventaire_stats();
+
+-- =====================================================
+-- DONNÉES INITIALES (OPTIONNEL)
+-- =====================================================
+
+-- Insérer quelques fournisseurs par défaut s'ils n'existent pas
+INSERT INTO fournisseurs (id_fournisseur, nom_fournisseur, contact_principal, statut) 
+VALUES 
+    ('FOUR001', 'BOSCHAT', 'À définir', 'Actif'),
+    ('FOUR002', 'SFS', 'À définir', 'Actif'),
+    ('FOUR003', 'FOURNISSEUR GÉNÉRIQUE', 'À définir', 'Actif')
+ON CONFLICT (id_fournisseur) DO NOTHING;
+
+-- Insérer quelques emplacements par défaut s'ils n'existent pas
+INSERT INTO emplacements (id_emplacement, nom_emplacement, type_zone, batiment, responsable) 
+VALUES 
+    ('EMP001', 'E1', 'Stockage', 'MS3.0', 'Responsable Stock'),
+    ('EMP002', 'E2', 'Stockage', 'MS3.0', 'Responsable Stock'),
+    ('EMP003', 'E3', 'Stockage', 'MS3.0', 'Responsable Stock')
+ON CONFLICT (id_emplacement) DO NOTHING;
+
+-- Insérer quelques tables d'atelier par défaut
+INSERT INTO tables_atelier (id_table, nom_table, type_atelier, emplacement, responsable) 
+VALUES 
+    ('ALU01', 'Table Aluminium 01', 'Aluminium', 'Atelier A - Zone 1', 'Jean Dupont'),
+    ('ALU02', 'Table Aluminium 02', 'Aluminium', 'Atelier A - Zone 2', 'Marie Martin'),
+    ('PVC03', 'Table PVC 03', 'PVC', 'Atelier B - Zone 1', 'Pierre Durand'),
+    ('PVC04', 'Table PVC 04', 'PVC', 'Atelier B - Zone 2', 'Sophie Leroy'),
+    ('BOIS05', 'Table Bois 05', 'Bois', 'Atelier C - Zone 1', 'Michel Bernard'),
+    ('BOIS06', 'Table Bois 06', 'Bois', 'Atelier C - Zone 2', 'Claire Moreau'),
+    ('METAL07', 'Table Métal 07', 'Métallerie', 'Atelier D - Zone 1', 'Antoine Petit'),
+    ('METAL08', 'Table Métal 08', 'Métallerie', 'Atelier D - Zone 2', 'Isabelle Roux')
+ON CONFLICT (id_table) DO NOTHING;
