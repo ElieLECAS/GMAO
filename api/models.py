@@ -46,24 +46,74 @@ class Fournisseur(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
+class Site(Base):
+    """Table des sites (niveau 1 de la hiérarchie)"""
+    __tablename__ = "sites"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    code_site = Column(String(20), unique=True, nullable=False, index=True)
+    nom_site = Column(String(200), nullable=False, index=True)
+    adresse = Column(Text)
+    ville = Column(String(100))
+    code_postal = Column(String(10))
+    pays = Column(String(100), default='France')
+    responsable = Column(String(200))
+    telephone = Column(String(50))
+    email = Column(String(200))
+    statut = Column(String(20), default='Actif')
+    date_creation = Column(Date, server_default=func.current_date())
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    
+    # Relations
+    lieux = relationship("Lieu", back_populates="site", cascade="all, delete-orphan")
+
+class Lieu(Base):
+    """Table des lieux (niveau 2 de la hiérarchie)"""
+    __tablename__ = "lieux"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    code_lieu = Column(String(20), unique=True, nullable=False, index=True)
+    nom_lieu = Column(String(200), nullable=False, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
+    type_lieu = Column(String(100))  # Bâtiment, Hangar, Atelier, etc.
+    niveau = Column(String(50))  # RDC, 1er étage, etc.
+    surface = Column(DECIMAL(10, 2))  # Surface en m²
+    responsable = Column(String(200))
+    statut = Column(String(20), default='Actif')
+    date_creation = Column(Date, server_default=func.current_date())
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    
+    # Relations
+    site = relationship("Site", back_populates="lieux")
+    emplacements = relationship("Emplacement", back_populates="lieu", cascade="all, delete-orphan")
+
 class Emplacement(Base):
-    """Table des emplacements de stockage"""
+    """Table des emplacements (niveau 3 de la hiérarchie)"""
     __tablename__ = "emplacements"
     
     id = Column(Integer, primary_key=True, index=True)
-    id_emplacement = Column(String(20), unique=True, nullable=False, index=True)
+    code_emplacement = Column(String(20), unique=True, nullable=False, index=True)
     nom_emplacement = Column(String(200), nullable=False, index=True)
-    type_zone = Column(String(100))
-    batiment = Column(String(100))
-    niveau = Column(String(50))
-    responsable = Column(String(200))
+    lieu_id = Column(Integer, ForeignKey("lieux.id", ondelete="CASCADE"), nullable=False)
+    type_emplacement = Column(String(100))  # Étagère, Casier, Zone, etc.
+    position = Column(String(100))  # A1, B2, etc.
     capacite_max = Column(Integer, default=100)
+    temperature_min = Column(DECIMAL(5, 2))  # Température minimale
+    temperature_max = Column(DECIMAL(5, 2))  # Température maximale
+    humidite_max = Column(DECIMAL(5, 2))  # Humidité maximale
+    conditions_speciales = Column(Text)  # Conditions de stockage spéciales
+    responsable = Column(String(200))
     statut = Column(String(20), default='Actif')
     date_creation = Column(Date, server_default=func.current_date())
     nb_produits = Column(Integer, default=0)
     taux_occupation = Column(DECIMAL(5, 2), default=0)
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    
+    # Relations
+    lieu = relationship("Lieu", back_populates="emplacements")
 
 class Demande(Base):
     """Table des demandes de matériel"""

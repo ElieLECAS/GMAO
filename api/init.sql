@@ -47,17 +47,57 @@ CREATE TABLE IF NOT EXISTS fournisseurs (
 );
 
 -- =====================================================
--- TABLE: EMPLACEMENTS
+-- STRUCTURE HIÉRARCHIQUE: SITES > LIEUX > EMPLACEMENTS
 -- =====================================================
+
+-- TABLE: SITES (Niveau 1)
+CREATE TABLE IF NOT EXISTS sites (
+    id SERIAL PRIMARY KEY,
+    code_site VARCHAR(20) UNIQUE NOT NULL,
+    nom_site VARCHAR(200) NOT NULL,
+    adresse TEXT,
+    ville VARCHAR(100),
+    code_postal VARCHAR(10),
+    pays VARCHAR(100) DEFAULT 'France',
+    responsable VARCHAR(200),
+    telephone VARCHAR(50),
+    email VARCHAR(200),
+    statut VARCHAR(20) DEFAULT 'Actif',
+    date_creation DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- TABLE: LIEUX (Niveau 2)
+CREATE TABLE IF NOT EXISTS lieux (
+    id SERIAL PRIMARY KEY,
+    code_lieu VARCHAR(20) UNIQUE NOT NULL,
+    nom_lieu VARCHAR(200) NOT NULL,
+    site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    type_lieu VARCHAR(100),
+    niveau VARCHAR(50),
+    surface DECIMAL(10,2),
+    responsable VARCHAR(200),
+    statut VARCHAR(20) DEFAULT 'Actif',
+    date_creation DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- TABLE: EMPLACEMENTS (Niveau 3)
 CREATE TABLE IF NOT EXISTS emplacements (
     id SERIAL PRIMARY KEY,
-    id_emplacement VARCHAR(20) UNIQUE NOT NULL,
+    code_emplacement VARCHAR(20) UNIQUE NOT NULL,
     nom_emplacement VARCHAR(200) NOT NULL,
-    type_zone VARCHAR(100),
-    batiment VARCHAR(100),
-    niveau VARCHAR(50),
-    responsable VARCHAR(200),
+    lieu_id INTEGER NOT NULL REFERENCES lieux(id) ON DELETE CASCADE,
+    type_emplacement VARCHAR(100),
+    position VARCHAR(100),
     capacite_max INTEGER DEFAULT 100,
+    temperature_min DECIMAL(5,2),
+    temperature_max DECIMAL(5,2),
+    humidite_max DECIMAL(5,2),
+    conditions_speciales TEXT,
+    responsable VARCHAR(200),
     statut VARCHAR(20) DEFAULT 'Actif',
     date_creation DATE DEFAULT CURRENT_DATE,
     nb_produits INTEGER DEFAULT 0,
@@ -163,9 +203,19 @@ CREATE INDEX IF NOT EXISTS idx_inventaire_categorie ON inventaire(categorie);
 CREATE INDEX IF NOT EXISTS idx_fournisseurs_nom ON fournisseurs(nom_fournisseur);
 CREATE INDEX IF NOT EXISTS idx_fournisseurs_id ON fournisseurs(id_fournisseur);
 
+-- Index sur les sites
+CREATE INDEX IF NOT EXISTS idx_sites_code ON sites(code_site);
+CREATE INDEX IF NOT EXISTS idx_sites_nom ON sites(nom_site);
+
+-- Index sur les lieux
+CREATE INDEX IF NOT EXISTS idx_lieux_code ON lieux(code_lieu);
+CREATE INDEX IF NOT EXISTS idx_lieux_nom ON lieux(nom_lieu);
+CREATE INDEX IF NOT EXISTS idx_lieux_site ON lieux(site_id);
+
 -- Index sur les emplacements
+CREATE INDEX IF NOT EXISTS idx_emplacements_code ON emplacements(code_emplacement);
 CREATE INDEX IF NOT EXISTS idx_emplacements_nom ON emplacements(nom_emplacement);
-CREATE INDEX IF NOT EXISTS idx_emplacements_id ON emplacements(id_emplacement);
+CREATE INDEX IF NOT EXISTS idx_emplacements_lieu ON emplacements(lieu_id);
 
 -- Index sur les demandes
 CREATE INDEX IF NOT EXISTS idx_demandes_statut ON demandes(statut);
@@ -277,3 +327,26 @@ CREATE TRIGGER trigger_update_liste_inventaire_stats
     AFTER INSERT OR UPDATE OR DELETE ON produits_listes_inventaire
     FOR EACH ROW
     EXECUTE FUNCTION update_liste_inventaire_stats();
+
+-- =====================================================
+-- TRIGGERS POUR LA HIÉRARCHIE
+-- =====================================================
+
+-- Fonction pour mettre à jour updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Triggers pour updated_at
+CREATE TRIGGER update_sites_updated_at BEFORE UPDATE ON sites
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_lieux_updated_at BEFORE UPDATE ON lieux
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_emplacements_updated_at BEFORE UPDATE ON emplacements
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -601,10 +601,15 @@ def gestion_fournisseurs():
 
 @app.route('/gestion-emplacements')
 def gestion_emplacements():
-    """Page Gestion des emplacements"""
-    emplacements = api_client.get('/emplacements/') or []
+    """Page Gestion de la hiérarchie Site > Lieu > Emplacement"""
+    sites = api_client.get('/sites/') or []
+    lieux = api_client.get('/lieux/') or []
+    emplacements = api_client.get('/emplacements-hierarchy/') or []
     
-    return render_template('gestion_emplacements.html', emplacements=emplacements)
+    return render_template('gestion_emplacements.html', 
+                         sites=sites, 
+                         lieux=lieux, 
+                         emplacements=emplacements)
 
 # =====================================================
 # ROUTES UTILITAIRES (COMPATIBILITÉ)
@@ -853,6 +858,287 @@ def get_fournisseur_by_id(fournisseur_id):
             return jsonify({'success': True, 'fournisseur': result})
         else:
             return jsonify({'success': False, 'message': 'Fournisseur non trouvé'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+# =====================================================
+# ROUTES API POUR LA HIÉRARCHIE SITE > LIEU > EMPLACEMENT
+# =====================================================
+
+# SITES
+@app.route('/api/sites', methods=['POST'])
+def creer_site():
+    """Créer un nouveau site"""
+    try:
+        data = request.get_json()
+        
+        # Générer un code site automatique
+        import random
+        import string
+        from datetime import datetime
+        code_site = f"SITE{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        site_data = {
+            'code_site': code_site,
+            'nom_site': data.get('nom_site', ''),
+            'adresse': data.get('adresse', ''),
+            'ville': data.get('ville', ''),
+            'code_postal': data.get('code_postal', ''),
+            'pays': data.get('pays', 'France'),
+            'responsable': data.get('responsable', ''),
+            'telephone': data.get('telephone', ''),
+            'email': data.get('email', ''),
+            'statut': data.get('statut', 'Actif')
+        }
+        
+        result = api_client.post('/sites/', site_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Site créé avec succès', 'site': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la création du site'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/sites/<int:site_id>', methods=['PUT'])
+def modifier_site(site_id):
+    """Modifier un site existant"""
+    try:
+        data = request.get_json()
+        
+        site_data = {}
+        if data.get('nom_site'):
+            site_data['nom_site'] = data.get('nom_site')
+        if data.get('adresse') is not None:
+            site_data['adresse'] = data.get('adresse')
+        if data.get('ville') is not None:
+            site_data['ville'] = data.get('ville')
+        if data.get('code_postal') is not None:
+            site_data['code_postal'] = data.get('code_postal')
+        if data.get('pays') is not None:
+            site_data['pays'] = data.get('pays')
+        if data.get('responsable') is not None:
+            site_data['responsable'] = data.get('responsable')
+        if data.get('telephone') is not None:
+            site_data['telephone'] = data.get('telephone')
+        if data.get('email') is not None:
+            site_data['email'] = data.get('email')
+        if data.get('statut') is not None:
+            site_data['statut'] = data.get('statut')
+        
+        result = api_client.put(f'/sites/{site_id}', site_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Site modifié avec succès', 'site': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la modification du site'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/sites/<int:site_id>', methods=['DELETE'])
+def supprimer_site(site_id):
+    """Supprimer un site"""
+    try:
+        result = api_client.delete(f'/sites/{site_id}')
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Site supprimé avec succès'})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la suppression du site'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+# LIEUX
+@app.route('/api/lieux', methods=['POST'])
+def creer_lieu():
+    """Créer un nouveau lieu"""
+    try:
+        data = request.get_json()
+        
+        # Générer un code lieu automatique
+        from datetime import datetime
+        code_lieu = f"LIEU{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        lieu_data = {
+            'code_lieu': code_lieu,
+            'nom_lieu': data.get('nom_lieu', ''),
+            'site_id': int(data.get('site_id')),
+            'type_lieu': data.get('type_lieu', ''),
+            'niveau': data.get('niveau', ''),
+            'surface': float(data.get('surface', 0)) if data.get('surface') else None,
+            'responsable': data.get('responsable', ''),
+            'statut': data.get('statut', 'Actif')
+        }
+        
+        result = api_client.post('/lieux/', lieu_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Lieu créé avec succès', 'lieu': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la création du lieu'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/lieux/<int:lieu_id>', methods=['PUT'])
+def modifier_lieu(lieu_id):
+    """Modifier un lieu existant"""
+    try:
+        data = request.get_json()
+        
+        lieu_data = {}
+        if data.get('nom_lieu'):
+            lieu_data['nom_lieu'] = data.get('nom_lieu')
+        if data.get('site_id') is not None:
+            lieu_data['site_id'] = int(data.get('site_id'))
+        if data.get('type_lieu') is not None:
+            lieu_data['type_lieu'] = data.get('type_lieu')
+        if data.get('niveau') is not None:
+            lieu_data['niveau'] = data.get('niveau')
+        if data.get('surface') is not None:
+            lieu_data['surface'] = float(data.get('surface')) if data.get('surface') else None
+        if data.get('responsable') is not None:
+            lieu_data['responsable'] = data.get('responsable')
+        if data.get('statut') is not None:
+            lieu_data['statut'] = data.get('statut')
+        
+        result = api_client.put(f'/lieux/{lieu_id}', lieu_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Lieu modifié avec succès', 'lieu': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la modification du lieu'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/lieux/<int:lieu_id>', methods=['DELETE'])
+def supprimer_lieu(lieu_id):
+    """Supprimer un lieu"""
+    try:
+        result = api_client.delete(f'/lieux/{lieu_id}')
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Lieu supprimé avec succès'})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la suppression du lieu'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/lieux/site/<int:site_id>')
+def get_lieux_by_site(site_id):
+    """Récupérer les lieux d'un site"""
+    try:
+        result = api_client.get(f'/lieux/site/{site_id}')
+        
+        if result is not None:
+            return jsonify({'success': True, 'lieux': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la récupération des lieux'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+# EMPLACEMENTS
+@app.route('/api/emplacements', methods=['POST'])
+def creer_emplacement():
+    """Créer un nouvel emplacement"""
+    try:
+        data = request.get_json()
+        
+        emplacement_data = {
+            'nom_emplacement': data.get('nom_emplacement', ''),
+            'lieu_id': int(data.get('lieu_id')),
+            'type_emplacement': data.get('type_emplacement', ''),
+            'position': data.get('position', ''),
+            'capacite_max': int(data.get('capacite_max', 100)),
+            'temperature_min': float(data.get('temperature_min')) if data.get('temperature_min') else None,
+            'temperature_max': float(data.get('temperature_max')) if data.get('temperature_max') else None,
+            'humidite_max': float(data.get('humidite_max')) if data.get('humidite_max') else None,
+            'conditions_speciales': data.get('conditions_speciales', ''),
+            'responsable': data.get('responsable', ''),
+            'statut': data.get('statut', 'Actif')
+        }
+        
+        result = api_client.post('/emplacements/', emplacement_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Emplacement créé avec succès', 'emplacement': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la création de l\'emplacement'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/emplacements/<int:emplacement_id>', methods=['PUT'])
+def modifier_emplacement(emplacement_id):
+    """Modifier un emplacement existant"""
+    try:
+        data = request.get_json()
+        
+        emplacement_data = {}
+        if data.get('nom_emplacement'):
+            emplacement_data['nom_emplacement'] = data.get('nom_emplacement')
+        if data.get('lieu_id') is not None:
+            emplacement_data['lieu_id'] = int(data.get('lieu_id'))
+        if data.get('type_emplacement') is not None:
+            emplacement_data['type_emplacement'] = data.get('type_emplacement')
+        if data.get('position') is not None:
+            emplacement_data['position'] = data.get('position')
+        if data.get('capacite_max') is not None:
+            emplacement_data['capacite_max'] = int(data.get('capacite_max'))
+        if data.get('temperature_min') is not None:
+            emplacement_data['temperature_min'] = float(data.get('temperature_min')) if data.get('temperature_min') else None
+        if data.get('temperature_max') is not None:
+            emplacement_data['temperature_max'] = float(data.get('temperature_max')) if data.get('temperature_max') else None
+        if data.get('humidite_max') is not None:
+            emplacement_data['humidite_max'] = float(data.get('humidite_max')) if data.get('humidite_max') else None
+        if data.get('conditions_speciales') is not None:
+            emplacement_data['conditions_speciales'] = data.get('conditions_speciales')
+        if data.get('responsable') is not None:
+            emplacement_data['responsable'] = data.get('responsable')
+        if data.get('statut') is not None:
+            emplacement_data['statut'] = data.get('statut')
+        
+        result = api_client.put(f'/emplacements/{emplacement_id}', emplacement_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Emplacement modifié avec succès', 'emplacement': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la modification de l\'emplacement'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/emplacements/<int:emplacement_id>', methods=['DELETE'])
+def supprimer_emplacement(emplacement_id):
+    """Supprimer un emplacement"""
+    try:
+        result = api_client.delete(f'/emplacements/{emplacement_id}')
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Emplacement supprimé avec succès'})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la suppression de l\'emplacement'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/emplacements/lieu/<int:lieu_id>')
+def get_emplacements_by_lieu(lieu_id):
+    """Récupérer les emplacements d'un lieu"""
+    try:
+        result = api_client.get(f'/emplacements/lieu/{lieu_id}')
+        
+        if result is not None:
+            return jsonify({'success': True, 'emplacements': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la récupération des emplacements'})
             
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})

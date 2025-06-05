@@ -122,24 +122,121 @@ def delete_fournisseur(db: Session, fournisseur_id: int):
     return db_fournisseur
 
 # =====================================================
-# CRUD POUR EMPLACEMENTS
+# CRUD POUR LA HIÉRARCHIE SITE > LIEU > EMPLACEMENT
 # =====================================================
 
+# SITES
+def get_sites(db: Session, skip: int = 0, limit: int = 100):
+    """Récupérer tous les sites"""
+    return db.query(models.Site).offset(skip).limit(limit).all()
+
+def get_site_by_id(db: Session, site_id: int):
+    """Récupérer un site par son ID"""
+    return db.query(models.Site).filter(models.Site.id == site_id).first()
+
+def get_site_by_code(db: Session, code_site: str):
+    """Récupérer un site par son code"""
+    return db.query(models.Site).filter(models.Site.code_site == code_site).first()
+
+def create_site(db: Session, site: schemas.SiteCreate):
+    """Créer un nouveau site"""
+    db_site = models.Site(**site.model_dump())
+    db.add(db_site)
+    db.commit()
+    db.refresh(db_site)
+    return db_site
+
+def update_site(db: Session, site_id: int, site: schemas.SiteUpdate):
+    """Mettre à jour un site"""
+    db_site = db.query(models.Site).filter(models.Site.id == site_id).first()
+    if db_site:
+        update_data = site.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_site, field, value)
+        db.commit()
+        db.refresh(db_site)
+    return db_site
+
+def delete_site(db: Session, site_id: int):
+    """Supprimer un site"""
+    db_site = db.query(models.Site).filter(models.Site.id == site_id).first()
+    if db_site:
+        db.delete(db_site)
+        db.commit()
+    return db_site
+
+# LIEUX
+def get_lieux(db: Session, skip: int = 0, limit: int = 100):
+    """Récupérer tous les lieux"""
+    return db.query(models.Lieu).offset(skip).limit(limit).all()
+
+def get_lieux_by_site(db: Session, site_id: int):
+    """Récupérer tous les lieux d'un site"""
+    return db.query(models.Lieu).filter(models.Lieu.site_id == site_id).all()
+
+def get_lieu_by_id(db: Session, lieu_id: int):
+    """Récupérer un lieu par son ID"""
+    return db.query(models.Lieu).filter(models.Lieu.id == lieu_id).first()
+
+def get_lieu_by_code(db: Session, code_lieu: str):
+    """Récupérer un lieu par son code"""
+    return db.query(models.Lieu).filter(models.Lieu.code_lieu == code_lieu).first()
+
+def create_lieu(db: Session, lieu: schemas.LieuCreate):
+    """Créer un nouveau lieu"""
+    db_lieu = models.Lieu(**lieu.model_dump())
+    db.add(db_lieu)
+    db.commit()
+    db.refresh(db_lieu)
+    return db_lieu
+
+def update_lieu(db: Session, lieu_id: int, lieu: schemas.LieuUpdate):
+    """Mettre à jour un lieu"""
+    db_lieu = db.query(models.Lieu).filter(models.Lieu.id == lieu_id).first()
+    if db_lieu:
+        update_data = lieu.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_lieu, field, value)
+        db.commit()
+        db.refresh(db_lieu)
+    return db_lieu
+
+def delete_lieu(db: Session, lieu_id: int):
+    """Supprimer un lieu"""
+    db_lieu = db.query(models.Lieu).filter(models.Lieu.id == lieu_id).first()
+    if db_lieu:
+        db.delete(db_lieu)
+        db.commit()
+    return db_lieu
+
+# EMPLACEMENTS
 def get_emplacements(db: Session, skip: int = 0, limit: int = 100):
     """Récupérer tous les emplacements"""
     return db.query(models.Emplacement).offset(skip).limit(limit).all()
+
+def get_emplacements_by_lieu(db: Session, lieu_id: int):
+    """Récupérer tous les emplacements d'un lieu"""
+    return db.query(models.Emplacement).filter(models.Emplacement.lieu_id == lieu_id).all()
 
 def get_emplacement_by_id(db: Session, emplacement_id: int):
     """Récupérer un emplacement par son ID"""
     return db.query(models.Emplacement).filter(models.Emplacement.id == emplacement_id).first()
 
-def get_emplacement_by_id_emplacement(db: Session, id_emplacement: str):
-    """Récupérer un emplacement par son ID emplacement"""
-    return db.query(models.Emplacement).filter(models.Emplacement.id_emplacement == id_emplacement).first()
+def get_emplacement_by_code(db: Session, code_emplacement: str):
+    """Récupérer un emplacement par son code"""
+    return db.query(models.Emplacement).filter(models.Emplacement.code_emplacement == code_emplacement).first()
 
 def create_emplacement(db: Session, emplacement: schemas.EmplacementCreate):
     """Créer un nouveau emplacement"""
-    db_emplacement = models.Emplacement(**emplacement.model_dump())
+    # Générer un code emplacement automatique
+    from datetime import datetime
+    code_emplacement = f"EMP{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    # Créer le dictionnaire avec le code généré
+    emplacement_data = emplacement.model_dump()
+    emplacement_data['code_emplacement'] = code_emplacement
+    
+    db_emplacement = models.Emplacement(**emplacement_data)
     db.add(db_emplacement)
     db.commit()
     db.refresh(db_emplacement)
@@ -163,6 +260,42 @@ def delete_emplacement(db: Session, emplacement_id: int):
         db.delete(db_emplacement)
         db.commit()
     return db_emplacement
+
+# FONCTIONS UTILITAIRES POUR LA HIÉRARCHIE
+def get_emplacements_with_hierarchy(db: Session, skip: int = 0, limit: int = 100):
+    """Récupérer tous les emplacements avec leur hiérarchie complète"""
+    return db.query(
+        models.Emplacement,
+        models.Lieu.nom_lieu,
+        models.Site.nom_site
+    ).join(
+        models.Lieu, models.Emplacement.lieu_id == models.Lieu.id
+    ).join(
+        models.Site, models.Lieu.site_id == models.Site.id
+    ).offset(skip).limit(limit).all()
+
+def get_lieux_with_site(db: Session, skip: int = 0, limit: int = 100):
+    """Récupérer tous les lieux avec leur site"""
+    return db.query(
+        models.Lieu,
+        models.Site.nom_site
+    ).join(
+        models.Site, models.Lieu.site_id == models.Site.id
+    ).offset(skip).limit(limit).all()
+
+def get_sites_with_stats(db: Session):
+    """Récupérer tous les sites avec leurs statistiques"""
+    from sqlalchemy import func
+    
+    return db.query(
+        models.Site,
+        func.count(models.Lieu.id).label('nb_lieux'),
+        func.count(models.Emplacement.id).label('nb_emplacements')
+    ).outerjoin(
+        models.Lieu, models.Site.id == models.Lieu.site_id
+    ).outerjoin(
+        models.Emplacement, models.Lieu.id == models.Emplacement.lieu_id
+    ).group_by(models.Site.id).all()
 
 # =====================================================
 # CRUD POUR DEMANDES

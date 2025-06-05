@@ -89,29 +89,114 @@ class FournisseurResponse(FournisseurBase):
     updated_at: datetime
 
 # =====================================================
-# SCHÉMAS POUR EMPLACEMENTS
+# SCHÉMAS POUR LA HIÉRARCHIE SITE > LIEU > EMPLACEMENT
 # =====================================================
 
-class EmplacementBase(BaseModel):
-    id_emplacement: str
-    nom_emplacement: str
-    type_zone: Optional[str] = None
-    batiment: Optional[str] = None
-    niveau: Optional[str] = None
+# SITES
+class SiteBase(BaseModel):
+    code_site: str
+    nom_site: str
+    adresse: Optional[str] = None
+    ville: Optional[str] = None
+    code_postal: Optional[str] = None
+    pays: str = 'France'
     responsable: Optional[str] = None
-    capacite_max: int = 100
+    telephone: Optional[str] = None
+    email: Optional[str] = None
     statut: str = 'Actif'
 
-class EmplacementCreate(EmplacementBase):
+class SiteCreate(SiteBase):
     pass
+
+class SiteUpdate(BaseModel):
+    nom_site: Optional[str] = None
+    adresse: Optional[str] = None
+    ville: Optional[str] = None
+    code_postal: Optional[str] = None
+    pays: Optional[str] = None
+    responsable: Optional[str] = None
+    telephone: Optional[str] = None
+    email: Optional[str] = None
+    statut: Optional[str] = None
+
+class SiteResponse(SiteBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    date_creation: date
+    created_at: datetime
+    updated_at: datetime
+
+# LIEUX
+class LieuBase(BaseModel):
+    code_lieu: str
+    nom_lieu: str
+    site_id: int
+    type_lieu: Optional[str] = None
+    niveau: Optional[str] = None
+    surface: Optional[Decimal] = None
+    responsable: Optional[str] = None
+    statut: str = 'Actif'
+
+class LieuCreate(LieuBase):
+    pass
+
+class LieuUpdate(BaseModel):
+    nom_lieu: Optional[str] = None
+    site_id: Optional[int] = None
+    type_lieu: Optional[str] = None
+    niveau: Optional[str] = None
+    surface: Optional[Decimal] = None
+    responsable: Optional[str] = None
+    statut: Optional[str] = None
+
+class LieuResponse(LieuBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    date_creation: date
+    created_at: datetime
+    updated_at: datetime
+
+# EMPLACEMENTS
+class EmplacementBase(BaseModel):
+    code_emplacement: str
+    nom_emplacement: str
+    lieu_id: int
+    type_emplacement: Optional[str] = None
+    position: Optional[str] = None
+    capacite_max: int = 100
+    temperature_min: Optional[Decimal] = None
+    temperature_max: Optional[Decimal] = None
+    humidite_max: Optional[Decimal] = None
+    conditions_speciales: Optional[str] = None
+    responsable: Optional[str] = None
+    statut: str = 'Actif'
+
+class EmplacementCreate(BaseModel):
+    nom_emplacement: str
+    lieu_id: int
+    type_emplacement: Optional[str] = None
+    position: Optional[str] = None
+    capacite_max: int = 100
+    temperature_min: Optional[Decimal] = None
+    temperature_max: Optional[Decimal] = None
+    humidite_max: Optional[Decimal] = None
+    conditions_speciales: Optional[str] = None
+    responsable: Optional[str] = None
+    statut: str = 'Actif'
 
 class EmplacementUpdate(BaseModel):
     nom_emplacement: Optional[str] = None
-    type_zone: Optional[str] = None
-    batiment: Optional[str] = None
-    niveau: Optional[str] = None
-    responsable: Optional[str] = None
+    lieu_id: Optional[int] = None
+    type_emplacement: Optional[str] = None
+    position: Optional[str] = None
     capacite_max: Optional[int] = None
+    temperature_min: Optional[Decimal] = None
+    temperature_max: Optional[Decimal] = None
+    humidite_max: Optional[Decimal] = None
+    conditions_speciales: Optional[str] = None
+    responsable: Optional[str] = None
     statut: Optional[str] = None
 
 class EmplacementResponse(EmplacementBase):
@@ -119,10 +204,24 @@ class EmplacementResponse(EmplacementBase):
     
     id: int
     date_creation: date
-    nb_produits: int
-    taux_occupation: Decimal
+    nb_produits: int = 0
+    taux_occupation: Decimal = Decimal('0.00')
     created_at: datetime
     updated_at: datetime
+
+# SCHÉMAS AVEC RELATIONS POUR L'AFFICHAGE HIÉRARCHIQUE
+class EmplacementWithHierarchy(EmplacementResponse):
+    lieu_nom: Optional[str] = None
+    site_nom: Optional[str] = None
+    chemin_complet: Optional[str] = None  # Site > Lieu > Emplacement
+
+class LieuWithSite(LieuResponse):
+    site_nom: Optional[str] = None
+    nb_emplacements: Optional[int] = None
+
+class SiteWithStats(SiteResponse):
+    nb_lieux: Optional[int] = None
+    nb_emplacements: Optional[int] = None
 
 # =====================================================
 # SCHÉMAS POUR DEMANDES

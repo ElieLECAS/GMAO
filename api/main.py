@@ -173,22 +173,122 @@ def delete_fournisseur(fournisseur_id: int, db: Session = Depends(get_db)):
     return {"message": "Fournisseur supprimé avec succès"}
 
 # =====================================================
-# ROUTES POUR LES EMPLACEMENTS
+# ROUTES POUR LA HIÉRARCHIE SITE > LIEU > EMPLACEMENT
 # =====================================================
 
+# SITES
+@app.get("/sites/", response_model=List[schemas.SiteResponse])
+def read_sites(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupérer tous les sites"""
+    sites = crud.get_sites(db, skip=skip, limit=limit)
+    return sites
+
+@app.post("/sites/", response_model=schemas.SiteResponse)
+def create_site(site: schemas.SiteCreate, db: Session = Depends(get_db)):
+    """Créer un nouveau site"""
+    # Vérifier si le code site existe déjà
+    db_site = crud.get_site_by_code(db, code_site=site.code_site)
+    if db_site:
+        raise HTTPException(status_code=400, detail="Un site avec ce code existe déjà")
+    
+    return crud.create_site(db=db, site=site)
+
+@app.get("/sites/{site_id}", response_model=schemas.SiteResponse)
+def read_site(site_id: int, db: Session = Depends(get_db)):
+    """Récupérer un site par son ID"""
+    db_site = crud.get_site_by_id(db, site_id=site_id)
+    if db_site is None:
+        raise HTTPException(status_code=404, detail="Site non trouvé")
+    return db_site
+
+@app.put("/sites/{site_id}", response_model=schemas.SiteResponse)
+def update_site(site_id: int, site: schemas.SiteUpdate, db: Session = Depends(get_db)):
+    """Mettre à jour un site"""
+    db_site = crud.update_site(db, site_id=site_id, site=site)
+    if db_site is None:
+        raise HTTPException(status_code=404, detail="Site non trouvé")
+    return db_site
+
+@app.delete("/sites/{site_id}")
+def delete_site(site_id: int, db: Session = Depends(get_db)):
+    """Supprimer un site"""
+    db_site = crud.delete_site(db, site_id=site_id)
+    if db_site is None:
+        raise HTTPException(status_code=404, detail="Site non trouvé")
+    return {"message": "Site supprimé avec succès"}
+
+# LIEUX
+@app.get("/lieux/", response_model=List[schemas.LieuResponse])
+def read_lieux(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupérer tous les lieux"""
+    lieux = crud.get_lieux(db, skip=skip, limit=limit)
+    return lieux
+
+@app.get("/lieux/site/{site_id}", response_model=List[schemas.LieuResponse])
+def read_lieux_by_site(site_id: int, db: Session = Depends(get_db)):
+    """Récupérer tous les lieux d'un site"""
+    lieux = crud.get_lieux_by_site(db, site_id=site_id)
+    return lieux
+
+@app.post("/lieux/", response_model=schemas.LieuResponse)
+def create_lieu(lieu: schemas.LieuCreate, db: Session = Depends(get_db)):
+    """Créer un nouveau lieu"""
+    # Vérifier si le code lieu existe déjà
+    db_lieu = crud.get_lieu_by_code(db, code_lieu=lieu.code_lieu)
+    if db_lieu:
+        raise HTTPException(status_code=400, detail="Un lieu avec ce code existe déjà")
+    
+    # Vérifier que le site existe
+    db_site = crud.get_site_by_id(db, site_id=lieu.site_id)
+    if db_site is None:
+        raise HTTPException(status_code=404, detail="Site non trouvé")
+    
+    return crud.create_lieu(db=db, lieu=lieu)
+
+@app.get("/lieux/{lieu_id}", response_model=schemas.LieuResponse)
+def read_lieu(lieu_id: int, db: Session = Depends(get_db)):
+    """Récupérer un lieu par son ID"""
+    db_lieu = crud.get_lieu_by_id(db, lieu_id=lieu_id)
+    if db_lieu is None:
+        raise HTTPException(status_code=404, detail="Lieu non trouvé")
+    return db_lieu
+
+@app.put("/lieux/{lieu_id}", response_model=schemas.LieuResponse)
+def update_lieu(lieu_id: int, lieu: schemas.LieuUpdate, db: Session = Depends(get_db)):
+    """Mettre à jour un lieu"""
+    db_lieu = crud.update_lieu(db, lieu_id=lieu_id, lieu=lieu)
+    if db_lieu is None:
+        raise HTTPException(status_code=404, detail="Lieu non trouvé")
+    return db_lieu
+
+@app.delete("/lieux/{lieu_id}")
+def delete_lieu(lieu_id: int, db: Session = Depends(get_db)):
+    """Supprimer un lieu"""
+    db_lieu = crud.delete_lieu(db, lieu_id=lieu_id)
+    if db_lieu is None:
+        raise HTTPException(status_code=404, detail="Lieu non trouvé")
+    return {"message": "Lieu supprimé avec succès"}
+
+# EMPLACEMENTS
 @app.get("/emplacements/", response_model=List[schemas.EmplacementResponse])
 def read_emplacements(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """Récupérer tous les emplacements"""
     emplacements = crud.get_emplacements(db, skip=skip, limit=limit)
     return emplacements
 
+@app.get("/emplacements/lieu/{lieu_id}", response_model=List[schemas.EmplacementResponse])
+def read_emplacements_by_lieu(lieu_id: int, db: Session = Depends(get_db)):
+    """Récupérer tous les emplacements d'un lieu"""
+    emplacements = crud.get_emplacements_by_lieu(db, lieu_id=lieu_id)
+    return emplacements
+
 @app.post("/emplacements/", response_model=schemas.EmplacementResponse)
 def create_emplacement(emplacement: schemas.EmplacementCreate, db: Session = Depends(get_db)):
     """Créer un nouvel emplacement"""
-    # Vérifier si l'ID emplacement existe déjà
-    db_emplacement = crud.get_emplacement_by_id_emplacement(db, id_emplacement=emplacement.id_emplacement)
-    if db_emplacement:
-        raise HTTPException(status_code=400, detail="Un emplacement avec cet ID existe déjà")
+    # Vérifier que le lieu existe
+    db_lieu = crud.get_lieu_by_id(db, lieu_id=emplacement.lieu_id)
+    if db_lieu is None:
+        raise HTTPException(status_code=404, detail="Lieu non trouvé")
     
     return crud.create_emplacement(db=db, emplacement=emplacement)
 
@@ -215,6 +315,24 @@ def delete_emplacement(emplacement_id: int, db: Session = Depends(get_db)):
     if db_emplacement is None:
         raise HTTPException(status_code=404, detail="Emplacement non trouvé")
     return {"message": "Emplacement supprimé avec succès"}
+
+# ROUTES AVEC HIÉRARCHIE COMPLÈTE
+@app.get("/emplacements-hierarchy/", response_model=List[schemas.EmplacementWithHierarchy])
+def read_emplacements_with_hierarchy(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupérer tous les emplacements avec leur hiérarchie complète"""
+    results = crud.get_emplacements_with_hierarchy(db, skip=skip, limit=limit)
+    
+    emplacements_with_hierarchy = []
+    for emplacement, lieu_nom, site_nom in results:
+        emplacement_dict = {
+            **emplacement.__dict__,
+            "lieu_nom": lieu_nom,
+            "site_nom": site_nom,
+            "chemin_complet": f"{site_nom} > {lieu_nom} > {emplacement.nom_emplacement}"
+        }
+        emplacements_with_hierarchy.append(emplacement_dict)
+    
+    return emplacements_with_hierarchy
 
 # =====================================================
 # ROUTES POUR LES DEMANDES
@@ -430,7 +548,10 @@ def read_root():
         "endpoints": {
             "inventaire": "/inventaire/",
             "fournisseurs": "/fournisseurs/",
+            "sites": "/sites/",
+            "lieux": "/lieux/",
             "emplacements": "/emplacements/",
+            "emplacements_hierarchy": "/emplacements-hierarchy/",
             "demandes": "/demandes/",
             "historique": "/historique/",
             "tables_atelier": "/tables-atelier/",
