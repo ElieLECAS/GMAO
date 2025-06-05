@@ -14,13 +14,22 @@ block content %}
                         Gérer les produits, fournisseurs et emplacements
                     </p>
                 </div>
-                <button
-                    class="btn btn-primary"
-                    data-bs-toggle="modal"
-                    data-bs-target="#nouveauProduitModal"
-                >
-                    <i class="bi bi-plus-circle"></i> Nouveau Produit
-                </button>
+                <div class="btn-group">
+                    <button
+                        class="btn btn-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#nouveauProduitModal"
+                    >
+                        <i class="bi bi-plus-circle"></i> Nouveau Produit
+                    </button>
+                    <button
+                        class="btn btn-success"
+                        data-bs-toggle="modal"
+                        data-bs-target="#importProduitModal"
+                    >
+                        <i class="bi bi-file-earmark-excel"></i> Importer Excel
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -389,40 +398,46 @@ block content %}
                         <!-- Sixième ligne : Site et Lieu -->
                         <div class="col-md-6">
                             <label class="form-label">Site</label>
-                            <select class="form-select" name="site">
+                            <select
+                                class="form-select"
+                                name="site"
+                                id="siteSelect"
+                            >
                                 <option value="">Sélectionner un site</option>
-                                <option value="PROFERM">PROFERM</option>
-                                <option value="AUTRE">AUTRE</option>
+                                {% for site in sites %}
+                                <option
+                                    value="{{ site.nom_site }}"
+                                    data-site-id="{{ site.id }}"
+                                >
+                                    {{ site.nom_site }}
+                                </option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Lieu</label>
-                            <select class="form-select" name="lieu">
-                                <option value="">Sélectionner un lieu</option>
-                                <option value="MS3.0">MS3.0</option>
-                                <option value="MS1.0">MS1.0</option>
-                                <option value="AUTRE">AUTRE</option>
+                            <select
+                                class="form-select"
+                                name="lieu"
+                                id="lieuSelect"
+                            >
+                                <option value="">
+                                    Sélectionner d'abord un site
+                                </option>
                             </select>
                         </div>
 
                         <!-- Septième ligne : Emplacement et Fournisseur -->
                         <div class="col-md-6">
                             <label class="form-label">Emplacement</label>
-                            <select class="form-select" name="emplacement">
+                            <select
+                                class="form-select"
+                                name="emplacement"
+                                id="emplacementSelect"
+                            >
                                 <option value="">
-                                    Sélectionner un emplacement
+                                    Sélectionner d'abord un lieu
                                 </option>
-                                <option value="E1">E1</option>
-                                <option value="E2">E2</option>
-                                <option value="E3">E3</option>
-                                <option value="F21">F21</option>
-                                <option value="G35">G35</option>
-                                <option value="A11">A11</option>
-                                {% for emplacement in emplacements %}
-                                <option value="{{ emplacement.nom }}">
-                                    {{ emplacement.nom }}
-                                </option>
-                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -660,8 +675,14 @@ block content %}
                                 id="modifSite"
                             >
                                 <option value="">Sélectionner un site</option>
-                                <option value="PROFERM">PROFERM</option>
-                                <option value="AUTRE">AUTRE</option>
+                                {% for site in sites %}
+                                <option
+                                    value="{{ site.nom_site }}"
+                                    data-site-id="{{ site.id }}"
+                                >
+                                    {{ site.nom_site }}
+                                </option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -671,10 +692,9 @@ block content %}
                                 name="lieu"
                                 id="modifLieu"
                             >
-                                <option value="">Sélectionner un lieu</option>
-                                <option value="MS3.0">MS3.0</option>
-                                <option value="MS1.0">MS1.0</option>
-                                <option value="AUTRE">AUTRE</option>
+                                <option value="">
+                                    Sélectionner d'abord un site
+                                </option>
                             </select>
                         </div>
 
@@ -687,19 +707,8 @@ block content %}
                                 id="modifEmplacement"
                             >
                                 <option value="">
-                                    Sélectionner un emplacement
+                                    Sélectionner d'abord un lieu
                                 </option>
-                                <option value="E1">E1</option>
-                                <option value="E2">E2</option>
-                                <option value="E3">E3</option>
-                                <option value="F21">F21</option>
-                                <option value="G35">G35</option>
-                                <option value="A11">A11</option>
-                                {% for emplacement in emplacements %}
-                                <option value="{{ emplacement.nom }}">
-                                    {{ emplacement.nom }}
-                                </option>
-                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -786,6 +795,140 @@ block content %}
     </div>
 </div>
 
+<!-- Modal Import Produits -->
+<div class="modal fade" id="importProduitModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-file-earmark-excel text-success"></i>
+                    Importer des produits depuis Excel
+                </h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <!-- Instructions -->
+                <div class="alert alert-info">
+                    <h6>
+                        <i class="bi bi-info-circle"></i> Format du fichier
+                        Excel
+                    </h6>
+                    <p class="mb-2">
+                        Votre fichier Excel doit contenir les colonnes suivantes
+                        :
+                    </p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Colonnes obligatoires :</strong>
+                            <ul class="mb-0">
+                                <li><code>Désignation</code> (requis)</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Colonnes optionnelles :</strong>
+                            <ul class="mb-0">
+                                <li><code>Référence fournisseur</code></li>
+                                <li><code>Unité de stockage</code></li>
+                                <li><code>Unité Commande</code></li>
+                                <li><code>Min</code> (seuil d'alerte)</li>
+                                <li><code>Max</code> (stock maximum)</li>
+                                <li><code>Prix</code></li>
+                                <li><code>Catégorie</code></li>
+                                <li><code>Secteur</code></li>
+                                <li><code>Quantité</code></li>
+                                <li><code>Site</code></li>
+                                <li><code>Lieu</code></li>
+                                <li><code>Emplacement</code></li>
+                                <li><code>Fournisseur Standard</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fonctionnalités automatiques -->
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-magic"></i> Création automatique</h6>
+                    <p class="mb-0">
+                        Si un <strong>fournisseur</strong>,
+                        <strong>site</strong>, <strong>lieu</strong> ou
+                        <strong>emplacement</strong>
+                        n'existe pas dans la base de données, il sera
+                        automatiquement créé lors de l'importation.
+                    </p>
+                </div>
+
+                <!-- Sélection de fichier -->
+                <form id="importForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="excelFile" class="form-label">
+                            <i class="bi bi-file-earmark-excel"></i>
+                            Sélectionner le fichier Excel
+                        </label>
+                        <input
+                            type="file"
+                            class="form-control"
+                            id="excelFile"
+                            name="file"
+                            accept=".xlsx,.xls"
+                            required
+                        />
+                        <div class="form-text">
+                            Formats acceptés : .xlsx, .xls (maximum 10 MB)
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Zone de progression -->
+                <div id="importProgress" style="display: none">
+                    <div class="d-flex align-items-center">
+                        <div
+                            class="spinner-border spinner-border-sm text-success me-2"
+                            role="status"
+                        >
+                            <span class="visually-hidden"
+                                >Importation en cours...</span
+                            >
+                        </div>
+                        <span>Importation en cours, veuillez patienter...</span>
+                    </div>
+                </div>
+
+                <!-- Zone de résultats -->
+                <div id="importResults" style="display: none">
+                    <div class="alert" id="importAlert">
+                        <h6 id="importTitle"></h6>
+                        <pre
+                            id="importMessage"
+                            style="white-space: pre-wrap; font-family: inherit"
+                        ></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Fermer
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="startImportBtn"
+                    onclick="startImport()"
+                >
+                    <i class="bi bi-upload"></i> Démarrer l'importation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         // Recherche et filtres
@@ -839,6 +982,126 @@ block content %}
         fournisseurFilter.addEventListener("change", filterTable);
         emplacementFilter.addEventListener("change", filterTable);
         statutFilter.addEventListener("change", filterTable);
+
+        // Gestion des listes déroulantes en cascade (Site → Lieu → Emplacement)
+        const siteSelect = document.getElementById("siteSelect");
+        const lieuSelect = document.getElementById("lieuSelect");
+        const emplacementSelect = document.getElementById("emplacementSelect");
+
+        // Données des lieux et emplacements depuis le serveur
+        const lieuxData = {{ lieux | tojson }};
+        const emplacementsData = {{ emplacements | tojson }};
+
+        // Gestion du changement de site
+        siteSelect.addEventListener("change", function() {
+            const siteId = this.selectedOptions[0]?.dataset.siteId;
+
+            // Réinitialiser les listes dépendantes
+            lieuSelect.innerHTML = '<option value="">Sélectionner un lieu</option>';
+            emplacementSelect.innerHTML = '<option value="">Sélectionner d\'abord un lieu</option>';
+
+            if (siteId) {
+                // Filtrer les lieux pour ce site
+                const lieuxDuSite = lieuxData.filter(lieu => lieu.site_id == siteId);
+
+                lieuxDuSite.forEach(lieu => {
+                    const option = document.createElement("option");
+                    option.value = lieu.nom_lieu;
+                    option.dataset.lieuId = lieu.id;
+                    option.textContent = lieu.nom_lieu;
+                    lieuSelect.appendChild(option);
+                });
+
+                lieuSelect.disabled = false;
+            } else {
+                lieuSelect.disabled = true;
+                emplacementSelect.disabled = true;
+            }
+        });
+
+        // Gestion du changement de lieu
+        lieuSelect.addEventListener("change", function() {
+            const lieuId = this.selectedOptions[0]?.dataset.lieuId;
+
+            // Réinitialiser la liste des emplacements
+            emplacementSelect.innerHTML = '<option value="">Sélectionner un emplacement</option>';
+
+            if (lieuId) {
+                // Filtrer les emplacements pour ce lieu
+                const emplacementsDuLieu = emplacementsData.filter(emp => emp.lieu_id == lieuId);
+
+                emplacementsDuLieu.forEach(emplacement => {
+                    const option = document.createElement("option");
+                    option.value = emplacement.nom_emplacement;
+                    option.textContent = emplacement.nom_emplacement;
+                    emplacementSelect.appendChild(option);
+                });
+
+                emplacementSelect.disabled = false;
+            } else {
+                emplacementSelect.disabled = true;
+            }
+        });
+
+        // Initialiser l'état des listes
+        lieuSelect.disabled = true;
+        emplacementSelect.disabled = true;
+
+        // Gestion des listes déroulantes en cascade pour le modal de modification
+        const modifSiteSelect = document.getElementById("modifSite");
+        const modifLieuSelect = document.getElementById("modifLieu");
+        const modifEmplacementSelect = document.getElementById("modifEmplacement");
+
+        // Gestion du changement de site (modification)
+        modifSiteSelect.addEventListener("change", function() {
+            const siteId = this.selectedOptions[0]?.dataset.siteId;
+
+            // Réinitialiser les listes dépendantes
+            modifLieuSelect.innerHTML = '<option value="">Sélectionner un lieu</option>';
+            modifEmplacementSelect.innerHTML = '<option value="">Sélectionner d\'abord un lieu</option>';
+
+            if (siteId) {
+                // Filtrer les lieux pour ce site
+                const lieuxDuSite = lieuxData.filter(lieu => lieu.site_id == siteId);
+
+                lieuxDuSite.forEach(lieu => {
+                    const option = document.createElement("option");
+                    option.value = lieu.nom_lieu;
+                    option.dataset.lieuId = lieu.id;
+                    option.textContent = lieu.nom_lieu;
+                    modifLieuSelect.appendChild(option);
+                });
+
+                modifLieuSelect.disabled = false;
+            } else {
+                modifLieuSelect.disabled = true;
+                modifEmplacementSelect.disabled = true;
+            }
+        });
+
+        // Gestion du changement de lieu (modification)
+        modifLieuSelect.addEventListener("change", function() {
+            const lieuId = this.selectedOptions[0]?.dataset.lieuId;
+
+            // Réinitialiser la liste des emplacements
+            modifEmplacementSelect.innerHTML = '<option value="">Sélectionner un emplacement</option>';
+
+            if (lieuId) {
+                // Filtrer les emplacements pour ce lieu
+                const emplacementsDuLieu = emplacementsData.filter(emp => emp.lieu_id == lieuId);
+
+                emplacementsDuLieu.forEach(emplacement => {
+                    const option = document.createElement("option");
+                    option.value = emplacement.nom_emplacement;
+                    option.textContent = emplacement.nom_emplacement;
+                    modifEmplacementSelect.appendChild(option);
+                });
+
+                modifEmplacementSelect.disabled = false;
+            } else {
+                modifEmplacementSelect.disabled = true;
+            }
+        });
 
         // Formulaire nouveau produit
         document
@@ -980,12 +1243,64 @@ block content %}
                         produit.stock_max || 100;
                     document.getElementById("modifQuantite").value =
                         produit.quantite || 0;
-                    document.getElementById("modifSite").value =
-                        produit.site || "";
-                    document.getElementById("modifLieu").value =
-                        produit.lieu || "";
-                    document.getElementById("modifEmplacement").value =
-                        produit.emplacement || "";
+                    // Gestion des listes déroulantes en cascade pour la modification
+                    const siteValue = produit.site || "";
+                    const lieuValue = produit.lieu || "";
+                    const emplacementValue = produit.emplacement || "";
+
+                    // Réinitialiser les listes
+                    const modifSiteSelect = document.getElementById("modifSite");
+                    const modifLieuSelect = document.getElementById("modifLieu");
+                    const modifEmplacementSelect = document.getElementById("modifEmplacement");
+
+                    // Sélectionner le site
+                    modifSiteSelect.value = siteValue;
+
+                    // Si un site est sélectionné, charger les lieux
+                    if (siteValue) {
+                        const siteOption = modifSiteSelect.querySelector(`option[value="${siteValue}"]`);
+                        const siteId = siteOption?.dataset.siteId;
+
+                        if (siteId) {
+                            // Charger les lieux pour ce site
+                            modifLieuSelect.innerHTML = '<option value="">Sélectionner un lieu</option>';
+                            const lieuxDuSite = {{ lieux | tojson }}.filter(lieu => lieu.site_id == siteId);
+
+                            lieuxDuSite.forEach(lieu => {
+                                const option = document.createElement("option");
+                                option.value = lieu.nom_lieu;
+                                option.dataset.lieuId = lieu.id;
+                                option.textContent = lieu.nom_lieu;
+                                modifLieuSelect.appendChild(option);
+                            });
+
+                            modifLieuSelect.disabled = false;
+                            modifLieuSelect.value = lieuValue;
+
+                            // Si un lieu est sélectionné, charger les emplacements
+                            if (lieuValue) {
+                                const lieuOption = modifLieuSelect.querySelector(`option[value="${lieuValue}"]`);
+                                const lieuId = lieuOption?.dataset.lieuId;
+
+                                if (lieuId) {
+                                    // Charger les emplacements pour ce lieu
+                                    modifEmplacementSelect.innerHTML = '<option value="">Sélectionner un emplacement</option>';
+                                    const emplacementsDuLieu = {{ emplacements | tojson }}.filter(emp => emp.lieu_id == lieuId);
+
+                                    emplacementsDuLieu.forEach(emplacement => {
+                                        const option = document.createElement("option");
+                                        option.value = emplacement.nom_emplacement;
+                                        option.textContent = emplacement.nom_emplacement;
+                                        modifEmplacementSelect.appendChild(option);
+                                    });
+
+                                    modifEmplacementSelect.disabled = false;
+                                    modifEmplacementSelect.value = emplacementValue;
+                                }
+                            }
+                        }
+                    }
+
                     document.getElementById("modifFournisseur").value =
                         produit.fournisseur || "";
                     document.getElementById("modifPrixUnitaire").value =
@@ -1045,6 +1360,94 @@ block content %}
                 });
         }
     }
+
+    // Fonction d'importation Excel
+    function startImport() {
+        const fileInput = document.getElementById('excelFile');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert('Veuillez sélectionner un fichier Excel');
+            return;
+        }
+
+        // Vérifier la taille du fichier (10 MB max)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Le fichier est trop volumineux. Taille maximum : 10 MB');
+            return;
+        }
+
+        // Afficher la progression
+        document.getElementById('importProgress').style.display = 'block';
+        document.getElementById('importResults').style.display = 'none';
+        document.getElementById('startImportBtn').disabled = true;
+
+        // Préparer les données
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Envoyer le fichier
+        fetch('/api/import-produits', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(result => {
+            // Masquer la progression
+            document.getElementById('importProgress').style.display = 'none';
+            document.getElementById('startImportBtn').disabled = false;
+
+            // Afficher les résultats
+            const resultsDiv = document.getElementById('importResults');
+            const alertDiv = document.getElementById('importAlert');
+            const titleDiv = document.getElementById('importTitle');
+            const messageDiv = document.getElementById('importMessage');
+
+            if (result.success) {
+                alertDiv.className = 'alert alert-success';
+                titleDiv.innerHTML = '<i class="bi bi-check-circle"></i> Importation réussie';
+                messageDiv.textContent = result.message;
+
+                // Recharger la page après 3 secondes
+                setTimeout(() => {
+                    location.reload();
+                }, 3000);
+            } else {
+                alertDiv.className = 'alert alert-danger';
+                titleDiv.innerHTML = '<i class="bi bi-exclamation-circle"></i> Erreur d\'importation';
+                messageDiv.textContent = result.message;
+            }
+
+            resultsDiv.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+
+            // Masquer la progression
+            document.getElementById('importProgress').style.display = 'none';
+            document.getElementById('startImportBtn').disabled = false;
+
+            // Afficher l'erreur
+            const resultsDiv = document.getElementById('importResults');
+            const alertDiv = document.getElementById('importAlert');
+            const titleDiv = document.getElementById('importTitle');
+            const messageDiv = document.getElementById('importMessage');
+
+            alertDiv.className = 'alert alert-danger';
+            titleDiv.innerHTML = '<i class="bi bi-exclamation-circle"></i> Erreur technique';
+            messageDiv.textContent = 'Une erreur technique s\'est produite lors de l\'importation.';
+
+            resultsDiv.style.display = 'block';
+        });
+    }
+
+    // Réinitialiser le modal à la fermeture
+    document.getElementById('importProduitModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('importForm').reset();
+        document.getElementById('importProgress').style.display = 'none';
+        document.getElementById('importResults').style.display = 'none';
+        document.getElementById('startImportBtn').disabled = false;
+    });
 </script>
 
 <style>

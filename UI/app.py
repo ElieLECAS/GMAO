@@ -389,10 +389,335 @@ def gestion_produits():
     produits = [normalize_produit(p.copy()) for p in produits_raw]
     
     fournisseurs = api_client.get('/fournisseurs/') or []
-    emplacements = api_client.get('/emplacements/') or []
+    sites = api_client.get('/sites/') or []
+    lieux = api_client.get('/lieux/') or []
+    emplacements = api_client.get('/emplacements-hierarchy/') or []
     
     return render_template('gestion_produits.html', produits=produits, 
-                         fournisseurs=fournisseurs, emplacements=emplacements)
+                         fournisseurs=fournisseurs, sites=sites, lieux=lieux, emplacements=emplacements)
+
+@app.route('/api/import-produits', methods=['POST'])
+def import_produits():
+    """Importer des produits depuis un fichier Excel"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'Aucun fichier fourni'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+        
+        if not file.filename.lower().endswith(('.xlsx', '.xls')):
+            return jsonify({'success': False, 'message': 'Format de fichier non supporté. Utilisez Excel (.xlsx ou .xls)'})
+        
+        # Lire le fichier Excel
+        import pandas as pd
+        import io
+        
+        # Lire le fichier Excel
+        df = pd.read_excel(io.BytesIO(file.read()))
+        
+        # Vérifier les colonnes requises
+        colonnes_requises = ['Désignation']
+        colonnes_manquantes = [col for col in colonnes_requises if col not in df.columns]
+        if colonnes_manquantes:
+            return jsonify({
+                'success': False, 
+                'message': f'Colonnes manquantes: {", ".join(colonnes_manquantes)}'
+            })
+        
+        # Statistiques d'importation
+        stats = {
+            'total_lignes': len(df),
+            'produits_crees': 0,
+            'fournisseurs_crees': 0,
+            'sites_crees': 0,
+            'lieux_crees': 0,
+            'emplacements_crees': 0,
+            'erreurs': []
+        }
+        
+        # Caches pour éviter les doublons
+        fournisseurs_cache = {}
+        sites_cache = {}
+        lieux_cache = {}
+        emplacements_cache = {}
+        
+        # Traiter chaque ligne
+        for index, row in df.iterrows():
+            try:
+                ligne_num = index + 2  # +2 car index commence à 0 et ligne 1 = en-têtes
+                
+                # Extraire les données de base
+                designation = str(row.get('Désignation', '')).strip()
+                if not designation or designation == 'nan':
+                    stats['erreurs'].append(f"Ligne {ligne_num}: Désignation manquante")
+                    continue
+                
+                # Données du produit
+                produit_data = {
+                    'designation': designation,
+                    'reference_fournisseur': str(row.get('Référence fournisseur', '')).strip() if pd.notna(row.get('Référence fournisseur')) else None,
+                    'unite_stockage': str(row.get('Unité de stockage', '')).strip() if pd.notna(row.get('Unité de stockage')) else None,
+                    'unite_commande': str(row.get('Unité Commande', '')).strip() if pd.notna(row.get('Unité Commande')) else None,
+                    'stock_min': int(row.get('Min', 0)) if pd.notna(row.get('Min')) else 0,
+                    'stock_max': int(row.get('Max', 100)) if pd.notna(row.get('Max')) else 100,
+                    'prix_unitaire': float(row.get('Prix', 0)) if pd.notna(row.get('Prix')) else 0.0,
+                    'categorie': str(row.get('Catégorie', '')).strip() if pd.notna(row.get('Catégorie')) else None,
+                    'secteur': str(row.get('Secteur', '')).strip() if pd.notna(row.get('Secteur')) else None,
+                    'quantite': int(row.get('Quantité', 0)) if pd.notna(row.get('Quantité')) else 0
+                }
+                
+                # Traiter le fournisseur
+                fournisseur_nom = str(row.get('Fournisseur Standard', '')).strip() if pd.notna(row.get('Fournisseur Standard')) else None
+                if fournisseur_nom and fournisseur_nom != 'nan':
+                    if fournisseur_nom not in fournisseurs_cache:
+                        # Vérifier si le fournisseur existe
+                        fournisseurs_existants = api_client.get('/fournisseurs/') or []
+                        fournisseur_existe = any(f.get('nom_fournisseur') == fournisseur_nom for f in fournisseurs_existants)
+                        
+                        if not fournisseur_existe:
+                            # Créer le fournisseur
+                            from datetime import datetime
+                            id_fournisseur = f"F{datetime.now().strftime('%Y%m%d%H%M%S')}{index}"
+                            
+                            fournisseur_data = {
+                                'id_fournisseur': id_fournisseur,
+                                'nom_fournisseur': fournisseur_nom,
+                                'adresse': '',
+                                'contact1_nom': '',
+                                'contact1_prenom': '',
+                                'contact1_fonction': '',
+                                'contact1_tel_fixe': '',
+                                'contact1_tel_mobile': '',
+                                'contact1_email': '',
+                                'contact2_nom': '',
+                                'contact2_prenom': '',
+                                'contact2_fonction': '',
+                                'contact2_tel_fixe': '',
+                                'contact2_tel_mobile': '',
+                                'contact2_email': '',
+                                'statut': 'Actif'
+                            }
+                            
+                            result = api_client.post('/fournisseurs/', fournisseur_data)
+                            if result:
+                                stats['fournisseurs_crees'] += 1
+                                fournisseurs_cache[fournisseur_nom] = True
+                            else:
+                                stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création fournisseur {fournisseur_nom}")
+                        else:
+                            fournisseurs_cache[fournisseur_nom] = True
+                    
+                    produit_data['fournisseur'] = fournisseur_nom
+                
+                # Traiter la hiérarchie Site → Lieu → Emplacement
+                site_nom = str(row.get('Site', '')).strip() if pd.notna(row.get('Site')) else None
+                lieu_nom = str(row.get('Lieu', '')).strip() if pd.notna(row.get('Lieu')) else None
+                emplacement_nom = str(row.get('Emplacement', '')).strip() if pd.notna(row.get('Emplacement')) else None
+                
+                site_id = None
+                lieu_id = None
+                
+                # Traiter le site
+                if site_nom and site_nom != 'nan':
+                    if site_nom not in sites_cache:
+                        # Vérifier si le site existe
+                        sites_existants = api_client.get('/sites/') or []
+                        site_existant = next((s for s in sites_existants if s.get('nom_site') == site_nom), None)
+                        
+                        if not site_existant:
+                            # Créer le site avec un code unique
+                            from datetime import datetime
+                            import random
+                            import string
+                            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                            random_suffix = ''.join(random.choices(string.digits, k=3))
+                            code_site = f"SITE{timestamp}{index}{random_suffix}"
+                            
+                            site_data = {
+                                'code_site': code_site,
+                                'nom_site': site_nom,
+                                'adresse': '',
+                                'ville': '',
+                                'code_postal': '',
+                                'pays': 'France',
+                                'responsable': '',
+                                'telephone': '',
+                                'email': '',
+                                'statut': 'Actif'
+                            }
+                            
+                            result = api_client.post('/sites/', site_data)
+                            if result:
+                                stats['sites_crees'] += 1
+                                sites_cache[site_nom] = result['id']
+                                site_id = result['id']
+                            else:
+                                stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création site {site_nom}")
+                        else:
+                            sites_cache[site_nom] = site_existant['id']
+                            site_id = site_existant['id']
+                    else:
+                        site_id = sites_cache[site_nom]
+                    
+                    produit_data['site'] = site_nom
+                
+                # Traiter le lieu
+                if lieu_nom and lieu_nom != 'nan':
+                    if site_id:
+                        lieu_key = f"{site_id}_{lieu_nom}"
+                        if lieu_key not in lieux_cache:
+                            # Vérifier si le lieu existe
+                            lieux_existants = api_client.get('/lieux/') or []
+                            lieu_existant = next((l for l in lieux_existants if l.get('nom_lieu') == lieu_nom and l.get('site_id') == site_id), None)
+                            
+                            if not lieu_existant:
+                                # Créer le lieu avec un code unique
+                                from datetime import datetime
+                                import random
+                                import string
+                                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                                random_suffix = ''.join(random.choices(string.digits, k=3))
+                                code_lieu = f"LIEU{timestamp}{index}{random_suffix}"
+                                
+                                lieu_data = {
+                                    'code_lieu': code_lieu,
+                                    'nom_lieu': lieu_nom,
+                                    'site_id': site_id,
+                                    'type_lieu': '',
+                                    'niveau': '',
+                                    'surface': None,
+                                    'responsable': '',
+                                    'statut': 'Actif'
+                                }
+                                
+                                result = api_client.post('/lieux/', lieu_data)
+                                if result:
+                                    stats['lieux_crees'] += 1
+                                    lieux_cache[lieu_key] = result['id']
+                                    lieu_id = result['id']
+                                else:
+                                    stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création lieu {lieu_nom}")
+                            else:
+                                lieux_cache[lieu_key] = lieu_existant['id']
+                                lieu_id = lieu_existant['id']
+                        else:
+                            lieu_id = lieux_cache[lieu_key]
+                        
+                        produit_data['lieu'] = lieu_nom
+                    else:
+                        # Si pas de site_id, on ne peut pas créer le lieu
+                        stats['erreurs'].append(f"Ligne {ligne_num}: Impossible de créer le lieu {lieu_nom} - site manquant")
+                
+                # Traiter l'emplacement
+                if emplacement_nom and emplacement_nom != 'nan':
+                    # S'assurer qu'on a un lieu_id valide
+                    if lieu_id:
+                        emplacement_key = f"{lieu_id}_{emplacement_nom}"
+                        if emplacement_key not in emplacements_cache:
+                            # Vérifier si l'emplacement existe
+                            emplacements_existants = api_client.get('/emplacements-hierarchy/') or []
+                            emplacement_existant = next((e for e in emplacements_existants if e.get('nom_emplacement') == emplacement_nom and e.get('lieu_id') == lieu_id), None)
+                            
+                            if not emplacement_existant:
+                                # Créer l'emplacement avec un code unique
+                                from datetime import datetime
+                                import random
+                                import string
+                                # Générer un code unique avec timestamp + index + random
+                                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                                random_suffix = ''.join(random.choices(string.digits, k=3))
+                                code_emplacement = f"EMP{timestamp}{index}{random_suffix}"
+                                
+                                emplacement_data = {
+                                    'code_emplacement': code_emplacement,
+                                    'nom_emplacement': emplacement_nom,
+                                    'lieu_id': lieu_id,
+                                    'type_emplacement': '',
+                                    'position': '',
+                                    'capacite_max': 100,
+                                    'temperature_min': None,
+                                    'temperature_max': None,
+                                    'humidite_max': None,
+                                    'conditions_speciales': '',
+                                    'responsable': '',
+                                    'statut': 'Actif'
+                                }
+                                
+                                result = api_client.post('/emplacements/', emplacement_data)
+                                if result:
+                                    stats['emplacements_crees'] += 1
+                                    emplacements_cache[emplacement_key] = result['id']
+                                    print(f"DEBUG: Emplacement créé avec succès: {emplacement_nom} (ID: {result.get('id')}) pour lieu_id: {lieu_id}")
+                                else:
+                                    error_msg = f"Ligne {ligne_num}: Erreur création emplacement {emplacement_nom} pour lieu_id {lieu_id}"
+                                    stats['erreurs'].append(error_msg)
+                                    print(f"DEBUG: {error_msg}")
+                            else:
+                                emplacements_cache[emplacement_key] = emplacement_existant['id']
+                        
+                        produit_data['emplacement'] = emplacement_nom
+                    else:
+                        # Si pas de lieu_id, on ne peut pas créer l'emplacement
+                        stats['erreurs'].append(f"Ligne {ligne_num}: Impossible de créer l'emplacement {emplacement_nom} - lieu manquant")
+                
+                # Créer le produit
+                # Générer un code QR automatique
+                import random
+                import string
+                qr_code = ''.join(random.choices(string.digits, k=10))
+                
+                produit_final = {
+                    'code': qr_code,
+                    'reference': qr_code,
+                    'reference_fournisseur': produit_data.get('reference_fournisseur'),
+                    'produits': produit_data['designation'],
+                    'unite_stockage': produit_data.get('unite_stockage'),
+                    'unite_commande': produit_data.get('unite_commande'),
+                    'stock_min': produit_data.get('stock_min', 0),
+                    'stock_max': produit_data.get('stock_max', 100),
+                    'site': produit_data.get('site'),
+                    'lieu': produit_data.get('lieu'),
+                    'emplacement': produit_data.get('emplacement'),
+                    'fournisseur': produit_data.get('fournisseur'),
+                    'prix_unitaire': produit_data.get('prix_unitaire', 0.0),
+                    'categorie': produit_data.get('categorie'),
+                    'secteur': produit_data.get('secteur'),
+                    'quantite': produit_data.get('quantite', 0)
+                }
+                
+                result = api_client.post('/inventaire/', produit_final)
+                if result:
+                    stats['produits_crees'] += 1
+                else:
+                    stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création produit {designation}")
+                    
+            except Exception as e:
+                stats['erreurs'].append(f"Ligne {ligne_num}: Erreur - {str(e)}")
+        
+        # Préparer le message de résultat
+        message = f"Importation terminée:\n"
+        message += f"• {stats['produits_crees']} produits créés\n"
+        message += f"• {stats['fournisseurs_crees']} fournisseurs créés\n"
+        message += f"• {stats['sites_crees']} sites créés\n"
+        message += f"• {stats['lieux_crees']} lieux créés\n"
+        message += f"• {stats['emplacements_crees']} emplacements créés\n"
+        
+        if stats['erreurs']:
+            message += f"\n{len(stats['erreurs'])} erreurs:\n"
+            message += "\n".join(stats['erreurs'][:10])  # Limiter à 10 erreurs
+            if len(stats['erreurs']) > 10:
+                message += f"\n... et {len(stats['erreurs']) - 10} autres erreurs"
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur lors de l\'importation: {str(e)}'})
 
 @app.route('/api/produits', methods=['POST'])
 def creer_produit():
