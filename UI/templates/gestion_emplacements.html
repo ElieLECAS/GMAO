@@ -1,0 +1,201 @@
+{% extends "base.html" %} {% block title %}Gestion des Emplacements{% endblock
+%} {% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-geo-alt text-info"></i>
+                        Gestion des Emplacements
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Gérer les emplacements de stockage
+                    </p>
+                </div>
+                <button
+                    class="btn btn-info"
+                    data-bs-toggle="modal"
+                    data-bs-target="#nouvelEmplacementModal"
+                >
+                    <i class="bi bi-plus-circle"></i> Nouvel Emplacement
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-info">
+                        {{ emplacements|length }}
+                    </h5>
+                    <p class="card-text">Total Emplacements</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-success">
+                        {{ emplacements|selectattr('statut', 'equalto',
+                        'Actif')|list|length }}
+                    </h5>
+                    <p class="card-text">Emplacements Actifs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">
+                        {{ emplacements|selectattr('type', 'equalto',
+                        'Principal')|list|length }}
+                    </h5>
+                    <p class="card-text">Emplacements Principaux</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des emplacements -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-table"></i> Liste des Emplacements
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Description</th>
+                                    <th>Zone</th>
+                                    <th>Type</th>
+                                    <th>Capacité</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for emplacement in emplacements %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ emplacement.nom }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ emplacement.description or '-' }}
+                                    </td>
+                                    <td>{{ emplacement.zone or '-' }}</td>
+                                    <td>
+                                        <span
+                                            class="badge bg-{{ 'primary' if emplacement.type == 'Principal' else 'secondary' }}"
+                                        >
+                                            {{ emplacement.type or 'Standard' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ emplacement.capacite or '-' }}</td>
+                                    <td>
+                                        <span
+                                            class="badge bg-{{ 'success' if emplacement.statut != 'Inactif' else 'danger' }}"
+                                        >
+                                            {{ emplacement.statut or 'Actif' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button
+                                                class="btn btn-outline-info"
+                                                title="Modifier"
+                                            >
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button
+                                                class="btn btn-outline-danger"
+                                                title="Supprimer"
+                                            >
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nouvel Emplacement -->
+<div class="modal fade" id="nouvelEmplacementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-plus-circle text-info"></i>
+                    Nouvel Emplacement
+                </h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <form>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nom *</label>
+                        <input type="text" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Zone</label>
+                        <input type="text" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select class="form-select">
+                            <option value="Standard">Standard</option>
+                            <option value="Principal">Principal</option>
+                            <option value="Temporaire">Temporaire</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Capacité</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            placeholder="Ex: 100 produits"
+                        />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-info">
+                        <i class="bi bi-check-circle"></i> Créer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

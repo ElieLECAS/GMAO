@@ -281,22 +281,7 @@ block content %}
             <form id="nouveauProduitForm">
                 <div class="modal-body">
                     <div class="row g-3">
-                        <!-- Première ligne : Référence et Référence fournisseur -->
-                        <div class="col-md-6">
-                            <label class="form-label"
-                                >Référence (Code QR) *</label
-                            >
-                            <input
-                                type="text"
-                                class="form-control"
-                                name="reference"
-                                placeholder="Code pour QR code"
-                                required
-                            />
-                            <small class="text-muted"
-                                >Code utilisé pour générer le QR code</small
-                            >
-                        </div>
+                        <!-- Première ligne : Référence fournisseur -->
                         <div class="col-md-6">
                             <label class="form-label"
                                 >Référence fournisseur</label
@@ -307,6 +292,9 @@ block content %}
                                 name="reference_fournisseur"
                                 placeholder="Référence du fournisseur"
                             />
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Espace réservé pour équilibrer la mise en page -->
                         </div>
 
                         <!-- Deuxième ligne : Désignation -->
@@ -532,22 +520,7 @@ block content %}
                         id="referenceOriginale"
                     />
                     <div class="row g-3">
-                        <!-- Première ligne : Référence et Référence fournisseur -->
-                        <div class="col-md-6">
-                            <label class="form-label"
-                                >Référence (Code QR) *</label
-                            >
-                            <input
-                                type="text"
-                                class="form-control"
-                                name="reference"
-                                id="modifReference"
-                                required
-                            />
-                            <small class="text-muted"
-                                >Code utilisé pour générer le QR code</small
-                            >
-                        </div>
+                        <!-- Première ligne : Référence fournisseur -->
                         <div class="col-md-6">
                             <label class="form-label"
                                 >Référence fournisseur</label
@@ -559,6 +532,22 @@ block content %}
                                 id="modifReferenceFournisseur"
                                 placeholder="Référence du fournisseur"
                             />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label"
+                                >Code QR (généré automatiquement)</label
+                            >
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="modifReference"
+                                readonly
+                                placeholder="Généré automatiquement"
+                            />
+                            <small class="text-muted"
+                                >Code à 10 chiffres généré lors de la
+                                création</small
+                            >
                         </div>
 
                         <!-- Deuxième ligne : Désignation -->
@@ -863,10 +852,8 @@ block content %}
                 const data = Object.fromEntries(formData.entries());
 
                 // Validation
-                if (!data.reference || !data.designation) {
-                    alert(
-                        "Veuillez remplir au moins la référence et la désignation du produit"
-                    );
+                if (!data.designation) {
+                    alert("Veuillez remplir la désignation du produit");
                     return;
                 }
 
@@ -906,10 +893,8 @@ block content %}
                 const data = Object.fromEntries(formData.entries());
 
                 // Validation
-                if (!data.reference || !data.designation) {
-                    alert(
-                        "Veuillez remplir au moins la référence et la désignation du produit"
-                    );
+                if (!data.designation) {
+                    alert("Veuillez remplir la désignation du produit");
                     return;
                 }
 

@@ -8,7 +8,7 @@ import base64
 from PIL import Image
 import json
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Configuration de l'API
@@ -394,23 +394,34 @@ def creer_produit():
     try:
         data = request.get_json()
         
-        # Préparer les données pour l'API
+        # Générer un code QR automatique à 10 chiffres
+        import random
+        import string
+        qr_code = ''.join(random.choices(string.digits, k=10))
+        
+        # Préparer les données pour l'API selon le nouveau schéma
         produit_data = {
-            'code': data.get('reference'),  # Utiliser référence comme code
-            'reference': data.get('reference'),
-            'produits': data.get('nom'),  # Le nom va dans le champ 'produits'
-            'unite_stockage': data.get('unite', 'pcs'),
+            'code': qr_code,  # Code QR généré automatiquement
+            'reference': qr_code,  # Référence QR unique
+            'reference_fournisseur': data.get('reference_fournisseur', ''),
+            'produits': data.get('designation', ''),  # Utiliser désignation
+            'unite_stockage': data.get('unite_stockage', ''),
+            'unite_commande': data.get('unite_commande', ''),
             'stock_min': int(data.get('seuil_alerte', 0)),
             'stock_max': int(data.get('stock_max', 100)),
-            'emplacement': data.get('emplacement'),
-            'fournisseur': data.get('fournisseur'),
+            'site': data.get('site', ''),
+            'lieu': data.get('lieu', ''),
+            'emplacement': data.get('emplacement', ''),
+            'fournisseur': data.get('fournisseur', ''),
             'prix_unitaire': float(data.get('prix_unitaire', 0)) if data.get('prix_unitaire') else 0,
+            'categorie': data.get('categorie', ''),
+            'secteur': data.get('secteur', ''),
             'quantite': int(data.get('quantite', 0))
         }
         
         # Ajouter la description si fournie
         if data.get('description'):
-            produit_data['produits'] = f"{data.get('nom')} - {data.get('description')}"
+            produit_data['produits'] = f"{data.get('designation')} - {data.get('description')}"
         
         result = api_client.post('/inventaire/', produit_data)
         
@@ -431,21 +442,34 @@ def modifier_produit(produit_id):
         # Préparer les données pour l'API (seulement les champs modifiés)
         produit_data = {}
         
-        if data.get('reference'):
-            produit_data['reference'] = data.get('reference')
-            produit_data['code'] = data.get('reference')  # Synchroniser code et référence
+        # Note: La référence QR ne peut pas être modifiée
+        
+        if data.get('reference_fournisseur') is not None:
+            produit_data['reference_fournisseur'] = data.get('reference_fournisseur')
             
-        if data.get('nom'):
+        if data.get('designation'):
             if data.get('description'):
-                produit_data['produits'] = f"{data.get('nom')} - {data.get('description')}"
+                produit_data['produits'] = f"{data.get('designation')} - {data.get('description')}"
             else:
-                produit_data['produits'] = data.get('nom')
+                produit_data['produits'] = data.get('designation')
+                
+        if data.get('unite_stockage') is not None:
+            produit_data['unite_stockage'] = data.get('unite_stockage')
+            
+        if data.get('unite_commande') is not None:
+            produit_data['unite_commande'] = data.get('unite_commande')
                 
         if data.get('seuil_alerte') is not None:
             produit_data['stock_min'] = int(data.get('seuil_alerte'))
             
         if data.get('stock_max') is not None:
             produit_data['stock_max'] = int(data.get('stock_max'))
+            
+        if data.get('site') is not None:
+            produit_data['site'] = data.get('site')
+            
+        if data.get('lieu') is not None:
+            produit_data['lieu'] = data.get('lieu')
             
         if data.get('emplacement') is not None:
             produit_data['emplacement'] = data.get('emplacement')
@@ -456,8 +480,11 @@ def modifier_produit(produit_id):
         if data.get('prix_unitaire') is not None:
             produit_data['prix_unitaire'] = float(data.get('prix_unitaire')) if data.get('prix_unitaire') else 0
             
-        if data.get('unite'):
-            produit_data['unite_stockage'] = data.get('unite')
+        if data.get('categorie') is not None:
+            produit_data['categorie'] = data.get('categorie')
+            
+        if data.get('secteur') is not None:
+            produit_data['secteur'] = data.get('secteur')
         
         result = api_client.put(f'/inventaire/{produit_id}', produit_data)
         

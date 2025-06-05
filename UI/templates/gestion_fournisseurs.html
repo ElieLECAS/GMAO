@@ -1,0 +1,642 @@
+{% extends "base.html" %} {% block title %}Gestion des Fournisseurs{% endblock
+%} {% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-truck text-warning"></i>
+                        Gestion des Fournisseurs
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Gérer les fournisseurs et leurs informations
+                    </p>
+                </div>
+                <button
+                    class="btn btn-warning"
+                    data-bs-toggle="modal"
+                    data-bs-target="#nouveauFournisseurModal"
+                >
+                    <i class="bi bi-plus-circle"></i> Nouveau Fournisseur
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">
+                        {{ fournisseurs|length }}
+                    </h5>
+                    <p class="card-text">Total Fournisseurs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-success">
+                        {{ fournisseurs|selectattr('statut', 'equalto',
+                        'Actif')|list|length }}
+                    </h5>
+                    <p class="card-text">Fournisseurs Actifs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">
+                        {{ fournisseurs|selectattr('statut', 'equalto',
+                        'Inactif')|list|length }}
+                    </h5>
+                    <p class="card-text">Fournisseurs Inactifs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-info">
+                        {{ fournisseurs|selectattr('type', 'equalto',
+                        'Principal')|list|length }}
+                    </h5>
+                    <p class="card-text">Fournisseurs Principaux</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres et recherche -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Rechercher</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="searchInput"
+                                placeholder="Nom, email, téléphone..."
+                            />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" id="statutFilter">
+                                <option value="">Tous les statuts</option>
+                                <option value="Actif">Actif</option>
+                                <option value="Inactif">Inactif</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Type</label>
+                            <select class="form-select" id="typeFilter">
+                                <option value="">Tous les types</option>
+                                <option value="Principal">Principal</option>
+                                <option value="Secondaire">Secondaire</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des fournisseurs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-table"></i> Liste des Fournisseurs
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table
+                            class="table table-hover mb-0"
+                            id="fournisseursTable"
+                        >
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Contact</th>
+                                    <th>Email</th>
+                                    <th>Téléphone</th>
+                                    <th>Adresse</th>
+                                    <th>Type</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fournisseur in fournisseurs %}
+                                <tr
+                                    data-statut="{{ fournisseur.statut or 'Actif' }}"
+                                    data-type="{{ fournisseur.type or 'Principal' }}"
+                                    data-id="{{ fournisseur.id }}"
+                                >
+                                    <td>
+                                        <strong>{{ fournisseur.nom }}</strong>
+                                    </td>
+                                    <td>{{ fournisseur.contact or '-' }}</td>
+                                    <td>{{ fournisseur.email or '-' }}</td>
+                                    <td>{{ fournisseur.telephone or '-' }}</td>
+                                    <td>{{ fournisseur.adresse or '-' }}</td>
+                                    <td>
+                                        <span
+                                            class="badge bg-{{ 'primary' if fournisseur.type == 'Principal' else 'secondary' }}"
+                                        >
+                                            {{ fournisseur.type or 'Principal'
+                                            }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span
+                                            class="badge bg-{{ 'success' if fournisseur.statut != 'Inactif' else 'danger' }}"
+                                        >
+                                            {{ fournisseur.statut or 'Actif' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button
+                                                class="btn btn-outline-warning"
+                                                onclick="modifierFournisseur({{ fournisseur.id }})"
+                                                title="Modifier"
+                                            >
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button
+                                                class="btn btn-outline-danger"
+                                                onclick="supprimerFournisseur({{ fournisseur.id }}, '{{ fournisseur.nom }}')"
+                                                title="Supprimer"
+                                            >
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nouveau Fournisseur -->
+<div class="modal fade" id="nouveauFournisseurModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-plus-circle text-warning"></i>
+                    Nouveau Fournisseur
+                </h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <form id="nouveauFournisseurForm">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nom *</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="nom"
+                                required
+                                placeholder="Nom du fournisseur"
+                            />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Contact</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="contact"
+                                placeholder="Nom du contact"
+                            />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input
+                                type="email"
+                                class="form-control"
+                                name="email"
+                                placeholder="email@exemple.com"
+                            />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Téléphone</label>
+                            <input
+                                type="tel"
+                                class="form-control"
+                                name="telephone"
+                                placeholder="01 23 45 67 89"
+                            />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Adresse</label>
+                            <textarea
+                                class="form-control"
+                                name="adresse"
+                                rows="3"
+                                placeholder="Adresse complète du fournisseur"
+                            ></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Type</label>
+                            <select class="form-select" name="type">
+                                <option value="Principal">Principal</option>
+                                <option value="Secondaire">Secondaire</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" name="statut">
+                                <option value="Actif">Actif</option>
+                                <option value="Inactif">Inactif</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle"></i> Créer le fournisseur
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifier Fournisseur -->
+<div class="modal fade" id="modifierFournisseurModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil text-warning"></i>
+                    Modifier Fournisseur
+                </h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <form id="modifierFournisseurForm">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="modifId" />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nom *</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="nom"
+                                id="modifNom"
+                                required
+                            />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Contact</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="contact"
+                                id="modifContact"
+                            />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input
+                                type="email"
+                                class="form-control"
+                                name="email"
+                                id="modifEmail"
+                            />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Téléphone</label>
+                            <input
+                                type="tel"
+                                class="form-control"
+                                name="telephone"
+                                id="modifTelephone"
+                            />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Adresse</label>
+                            <textarea
+                                class="form-control"
+                                name="adresse"
+                                id="modifAdresse"
+                                rows="3"
+                            ></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Type</label>
+                            <select
+                                class="form-select"
+                                name="type"
+                                id="modifType"
+                            >
+                                <option value="Principal">Principal</option>
+                                <option value="Secondaire">Secondaire</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Statut</label>
+                            <select
+                                class="form-select"
+                                name="statut"
+                                id="modifStatut"
+                            >
+                                <option value="Actif">Actif</option>
+                                <option value="Inactif">Inactif</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle"></i> Modifier le
+                        fournisseur
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Recherche et filtres
+        const searchInput = document.getElementById("searchInput");
+        const statutFilter = document.getElementById("statutFilter");
+        const typeFilter = document.getElementById("typeFilter");
+        const table = document.getElementById("fournisseursTable");
+        const rows = table.querySelectorAll("tbody tr");
+
+        function filterTable() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const statutValue = statutFilter.value;
+            const typeValue = typeFilter.value;
+
+            rows.forEach((row) => {
+                const nom = row.cells[0].textContent.toLowerCase();
+                const contact = row.cells[1].textContent.toLowerCase();
+                const email = row.cells[2].textContent.toLowerCase();
+                const telephone = row.cells[3].textContent.toLowerCase();
+                const statut = row.dataset.statut;
+                const type = row.dataset.type;
+
+                const matchSearch =
+                    !searchTerm ||
+                    nom.includes(searchTerm) ||
+                    contact.includes(searchTerm) ||
+                    email.includes(searchTerm) ||
+                    telephone.includes(searchTerm);
+
+                const matchStatut = !statutValue || statut === statutValue;
+                const matchType = !typeValue || type === typeValue;
+
+                if (matchSearch && matchStatut && matchType) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        searchInput.addEventListener("input", filterTable);
+        statutFilter.addEventListener("change", filterTable);
+        typeFilter.addEventListener("change", filterTable);
+
+        // Formulaire nouveau fournisseur
+        document
+            .getElementById("nouveauFournisseurForm")
+            .addEventListener("submit", function (e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+                const data = Object.fromEntries(formData.entries());
+
+                // Validation
+                if (!data.nom) {
+                    alert("Veuillez remplir le nom du fournisseur");
+                    return;
+                }
+
+                // Appel API pour créer le fournisseur
+                fetch("/api/fournisseurs", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(data),
+                })
+                    .then((response) => response.json())
+                    .then((result) => {
+                        if (result.success || result.id) {
+                            alert("Fournisseur créé avec succès !");
+                            bootstrap.Modal.getInstance(
+                                document.getElementById(
+                                    "nouveauFournisseurModal"
+                                )
+                            ).hide();
+                            location.reload();
+                        } else {
+                            alert(
+                                "Erreur: " +
+                                    (result.message || "Erreur inconnue")
+                            );
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Erreur:", error);
+                        alert("Erreur lors de la création du fournisseur");
+                    });
+            });
+
+        // Formulaire modifier fournisseur
+        document
+            .getElementById("modifierFournisseurForm")
+            .addEventListener("submit", function (e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+                const data = Object.fromEntries(formData.entries());
+                const fournisseurId = data.id;
+
+                // Validation
+                if (!data.nom) {
+                    alert("Veuillez remplir le nom du fournisseur");
+                    return;
+                }
+
+                // Appel API pour modifier le fournisseur
+                fetch(`/api/fournisseurs/${fournisseurId}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(data),
+                })
+                    .then((response) => response.json())
+                    .then((result) => {
+                        if (result.success || result.id) {
+                            alert("Fournisseur modifié avec succès !");
+                            bootstrap.Modal.getInstance(
+                                document.getElementById(
+                                    "modifierFournisseurModal"
+                                )
+                            ).hide();
+                            location.reload();
+                        } else {
+                            alert(
+                                "Erreur: " +
+                                    (result.message || "Erreur inconnue")
+                            );
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Erreur:", error);
+                        alert("Erreur lors de la modification du fournisseur");
+                    });
+            });
+    });
+
+    function modifierFournisseur(id) {
+        // Récupérer les données du fournisseur via API
+        fetch(`/api/fournisseurs/${id}`)
+            .then((response) => response.json())
+            .then((result) => {
+                if (result.success || result.id) {
+                    const fournisseur = result.fournisseur || result;
+
+                    // Remplir le formulaire de modification
+                    document.getElementById("modifId").value = fournisseur.id;
+                    document.getElementById("modifNom").value =
+                        fournisseur.nom || "";
+                    document.getElementById("modifContact").value =
+                        fournisseur.contact || "";
+                    document.getElementById("modifEmail").value =
+                        fournisseur.email || "";
+                    document.getElementById("modifTelephone").value =
+                        fournisseur.telephone || "";
+                    document.getElementById("modifAdresse").value =
+                        fournisseur.adresse || "";
+                    document.getElementById("modifType").value =
+                        fournisseur.type || "Principal";
+                    document.getElementById("modifStatut").value =
+                        fournisseur.statut || "Actif";
+
+                    // Afficher le modal
+                    new bootstrap.Modal(
+                        document.getElementById("modifierFournisseurModal")
+                    ).show();
+                } else {
+                    alert(
+                        "Erreur: " +
+                            (result.message || "Fournisseur non trouvé")
+                    );
+                }
+            })
+            .catch((error) => {
+                console.error("Erreur:", error);
+                alert(
+                    "Erreur lors de la récupération des données du fournisseur"
+                );
+            });
+    }
+
+    function supprimerFournisseur(id, nom) {
+        if (
+            confirm(
+                `Êtes-vous sûr de vouloir supprimer le fournisseur "${nom}" ?\n\nCette action est irréversible.`
+            )
+        ) {
+            // Appel API pour supprimer le fournisseur
+            fetch(`/api/fournisseurs/${id}`, {
+                method: "DELETE",
+            })
+                .then((response) => response.json())
+                .then((result) => {
+                    if (result.success) {
+                        alert("Fournisseur supprimé avec succès !");
+                        location.reload();
+                    } else {
+                        alert(
+                            "Erreur: " + (result.message || "Erreur inconnue")
+                        );
+                    }
+                })
+                .catch((error) => {
+                    console.error("Erreur:", error);
+                    alert("Erreur lors de la suppression du fournisseur");
+                });
+        }
+    }
+</script>
+
+<style>
+    .card-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .badge {
+        font-size: 0.8rem;
+    }
+
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+</style>
+{% endblock %}
