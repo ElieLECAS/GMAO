@@ -281,32 +281,88 @@ block content %}
             <form id="nouveauProduitForm">
                 <div class="modal-body">
                     <div class="row g-3">
+                        <!-- Première ligne : Référence et Référence fournisseur -->
                         <div class="col-md-6">
-                            <label class="form-label">Référence *</label>
+                            <label class="form-label"
+                                >Référence (Code QR) *</label
+                            >
                             <input
                                 type="text"
                                 class="form-control"
                                 name="reference"
+                                placeholder="Code pour QR code"
                                 required
                             />
+                            <small class="text-muted"
+                                >Code utilisé pour générer le QR code</small
+                            >
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Nom *</label>
+                            <label class="form-label"
+                                >Référence fournisseur</label
+                            >
                             <input
                                 type="text"
                                 class="form-control"
-                                name="nom"
+                                name="reference_fournisseur"
+                                placeholder="Référence du fournisseur"
+                            />
+                        </div>
+
+                        <!-- Deuxième ligne : Désignation -->
+                        <div class="col-12">
+                            <label class="form-label">Désignation *</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="designation"
+                                placeholder="Nom/désignation du produit"
                                 required
                             />
                         </div>
+
+                        <!-- Troisième ligne : Description -->
                         <div class="col-12">
                             <label class="form-label">Description</label>
                             <textarea
                                 class="form-control"
                                 name="description"
                                 rows="3"
+                                placeholder="Description détaillée du produit"
                             ></textarea>
                         </div>
+
+                        <!-- Quatrième ligne : Unités -->
+                        <div class="col-md-6">
+                            <label class="form-label">Unité de stockage</label>
+                            <select class="form-select" name="unite_stockage">
+                                <option value="">Sélectionner une unité</option>
+                                <option value="PCE">PCE (Pièce)</option>
+                                <option value="BOITE 5">BOITE 5</option>
+                                <option value="BOITE 10">BOITE 10</option>
+                                <option value="par 1">par 1</option>
+                                <option value="Boite 2000">Boite 2000</option>
+                                <option value="kg">kg (Kilogramme)</option>
+                                <option value="L">L (Litre)</option>
+                                <option value="m">m (Mètre)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Unité de commande</label>
+                            <select class="form-select" name="unite_commande">
+                                <option value="">Sélectionner une unité</option>
+                                <option value="BOITE 5">BOITE 5</option>
+                                <option value="BOITE 10">BOITE 10</option>
+                                <option value="par 1">par 1</option>
+                                <option value="Boite 2000">Boite 2000</option>
+                                <option value="PCE">PCE (Pièce)</option>
+                                <option value="kg">kg (Kilogramme)</option>
+                                <option value="L">L (Litre)</option>
+                                <option value="m">m (Mètre)</option>
+                            </select>
+                        </div>
+
+                        <!-- Cinquième ligne : Stocks -->
                         <div class="col-md-4">
                             <label class="form-label">Quantité initiale</label>
                             <input
@@ -318,7 +374,9 @@ block content %}
                             />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Seuil d'alerte</label>
+                            <label class="form-label"
+                                >Min (Seuil d'alerte)</label
+                            >
                             <input
                                 type="number"
                                 class="form-control"
@@ -328,7 +386,9 @@ block content %}
                             />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Stock maximum</label>
+                            <label class="form-label"
+                                >Max (Stock maximum)</label
+                            >
                             <input
                                 type="number"
                                 class="form-control"
@@ -337,25 +397,39 @@ block content %}
                                 min="1"
                             />
                         </div>
+
+                        <!-- Sixième ligne : Site et Lieu -->
                         <div class="col-md-6">
-                            <label class="form-label">Fournisseur</label>
-                            <select class="form-select" name="fournisseur">
-                                <option value="">
-                                    Sélectionner un fournisseur
-                                </option>
-                                {% for fournisseur in fournisseurs %}
-                                <option value="{{ fournisseur.nom }}">
-                                    {{ fournisseur.nom }}
-                                </option>
-                                {% endfor %}
+                            <label class="form-label">Site</label>
+                            <select class="form-select" name="site">
+                                <option value="">Sélectionner un site</option>
+                                <option value="PROFERM">PROFERM</option>
+                                <option value="AUTRE">AUTRE</option>
                             </select>
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Lieu</label>
+                            <select class="form-select" name="lieu">
+                                <option value="">Sélectionner un lieu</option>
+                                <option value="MS3.0">MS3.0</option>
+                                <option value="MS1.0">MS1.0</option>
+                                <option value="AUTRE">AUTRE</option>
+                            </select>
+                        </div>
+
+                        <!-- Septième ligne : Emplacement et Fournisseur -->
                         <div class="col-md-6">
                             <label class="form-label">Emplacement</label>
                             <select class="form-select" name="emplacement">
                                 <option value="">
                                     Sélectionner un emplacement
                                 </option>
+                                <option value="E1">E1</option>
+                                <option value="E2">E2</option>
+                                <option value="E3">E3</option>
+                                <option value="F21">F21</option>
+                                <option value="G35">G35</option>
+                                <option value="A11">A11</option>
                                 {% for emplacement in emplacements %}
                                 <option value="{{ emplacement.nom }}">
                                     {{ emplacement.nom }}
@@ -364,6 +438,26 @@ block content %}
                             </select>
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label"
+                                >Fournisseur Standard</label
+                            >
+                            <select class="form-select" name="fournisseur">
+                                <option value="">
+                                    Sélectionner un fournisseur
+                                </option>
+                                <option value="BOSCHAT">BOSCHAT</option>
+                                <option value="FAILLE">FAILLE</option>
+                                <option value="SFS">SFS</option>
+                                {% for fournisseur in fournisseurs %}
+                                <option value="{{ fournisseur.nom }}">
+                                    {{ fournisseur.nom }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Huitième ligne : Prix et Catégorie -->
+                        <div class="col-md-4">
                             <label class="form-label">Prix unitaire (€)</label>
                             <input
                                 type="number"
@@ -371,16 +465,30 @@ block content %}
                                 name="prix_unitaire"
                                 step="0.01"
                                 min="0"
+                                placeholder="0,00"
                             />
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Unité</label>
-                            <input
-                                type="text"
-                                class="form-control"
-                                name="unite"
-                                placeholder="pcs, kg, L..."
-                            />
+                        <div class="col-md-4">
+                            <label class="form-label">Catégorie</label>
+                            <select class="form-select" name="categorie">
+                                <option value="">
+                                    Sélectionner une catégorie
+                                </option>
+                                <option value="Ferrure">Ferrure</option>
+                                <option value="VISSERIE">VISSERIE</option>
+                                <option value="AUTRE">AUTRE</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Secteur</label>
+                            <select class="form-select" name="secteur">
+                                <option value="">
+                                    Sélectionner un secteur
+                                </option>
+                                <option value="PVC">PVC</option>
+                                <option value="ALU">ALU</option>
+                                <option value="AUTRE">AUTRE</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -424,8 +532,11 @@ block content %}
                         id="referenceOriginale"
                     />
                     <div class="row g-3">
+                        <!-- Première ligne : Référence et Référence fournisseur -->
                         <div class="col-md-6">
-                            <label class="form-label">Référence *</label>
+                            <label class="form-label"
+                                >Référence (Code QR) *</label
+                            >
                             <input
                                 type="text"
                                 class="form-control"
@@ -433,17 +544,37 @@ block content %}
                                 id="modifReference"
                                 required
                             />
+                            <small class="text-muted"
+                                >Code utilisé pour générer le QR code</small
+                            >
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Nom *</label>
+                            <label class="form-label"
+                                >Référence fournisseur</label
+                            >
                             <input
                                 type="text"
                                 class="form-control"
-                                name="nom"
-                                id="modifNom"
+                                name="reference_fournisseur"
+                                id="modifReferenceFournisseur"
+                                placeholder="Référence du fournisseur"
+                            />
+                        </div>
+
+                        <!-- Deuxième ligne : Désignation -->
+                        <div class="col-12">
+                            <label class="form-label">Désignation *</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="designation"
+                                id="modifDesignation"
+                                placeholder="Nom/désignation du produit"
                                 required
                             />
                         </div>
+
+                        <!-- Troisième ligne : Description -->
                         <div class="col-12">
                             <label class="form-label">Description</label>
                             <textarea
@@ -451,10 +582,53 @@ block content %}
                                 name="description"
                                 id="modifDescription"
                                 rows="3"
+                                placeholder="Description détaillée du produit"
                             ></textarea>
                         </div>
+
+                        <!-- Quatrième ligne : Unités -->
+                        <div class="col-md-6">
+                            <label class="form-label">Unité de stockage</label>
+                            <select
+                                class="form-select"
+                                name="unite_stockage"
+                                id="modifUniteStockage"
+                            >
+                                <option value="">Sélectionner une unité</option>
+                                <option value="PCE">PCE (Pièce)</option>
+                                <option value="BOITE 5">BOITE 5</option>
+                                <option value="BOITE 10">BOITE 10</option>
+                                <option value="par 1">par 1</option>
+                                <option value="Boite 2000">Boite 2000</option>
+                                <option value="kg">kg (Kilogramme)</option>
+                                <option value="L">L (Litre)</option>
+                                <option value="m">m (Mètre)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Unité de commande</label>
+                            <select
+                                class="form-select"
+                                name="unite_commande"
+                                id="modifUniteCommande"
+                            >
+                                <option value="">Sélectionner une unité</option>
+                                <option value="BOITE 5">BOITE 5</option>
+                                <option value="BOITE 10">BOITE 10</option>
+                                <option value="par 1">par 1</option>
+                                <option value="Boite 2000">Boite 2000</option>
+                                <option value="PCE">PCE (Pièce)</option>
+                                <option value="kg">kg (Kilogramme)</option>
+                                <option value="L">L (Litre)</option>
+                                <option value="m">m (Mètre)</option>
+                            </select>
+                        </div>
+
+                        <!-- Cinquième ligne : Stocks -->
                         <div class="col-md-4">
-                            <label class="form-label">Seuil d'alerte</label>
+                            <label class="form-label"
+                                >Min (Seuil d'alerte)</label
+                            >
                             <input
                                 type="number"
                                 class="form-control"
@@ -464,7 +638,9 @@ block content %}
                             />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Stock maximum</label>
+                            <label class="form-label"
+                                >Max (Stock maximum)</label
+                            >
                             <input
                                 type="number"
                                 class="form-control"
@@ -486,23 +662,35 @@ block content %}
                                 modifier</small
                             >
                         </div>
+
+                        <!-- Sixième ligne : Site et Lieu -->
                         <div class="col-md-6">
-                            <label class="form-label">Fournisseur</label>
+                            <label class="form-label">Site</label>
                             <select
                                 class="form-select"
-                                name="fournisseur"
-                                id="modifFournisseur"
+                                name="site"
+                                id="modifSite"
                             >
-                                <option value="">
-                                    Sélectionner un fournisseur
-                                </option>
-                                {% for fournisseur in fournisseurs %}
-                                <option value="{{ fournisseur.nom }}">
-                                    {{ fournisseur.nom }}
-                                </option>
-                                {% endfor %}
+                                <option value="">Sélectionner un site</option>
+                                <option value="PROFERM">PROFERM</option>
+                                <option value="AUTRE">AUTRE</option>
                             </select>
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Lieu</label>
+                            <select
+                                class="form-select"
+                                name="lieu"
+                                id="modifLieu"
+                            >
+                                <option value="">Sélectionner un lieu</option>
+                                <option value="MS3.0">MS3.0</option>
+                                <option value="MS1.0">MS1.0</option>
+                                <option value="AUTRE">AUTRE</option>
+                            </select>
+                        </div>
+
+                        <!-- Septième ligne : Emplacement et Fournisseur -->
                         <div class="col-md-6">
                             <label class="form-label">Emplacement</label>
                             <select
@@ -513,6 +701,12 @@ block content %}
                                 <option value="">
                                     Sélectionner un emplacement
                                 </option>
+                                <option value="E1">E1</option>
+                                <option value="E2">E2</option>
+                                <option value="E3">E3</option>
+                                <option value="F21">F21</option>
+                                <option value="G35">G35</option>
+                                <option value="A11">A11</option>
                                 {% for emplacement in emplacements %}
                                 <option value="{{ emplacement.nom }}">
                                     {{ emplacement.nom }}
@@ -521,6 +715,30 @@ block content %}
                             </select>
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label"
+                                >Fournisseur Standard</label
+                            >
+                            <select
+                                class="form-select"
+                                name="fournisseur"
+                                id="modifFournisseur"
+                            >
+                                <option value="">
+                                    Sélectionner un fournisseur
+                                </option>
+                                <option value="BOSCHAT">BOSCHAT</option>
+                                <option value="FAILLE">FAILLE</option>
+                                <option value="SFS">SFS</option>
+                                {% for fournisseur in fournisseurs %}
+                                <option value="{{ fournisseur.nom }}">
+                                    {{ fournisseur.nom }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Huitième ligne : Prix et Catégorie -->
+                        <div class="col-md-4">
                             <label class="form-label">Prix unitaire (€)</label>
                             <input
                                 type="number"
@@ -529,17 +747,38 @@ block content %}
                                 id="modifPrixUnitaire"
                                 step="0.01"
                                 min="0"
+                                placeholder="0,00"
                             />
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Unité</label>
-                            <input
-                                type="text"
-                                class="form-control"
-                                name="unite"
-                                id="modifUnite"
-                                placeholder="pcs, kg, L..."
-                            />
+                        <div class="col-md-4">
+                            <label class="form-label">Catégorie</label>
+                            <select
+                                class="form-select"
+                                name="categorie"
+                                id="modifCategorie"
+                            >
+                                <option value="">
+                                    Sélectionner une catégorie
+                                </option>
+                                <option value="Ferrure">Ferrure</option>
+                                <option value="VISSERIE">VISSERIE</option>
+                                <option value="AUTRE">AUTRE</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Secteur</label>
+                            <select
+                                class="form-select"
+                                name="secteur"
+                                id="modifSecteur"
+                            >
+                                <option value="">
+                                    Sélectionner un secteur
+                                </option>
+                                <option value="PVC">PVC</option>
+                                <option value="ALU">ALU</option>
+                                <option value="AUTRE">AUTRE</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -624,9 +863,9 @@ block content %}
                 const data = Object.fromEntries(formData.entries());
 
                 // Validation
-                if (!data.reference || !data.nom) {
+                if (!data.reference || !data.designation) {
                     alert(
-                        "Veuillez remplir au moins la référence et le nom du produit"
+                        "Veuillez remplir au moins la référence et la désignation du produit"
                     );
                     return;
                 }
@@ -667,9 +906,9 @@ block content %}
                 const data = Object.fromEntries(formData.entries());
 
                 // Validation
-                if (!data.reference || !data.nom) {
+                if (!data.reference || !data.designation) {
                     alert(
-                        "Veuillez remplir au moins la référence et le nom du produit"
+                        "Veuillez remplir au moins la référence et la désignation du produit"
                     );
                     return;
                 }
@@ -729,32 +968,49 @@ block content %}
                         reference;
                     document.getElementById("modifReference").value =
                         produit.reference;
-                    document.getElementById("modifNom").value =
-                        produit.nom || produit.produits || "";
-                    document.getElementById("modifDescription").value = "";
+                    document.getElementById("modifReferenceFournisseur").value =
+                        produit.reference_fournisseur || "";
+                    document.getElementById("modifDesignation").value =
+                        produit.designation ||
+                        produit.nom ||
+                        produit.produits ||
+                        "";
+                    document.getElementById("modifDescription").value =
+                        produit.description || "";
 
                     // Extraire la description si elle est dans le champ produits
                     if (produit.produits && produit.produits.includes(" - ")) {
                         const parts = produit.produits.split(" - ");
-                        document.getElementById("modifNom").value = parts[0];
+                        document.getElementById("modifDesignation").value =
+                            parts[0];
                         document.getElementById("modifDescription").value =
                             parts.slice(1).join(" - ");
                     }
 
+                    document.getElementById("modifUniteStockage").value =
+                        produit.unite_stockage || "";
+                    document.getElementById("modifUniteCommande").value =
+                        produit.unite_commande || "";
                     document.getElementById("modifSeuilAlerte").value =
                         produit.stock_min || produit.seuil_alerte || 0;
                     document.getElementById("modifStockMax").value =
                         produit.stock_max || 100;
                     document.getElementById("modifQuantite").value =
                         produit.quantite || 0;
-                    document.getElementById("modifFournisseur").value =
-                        produit.fournisseur || "";
+                    document.getElementById("modifSite").value =
+                        produit.site || "";
+                    document.getElementById("modifLieu").value =
+                        produit.lieu || "";
                     document.getElementById("modifEmplacement").value =
                         produit.emplacement || "";
+                    document.getElementById("modifFournisseur").value =
+                        produit.fournisseur || "";
                     document.getElementById("modifPrixUnitaire").value =
                         produit.prix_unitaire || "";
-                    document.getElementById("modifUnite").value =
-                        produit.unite_stockage || "";
+                    document.getElementById("modifCategorie").value =
+                        produit.categorie || "";
+                    document.getElementById("modifSecteur").value =
+                        produit.secteur || "";
 
                     // Afficher le modal
                     new bootstrap.Modal(
