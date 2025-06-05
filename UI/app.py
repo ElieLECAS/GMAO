@@ -1073,12 +1073,31 @@ def normalize_produit(produit):
     
     return produit
 
+def moment():
+    """Retourner un objet datetime pour les templates avec méthode format"""
+    class MomentJS:
+        def __init__(self):
+            self.now = datetime.now()
+        
+        def format(self, pattern):
+            """Formater la date selon un pattern similaire à moment.js"""
+            # Convertir les patterns moment.js vers strftime
+            pattern = pattern.replace('DD', '%d')
+            pattern = pattern.replace('MM', '%m') 
+            pattern = pattern.replace('YYYY', '%Y')
+            pattern = pattern.replace('HH', '%H')
+            pattern = pattern.replace('mm', '%M')
+            return self.now.strftime(pattern)
+    
+    return MomentJS()
+
 # Enregistrer les fonctions helper pour les templates
 app.jinja_env.globals.update(
     get_stock_status=get_stock_status,
     get_status_class=get_status_class,
     get_stock_status_text=get_stock_status_text,
-    normalize_produit=normalize_produit
+    normalize_produit=normalize_produit,
+    moment=moment
 )
 
 @app.errorhandler(404)
