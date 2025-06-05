@@ -140,22 +140,25 @@
                                 {% for fournisseur in fournisseurs %}
                                 <tr
                                     data-statut="{{ fournisseur.statut or 'Actif' }}"
-                                    data-type="{{ fournisseur.type or 'Principal' }}"
+                                    data-type="Principal"
                                     data-id="{{ fournisseur.id }}"
                                 >
                                     <td>
-                                        <strong>{{ fournisseur.nom }}</strong>
+                                        <strong
+                                            >{{ fournisseur.nom_fournisseur
+                                            }}</strong
+                                        >
                                     </td>
-                                    <td>{{ fournisseur.contact or '-' }}</td>
+                                    <td>
+                                        {{ fournisseur.contact_principal or '-'
+                                        }}
+                                    </td>
                                     <td>{{ fournisseur.email or '-' }}</td>
                                     <td>{{ fournisseur.telephone or '-' }}</td>
                                     <td>{{ fournisseur.adresse or '-' }}</td>
                                     <td>
-                                        <span
-                                            class="badge bg-{{ 'primary' if fournisseur.type == 'Principal' else 'secondary' }}"
-                                        >
-                                            {{ fournisseur.type or 'Principal'
-                                            }}
+                                        <span class="badge bg-primary">
+                                            Principal
                                         </span>
                                     </td>
                                     <td>
@@ -176,7 +179,7 @@
                                             </button>
                                             <button
                                                 class="btn btn-outline-danger"
-                                                onclick="supprimerFournisseur({{ fournisseur.id }}, '{{ fournisseur.nom }}')"
+                                                onclick="supprimerFournisseur({{ fournisseur.id }}, '{{ fournisseur.nom_fournisseur }}')"
                                                 title="Supprimer"
                                             >
                                                 <i class="bi bi-trash"></i>

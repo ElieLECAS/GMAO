@@ -433,12 +433,11 @@ block content %}
                                 <option value="">
                                     Sélectionner un fournisseur
                                 </option>
-                                <option value="BOSCHAT">BOSCHAT</option>
-                                <option value="FAILLE">FAILLE</option>
-                                <option value="SFS">SFS</option>
                                 {% for fournisseur in fournisseurs %}
-                                <option value="{{ fournisseur.nom }}">
-                                    {{ fournisseur.nom }}
+                                <option
+                                    value="{{ fournisseur.nom_fournisseur }}"
+                                >
+                                    {{ fournisseur.nom_fournisseur }}
                                 </option>
                                 {% endfor %}
                             </select>
@@ -715,12 +714,11 @@ block content %}
                                 <option value="">
                                     Sélectionner un fournisseur
                                 </option>
-                                <option value="BOSCHAT">BOSCHAT</option>
-                                <option value="FAILLE">FAILLE</option>
-                                <option value="SFS">SFS</option>
                                 {% for fournisseur in fournisseurs %}
-                                <option value="{{ fournisseur.nom }}">
-                                    {{ fournisseur.nom }}
+                                <option
+                                    value="{{ fournisseur.nom_fournisseur }}"
+                                >
+                                    {{ fournisseur.nom_fournisseur }}
                                 </option>
                                 {% endfor %}
                             </select>

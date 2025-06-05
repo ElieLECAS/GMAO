@@ -34,10 +34,16 @@ class APIClient:
         """Effectuer une requête POST"""
         try:
             response = requests.post(f"{self.base_url}{endpoint}", json=data)
+            if response.status_code == 422:
+                print(f"Erreur 422 pour POST {endpoint}")
+                print(f"Données envoyées: {data}")
+                print(f"Réponse d'erreur: {response.text}")
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
             print(f"Erreur API POST {endpoint}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Détails de l'erreur: {e.response.text}")
             return None
     
     def put(self, endpoint, data=None):
@@ -393,6 +399,11 @@ def creer_produit():
     """Créer un nouveau produit"""
     try:
         data = request.get_json()
+        print(f"Données reçues: {data}")  # Debug
+        
+        # Validation des champs requis
+        if not data.get('designation'):
+            return jsonify({'success': False, 'message': 'La désignation est requise'})
         
         # Générer un code QR automatique à 10 chiffres
         import random
@@ -403,27 +414,30 @@ def creer_produit():
         produit_data = {
             'code': qr_code,  # Code QR généré automatiquement
             'reference': qr_code,  # Référence QR unique
-            'reference_fournisseur': data.get('reference_fournisseur', ''),
+            'reference_fournisseur': data.get('reference_fournisseur', '') or None,
             'produits': data.get('designation', ''),  # Utiliser désignation
-            'unite_stockage': data.get('unite_stockage', ''),
-            'unite_commande': data.get('unite_commande', ''),
-            'stock_min': int(data.get('seuil_alerte', 0)),
-            'stock_max': int(data.get('stock_max', 100)),
-            'site': data.get('site', ''),
-            'lieu': data.get('lieu', ''),
-            'emplacement': data.get('emplacement', ''),
-            'fournisseur': data.get('fournisseur', ''),
-            'prix_unitaire': float(data.get('prix_unitaire', 0)) if data.get('prix_unitaire') else 0,
-            'categorie': data.get('categorie', ''),
-            'secteur': data.get('secteur', ''),
-            'quantite': int(data.get('quantite', 0))
+            'unite_stockage': data.get('unite_stockage', '') or None,
+            'unite_commande': data.get('unite_commande', '') or None,
+            'stock_min': int(data.get('seuil_alerte', 0)) if data.get('seuil_alerte') else 0,
+            'stock_max': int(data.get('stock_max', 100)) if data.get('stock_max') else 100,
+            'site': data.get('site', '') or None,
+            'lieu': data.get('lieu', '') or None,
+            'emplacement': data.get('emplacement', '') or None,
+            'fournisseur': data.get('fournisseur', '') or None,
+            'prix_unitaire': float(data.get('prix_unitaire', 0)) if data.get('prix_unitaire') else 0.0,
+            'categorie': data.get('categorie', '') or None,
+            'secteur': data.get('secteur', '') or None,
+            'quantite': int(data.get('quantite', 0)) if data.get('quantite') else 0
         }
         
         # Ajouter la description si fournie
         if data.get('description'):
             produit_data['produits'] = f"{data.get('designation')} - {data.get('description')}"
         
+        print(f"Données envoyées à l'API: {produit_data}")  # Debug
+        
         result = api_client.post('/inventaire/', produit_data)
+        print(f"Résultat API: {result}")  # Debug
         
         if result:
             return jsonify({'success': True, 'message': 'Produit créé avec succès', 'produit': result})
@@ -431,6 +445,7 @@ def creer_produit():
             return jsonify({'success': False, 'message': 'Erreur lors de la création du produit'})
             
     except Exception as e:
+        print(f"Erreur dans creer_produit: {str(e)}")  # Debug
         return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
 
 @app.route('/api/produits/<int:produit_id>', methods=['PUT'])
@@ -580,6 +595,7 @@ def gestion_tables():
 def gestion_fournisseurs():
     """Page Gestion des fournisseurs"""
     fournisseurs = api_client.get('/fournisseurs/') or []
+    print(f"Fournisseurs récupérés: {fournisseurs}")  # Debug
     
     return render_template('gestion_fournisseurs.html', fournisseurs=fournisseurs)
 
@@ -742,6 +758,104 @@ def not_found(error):
 @app.errorhandler(500)
 def internal_error(error):
     return render_template('500.html'), 500
+
+@app.route('/api/fournisseurs', methods=['POST'])
+def creer_fournisseur():
+    """Créer un nouveau fournisseur"""
+    try:
+        data = request.get_json()
+        
+        # Générer un ID fournisseur automatique
+        import random
+        import string
+        from datetime import datetime
+        id_fournisseur = f"F{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        # Préparer les données pour l'API selon le schéma FournisseurCreate
+        fournisseur_data = {
+            'id_fournisseur': id_fournisseur,
+            'nom_fournisseur': data.get('nom', ''),  # Mapper 'nom' vers 'nom_fournisseur'
+            'contact_principal': data.get('contact', ''),
+            'email': data.get('email', ''),
+            'telephone': data.get('telephone', ''),
+            'adresse': data.get('adresse', ''),
+            'statut': data.get('statut', 'Actif')
+        }
+        
+        result = api_client.post('/fournisseurs/', fournisseur_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Fournisseur créé avec succès', 'fournisseur': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la création du fournisseur'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/fournisseurs/<int:fournisseur_id>', methods=['PUT'])
+def modifier_fournisseur(fournisseur_id):
+    """Modifier un fournisseur existant"""
+    try:
+        data = request.get_json()
+        
+        # Préparer les données pour l'API (seulement les champs modifiés)
+        fournisseur_data = {}
+        
+        if data.get('nom'):
+            fournisseur_data['nom_fournisseur'] = data.get('nom')
+            
+        if data.get('contact') is not None:
+            fournisseur_data['contact_principal'] = data.get('contact')
+            
+        if data.get('email') is not None:
+            fournisseur_data['email'] = data.get('email')
+            
+        if data.get('telephone') is not None:
+            fournisseur_data['telephone'] = data.get('telephone')
+            
+        if data.get('adresse') is not None:
+            fournisseur_data['adresse'] = data.get('adresse')
+            
+        if data.get('statut') is not None:
+            fournisseur_data['statut'] = data.get('statut')
+        
+        result = api_client.put(f'/fournisseurs/{fournisseur_id}', fournisseur_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Fournisseur modifié avec succès', 'fournisseur': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la modification du fournisseur'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/fournisseurs/<int:fournisseur_id>', methods=['DELETE'])
+def supprimer_fournisseur(fournisseur_id):
+    """Supprimer un fournisseur"""
+    try:
+        result = api_client.delete(f'/fournisseurs/{fournisseur_id}')
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Fournisseur supprimé avec succès'})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la suppression du fournisseur'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/fournisseurs/<int:fournisseur_id>')
+def get_fournisseur_by_id(fournisseur_id):
+    """Récupérer un fournisseur par son ID"""
+    try:
+        result = api_client.get(f'/fournisseurs/{fournisseur_id}')
+        
+        if result:
+            return jsonify({'success': True, 'fournisseur': result})
+        else:
+            return jsonify({'success': False, 'message': 'Fournisseur non trouvé'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) 
