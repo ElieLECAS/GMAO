@@ -151,10 +151,33 @@ def historique_mouvements():
     # Traiter les données pour l'affichage
     for mouvement in historique:
         # S'assurer que les champs nécessaires existent
-        if 'date' not in mouvement:
+        if 'date_mouvement' in mouvement:
+            mouvement['date'] = mouvement['date_mouvement']
+        elif 'date' not in mouvement:
             mouvement['date'] = datetime.now().strftime('%Y-%m-%d')
+        
+        # Normaliser la nature pour l'affichage
         if 'nature' not in mouvement:
-            mouvement['nature'] = 'inventaire'
+            mouvement['nature'] = 'Mouvement'
+            mouvement['nature_normalized'] = 'inventaire'
+            mouvement['nature_display'] = 'Mouvement'
+        else:
+            # Conserver la nature originale et ajouter une version normalisée
+            mouvement['nature_originale'] = mouvement['nature']
+            nature_lower = mouvement['nature'].lower()
+            if 'entrée' in nature_lower or 'entree' in nature_lower:
+                mouvement['nature_normalized'] = 'entree'
+                mouvement['nature_display'] = 'Entrée'
+            elif 'sortie' in nature_lower:
+                mouvement['nature_normalized'] = 'sortie'
+                mouvement['nature_display'] = 'Sortie'
+            elif 'ajustement' in nature_lower or 'régule' in nature_lower or 'regule' in nature_lower:
+                mouvement['nature_normalized'] = 'ajustement'
+                mouvement['nature_display'] = 'Ajustement'
+            else:
+                mouvement['nature_normalized'] = 'inventaire'
+                mouvement['nature_display'] = mouvement['nature']
+            
         if 'quantite_mouvement' not in mouvement:
             mouvement['quantite_mouvement'] = mouvement.get('quantite', 0)
         if 'quantite_avant' not in mouvement:
@@ -270,10 +293,11 @@ def entree_stock():
         
         result = api_client.post('/mouvements-stock/', mouvement_data)
         
-        if result:
+        if result and result.get('success'):
             return jsonify({'success': True, 'message': 'Entrée enregistrée avec succès'})
         else:
-            return jsonify({'success': False, 'message': 'Erreur lors de l\'enregistrement'})
+            error_message = result.get('message', 'Erreur lors de l\'enregistrement') if result else 'Erreur lors de l\'enregistrement'
+            return jsonify({'success': False, 'message': error_message})
     
     return render_template('entree_stock.html')
 
@@ -300,10 +324,11 @@ def sortie_stock():
         
         result = api_client.post('/mouvements-stock/', mouvement_data)
         
-        if result:
+        if result and result.get('success'):
             return jsonify({'success': True, 'message': 'Sortie enregistrée avec succès'})
         else:
-            return jsonify({'success': False, 'message': 'Erreur lors de l\'enregistrement'})
+            error_message = result.get('message', 'Erreur lors de l\'enregistrement') if result else 'Erreur lors de l\'enregistrement'
+            return jsonify({'success': False, 'message': error_message})
     
     return render_template('sortie_stock.html')
 
@@ -324,16 +349,17 @@ def regule_stock():
         mouvement_data = {
             'reference_produit': data['reference'],
             'nature': 'Ajustement',
-            'quantite': int(data['quantite']),
+            'quantite': int(data['quantite']),  # Pour ajustement, c'est la nouvelle quantité totale
             'motif': motif
         }
         
         result = api_client.post('/mouvements-stock/', mouvement_data)
         
-        if result:
+        if result and result.get('success'):
             return jsonify({'success': True, 'message': 'Ajustement enregistré avec succès'})
         else:
-            return jsonify({'success': False, 'message': 'Erreur lors de l\'enregistrement'})
+            error_message = result.get('message', 'Erreur lors de l\'enregistrement') if result else 'Erreur lors de l\'enregistrement'
+            return jsonify({'success': False, 'message': error_message})
     
     return render_template('regule_stock.html')
 
@@ -352,12 +378,169 @@ def preparer_inventaire():
 @app.route('/gestion-produits')
 def gestion_produits():
     """Page Gestion des produits"""
-    produits = api_client.get('/inventaire/') or []
+    produits_raw = api_client.get('/inventaire/') or []
+    # Normaliser les données des produits
+    produits = [normalize_produit(p.copy()) for p in produits_raw]
+    
     fournisseurs = api_client.get('/fournisseurs/') or []
     emplacements = api_client.get('/emplacements/') or []
     
     return render_template('gestion_produits.html', produits=produits, 
                          fournisseurs=fournisseurs, emplacements=emplacements)
+
+@app.route('/api/produits', methods=['POST'])
+def creer_produit():
+    """Créer un nouveau produit"""
+    try:
+        data = request.get_json()
+        
+        # Préparer les données pour l'API
+        produit_data = {
+            'code': data.get('reference'),  # Utiliser référence comme code
+            'reference': data.get('reference'),
+            'produits': data.get('nom'),  # Le nom va dans le champ 'produits'
+            'unite_stockage': data.get('unite', 'pcs'),
+            'stock_min': int(data.get('seuil_alerte', 0)),
+            'stock_max': int(data.get('stock_max', 100)),
+            'emplacement': data.get('emplacement'),
+            'fournisseur': data.get('fournisseur'),
+            'prix_unitaire': float(data.get('prix_unitaire', 0)) if data.get('prix_unitaire') else 0,
+            'quantite': int(data.get('quantite', 0))
+        }
+        
+        # Ajouter la description si fournie
+        if data.get('description'):
+            produit_data['produits'] = f"{data.get('nom')} - {data.get('description')}"
+        
+        result = api_client.post('/inventaire/', produit_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Produit créé avec succès', 'produit': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la création du produit'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/produits/<int:produit_id>', methods=['PUT'])
+def modifier_produit(produit_id):
+    """Modifier un produit existant"""
+    try:
+        data = request.get_json()
+        
+        # Préparer les données pour l'API (seulement les champs modifiés)
+        produit_data = {}
+        
+        if data.get('reference'):
+            produit_data['reference'] = data.get('reference')
+            produit_data['code'] = data.get('reference')  # Synchroniser code et référence
+            
+        if data.get('nom'):
+            if data.get('description'):
+                produit_data['produits'] = f"{data.get('nom')} - {data.get('description')}"
+            else:
+                produit_data['produits'] = data.get('nom')
+                
+        if data.get('seuil_alerte') is not None:
+            produit_data['stock_min'] = int(data.get('seuil_alerte'))
+            
+        if data.get('stock_max') is not None:
+            produit_data['stock_max'] = int(data.get('stock_max'))
+            
+        if data.get('emplacement') is not None:
+            produit_data['emplacement'] = data.get('emplacement')
+            
+        if data.get('fournisseur') is not None:
+            produit_data['fournisseur'] = data.get('fournisseur')
+            
+        if data.get('prix_unitaire') is not None:
+            produit_data['prix_unitaire'] = float(data.get('prix_unitaire')) if data.get('prix_unitaire') else 0
+            
+        if data.get('unite'):
+            produit_data['unite_stockage'] = data.get('unite')
+        
+        result = api_client.put(f'/inventaire/{produit_id}', produit_data)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Produit modifié avec succès', 'produit': result})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la modification du produit'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/produits/<int:produit_id>', methods=['DELETE'])
+def supprimer_produit(produit_id):
+    """Supprimer un produit"""
+    try:
+        result = api_client.delete(f'/inventaire/{produit_id}')
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Produit supprimé avec succès'})
+        else:
+            return jsonify({'success': False, 'message': 'Erreur lors de la suppression du produit'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/api/produits/<reference>')
+def get_produit_by_reference(reference):
+    """Récupérer un produit par sa référence pour modification"""
+    try:
+        produit = api_client.get(f'/inventaire/reference/{reference}')
+        
+        if produit:
+            return jsonify({'success': True, 'produit': produit})
+        else:
+            return jsonify({'success': False, 'message': 'Produit non trouvé'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+@app.route('/historique/reference/<reference>')
+def historique_by_reference(reference):
+    """Récupérer l'historique des mouvements d'un produit par référence"""
+    try:
+        historique = api_client.get(f'/historique/reference/{reference}')
+        
+        if historique:
+            return jsonify(historique)
+        else:
+            return jsonify([])
+            
+    except Exception as e:
+        return jsonify([])
+
+@app.route('/mouvement-stock', methods=['POST'])
+def mouvement_stock_api():
+    """Effectuer un mouvement de stock depuis la page de détail"""
+    try:
+        data = request.get_json()
+        
+        # Mapper les natures pour l'API
+        nature_mapping = {
+            'entree': 'Entrée',
+            'sortie': 'Sortie', 
+            'inventaire': 'Ajustement'
+        }
+        
+        mouvement_data = {
+            'reference_produit': data.get('reference'),
+            'nature': nature_mapping.get(data.get('nature'), data.get('nature')),
+            'quantite': int(data.get('quantite')),
+            'motif': f"Utilisateur: {data.get('utilisateur')}" + (f" | {data.get('commentaires')}" if data.get('commentaires') else "")
+        }
+        
+        result = api_client.post('/mouvements-stock/', mouvement_data)
+        
+        if result and result.get('success'):
+            return jsonify(result)
+        else:
+            error_message = result.get('message', 'Erreur lors de l\'enregistrement') if result else 'Erreur lors de l\'enregistrement'
+            return jsonify({'success': False, 'message': error_message})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
 
 @app.route('/gestion-tables')
 def gestion_tables():
@@ -467,7 +650,8 @@ def generate_qr_code(data):
 def get_stock_status(produit):
     """Détermine le statut du stock d'un produit"""
     quantite = produit.get('quantite', 0)
-    stock_min = produit.get('seuil_alerte', 0)
+    # Normaliser les noms de champs entre API et templates
+    stock_min = produit.get('stock_min', produit.get('seuil_alerte', 0))
     stock_max = produit.get('stock_max', 100)
     
     # Calcul du seuil d'alerte (30% entre min et max)
@@ -498,11 +682,30 @@ def get_stock_status_text(produit):
     }
     return status_texts.get(status, '❓ Inconnu')
 
+def normalize_produit(produit):
+    """Normalise les données d'un produit pour compatibilité entre API et templates"""
+    if not produit:
+        return produit
+    
+    # Ajouter des alias pour la compatibilité
+    if 'stock_min' in produit and 'seuil_alerte' not in produit:
+        produit['seuil_alerte'] = produit['stock_min']
+    if 'produits' in produit and 'nom' not in produit:
+        # Extraire le nom de base du champ produits
+        nom_complet = produit['produits']
+        if ' - ' in nom_complet:
+            produit['nom'] = nom_complet.split(' - ')[0]
+        else:
+            produit['nom'] = nom_complet
+    
+    return produit
+
 # Enregistrer les fonctions helper pour les templates
 app.jinja_env.globals.update(
     get_stock_status=get_stock_status,
     get_status_class=get_status_class,
-    get_stock_status_text=get_stock_status_text
+    get_stock_status_text=get_stock_status_text,
+    normalize_produit=normalize_produit
 )
 
 @app.errorhandler(404)

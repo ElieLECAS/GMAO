@@ -369,9 +369,18 @@ def effectuer_mouvement_stock(db: Session, mouvement: schemas.MouvementStockCrea
             return {"success": False, "message": "Stock insuffisant"}
         quantite_apres = quantite_avant - mouvement.quantite
     elif mouvement.nature.lower() == "ajustement":
+        # Pour un ajustement, mouvement.quantite est la nouvelle quantité totale
         quantite_apres = mouvement.quantite
     else:
         return {"success": False, "message": "Type de mouvement invalide"}
+    
+    # Calculer la quantité de mouvement pour l'historique
+    if mouvement.nature.lower() == "ajustement":
+        # Pour un ajustement, la quantité de mouvement est la différence
+        quantite_mouvement_historique = abs(quantite_apres - quantite_avant)
+    else:
+        # Pour entrée/sortie, c'est la quantité du mouvement
+        quantite_mouvement_historique = mouvement.quantite
     
     # Créer l'enregistrement d'historique
     historique_data = schemas.HistoriqueCreate(
@@ -379,7 +388,7 @@ def effectuer_mouvement_stock(db: Session, mouvement: schemas.MouvementStockCrea
         reference=mouvement.reference_produit,
         produit=produit.produits,
         nature=mouvement.nature,
-        quantite_mouvement=mouvement.quantite,
+        quantite_mouvement=quantite_mouvement_historique,
         quantite_avant=quantite_avant,
         quantite_apres=quantite_apres
     )

@@ -1,5 +1,5 @@
-{% extends "base.html" %} {% block title %}{{ produit.designation }} - GMAO
-Mobile{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}{{ produit.nom or produit.reference
+}} - GMAO Mobile{% endblock %} {% block content %}
 <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
         <!-- En-tête avec retour -->
@@ -17,13 +17,13 @@ Mobile{% endblock %} {% block content %}
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">{{ produit.designation }}</h5>
-                    {% set stock_class = 'bg-danger' if produit.quantite <=
-                    produit.seuil_alerte else 'bg-warning text-dark' if
-                    produit.quantite <= produit.seuil_alerte * 2 else
-                    'bg-success' %}
+                    <h5 class="mb-0">{{ produit.nom or produit.reference }}</h5>
+                    {% set stock_class = 'bg-danger' if (produit.quantite or 0)
+                    <= (produit.seuil_alerte or 0) else 'bg-warning text-dark'
+                    if (produit.quantite or 0) <= (produit.seuil_alerte or 0) *
+                    2 else 'bg-success' %}
                     <span class="badge {{ stock_class }} fs-6"
-                        >{{ produit.quantite }}</span
+                        >{{ produit.quantite or 0 }}</span
                     >
                 </div>
             </div>
@@ -31,8 +31,10 @@ Mobile{% endblock %} {% block content %}
                 <!-- Informations principales -->
                 <div class="row mb-3">
                     <div class="col-6">
-                        <strong>Code:</strong><br />
-                        <span class="text-muted">{{ produit.code }}</span>
+                        <strong>Nom:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.produits or produit.nom or '-' }}</span
+                        >
                     </div>
                     <div class="col-6">
                         <strong>Référence:</strong><br />
@@ -42,53 +44,169 @@ Mobile{% endblock %} {% block content %}
 
                 <div class="row mb-3">
                     <div class="col-6">
-                        <strong>Emplacement:</strong><br />
+                        <strong>Code:</strong><br />
                         <span class="text-muted"
-                            >{{ produit.emplacement }}</span
+                            >{{ produit.code or '-' }}</span
                         >
                     </div>
                     <div class="col-6">
-                        <strong>Fournisseur:</strong><br />
+                        <strong>Référence fournisseur:</strong><br />
                         <span class="text-muted"
-                            >{{ produit.fournisseur }}</span
+                            >{{ produit.reference_fournisseur or '-' }}</span
                         >
                     </div>
                 </div>
 
                 <div class="row mb-3">
                     <div class="col-6">
-                        <strong>Seuil d'alerte:</strong><br />
+                        <strong>Emplacement:</strong><br />
                         <span class="text-muted"
-                            >{{ produit.seuil_alerte }}</span
+                            >{{ produit.emplacement or '-' }}</span
                         >
                     </div>
                     <div class="col-6">
-                        <strong>Unité:</strong><br />
+                        <strong>Fournisseur:</strong><br />
                         <span class="text-muted"
-                            >{{ produit.unite if produit.unite else 'Non
-                            définie' }}</span
+                            >{{ produit.fournisseur or '-' }}</span
                         >
                     </div>
                 </div>
 
-                {% if produit.description %}
-                <div class="mb-3">
-                    <strong>Description:</strong><br />
-                    <span class="text-muted">{{ produit.description }}</span>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Site:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.site or '-' }}</span
+                        >
+                    </div>
+                    <div class="col-6">
+                        <strong>Lieu:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.lieu or '-' }}</span
+                        >
+                    </div>
                 </div>
-                {% endif %}
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Catégorie:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.categorie or '-' }}</span
+                        >
+                    </div>
+                    <div class="col-6">
+                        <strong>Secteur:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.secteur or '-' }}</span
+                        >
+                    </div>
+                </div>
+
+                <!-- Informations de stock -->
+                <hr class="my-4" />
+                <h6 class="text-primary mb-3">
+                    <i class="bi bi-box-seam"></i> Informations de stock
+                </h6>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Stock minimum:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.stock_min or produit.seuil_alerte or 0
+                            }}</span
+                        >
+                    </div>
+                    <div class="col-6">
+                        <strong>Stock maximum:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.stock_max or 100 }}</span
+                        >
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Unité de stockage:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.unite_stockage or 'Non définie' }}</span
+                        >
+                    </div>
+                    <div class="col-6">
+                        <strong>Unité de commande:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.unite_commande or 'Non définie' }}</span
+                        >
+                    </div>
+                </div>
+
+                <!-- Informations financières -->
+                <hr class="my-4" />
+                <h6 class="text-success mb-3">
+                    <i class="bi bi-currency-euro"></i> Informations financières
+                </h6>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Prix unitaire:</strong><br />
+                        <span class="text-muted">
+                            {% if produit.prix_unitaire %} {% set prix =
+                            produit.prix_unitaire|float %} {% if prix > 0 %} {{
+                            "%.2f"|format(prix) }} € {% else %} Non défini {%
+                            endif %} {% else %} Non défini {% endif %}
+                        </span>
+                    </div>
+                    <div class="col-6">
+                        <strong>Valeur du stock:</strong><br />
+                        <span class="text-muted">
+                            {% if produit.prix_unitaire %} {% set prix =
+                            produit.prix_unitaire|float %} {% set quantite =
+                            produit.quantite or 0 %} {% if prix > 0 %} {{
+                            "%.2f"|format(prix * quantite) }} € {% else %} Non
+                            calculable {% endif %} {% else %} Non calculable {%
+                            endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Informations de traçabilité -->
+                <hr class="my-4" />
+                <h6 class="text-info mb-3">
+                    <i class="bi bi-clock-history"></i> Traçabilité
+                </h6>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Date d'entrée:</strong><br />
+                        <span class="text-muted">
+                            {% if produit.date_entree %} {{ produit.date_entree
+                            }} {% else %} Non définie {% endif %}
+                        </span>
+                    </div>
+                    <div class="col-6">
+                        <strong>Dernière mise à jour:</strong><br />
+                        <span class="text-muted">
+                            {% if produit.updated_at %} {% if
+                            produit.updated_at.strftime is defined %} {{
+                            produit.updated_at.strftime('%d/%m/%Y %H:%M') }} {%
+                            else %} {{ produit.updated_at }} {% endif %} {% else
+                            %} Non définie {% endif %}
+                        </span>
+                    </div>
+                </div>
 
                 <!-- Statut du stock -->
                 <div
-                    class="alert {% if produit.quantite <= produit.seuil_alerte %}alert-danger{% elif produit.quantite <= produit.seuil_alerte * 2 %}alert-warning{% else %}alert-success{% endif %}"
+                    class="alert {% if (produit.quantite or 0) <= (produit.seuil_alerte or 0) %}alert-danger{% elif (produit.quantite or 0) <= (produit.seuil_alerte or 0) * 2 %}alert-warning{% else %}alert-success{% endif %}"
                 >
                     <i
-                        class="bi bi-{% if produit.quantite <= produit.seuil_alerte %}exclamation-triangle{% elif produit.quantite <= produit.seuil_alerte * 2 %}exclamation-circle{% else %}check-circle{% endif %}"
+                        class="bi bi-{% if (produit.quantite or 0) <= (produit.seuil_alerte or 0) %}exclamation-triangle{% elif (produit.quantite or 0) <= (produit.seuil_alerte or 0) * 2 %}exclamation-circle{% else %}check-circle{% endif %}"
                     ></i>
-                    {% if produit.quantite <= produit.seuil_alerte %}
+                    {% if (produit.quantite or 0) <= (produit.seuil_alerte or 0)
+                    %}
                     <strong>Stock critique!</strong> Réapprovisionnement urgent
-                    nécessaire. {% elif produit.quantite <= produit.seuil_alerte
-                    * 2 %} <strong>Stock faible.</strong> Prévoir un
+                    nécessaire. {% elif (produit.quantite or 0) <=
+                    (produit.seuil_alerte or 0) * 2 %}
+                    <strong>Stock faible.</strong> Prévoir un
                     réapprovisionnement. {% else %}
                     <strong>Stock suffisant.</strong>
                     {% endif %}
@@ -162,12 +280,89 @@ Mobile{% endblock %} {% block content %}
             </div>
         </div>
 
+        <!-- Statistiques du produit -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-graph-up"></i> Statistiques
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-3">
+                        <div class="border rounded p-3">
+                            <h5 class="text-primary mb-1">
+                                {{ produit.quantite or 0 }}
+                            </h5>
+                            <small class="text-muted">Stock actuel</small>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="border rounded p-3">
+                            <h5 class="text-warning mb-1">
+                                {{ produit.stock_min or produit.seuil_alerte or
+                                0 }}
+                            </h5>
+                            <small class="text-muted">Seuil minimum</small>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="border rounded p-3">
+                            <h5 class="text-success mb-1">
+                                {{ produit.stock_max or 100 }}
+                            </h5>
+                            <small class="text-muted">Stock maximum</small>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="border rounded p-3">
+                            <h5 class="text-info mb-1" id="rotation-stock">
+                                -
+                            </h5>
+                            <small class="text-muted">Rotation (30j)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barre de progression du stock -->
+                <div class="mt-3">
+                    <label class="form-label small">Niveau de stock</label>
+                    {% set stock_min = produit.stock_min or produit.seuil_alerte
+                    or 0 %} {% set stock_max = produit.stock_max or 100 %} {%
+                    set stock_actuel = produit.quantite or 0 %} {% set
+                    pourcentage = ((stock_actuel / stock_max) * 100) if
+                    stock_max > 0 else 0 %}
+
+                    <div class="progress" style="height: 20px">
+                        <div
+                            class="progress-bar {% if stock_actuel <= stock_min %}bg-danger {% elif stock_actuel <= stock_min * 2 %}bg-warning {% else %}bg-success{% endif %}"
+                            role="progressbar"
+                            style="width: {{ pourcentage }}%"
+                            aria-valuenow="{{ stock_actuel }}"
+                            aria-valuemin="0"
+                            aria-valuemax="{{ stock_max }}"
+                        >
+                            {{ stock_actuel }} / {{ stock_max }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Historique récent -->
         <div class="card">
-            <div class="card-header">
+            <div
+                class="card-header d-flex justify-content-between align-items-center"
+            >
                 <h6 class="mb-0">
                     <i class="bi bi-clock-history"></i> Historique récent
                 </h6>
+                <a
+                    href="{{ url_for('historique_mouvements') }}?reference={{ produit.reference }}"
+                    class="btn btn-outline-primary btn-sm"
+                >
+                    <i class="bi bi-list"></i> Voir tout
+                </a>
             </div>
             <div class="card-body">
                 <div id="historique-container">
@@ -209,7 +404,7 @@ Mobile{% endblock %} {% block content %}
                         <input
                             type="text"
                             class="form-control"
-                            value="{{ produit.designation }}"
+                            value="{{ produit.nom or produit.reference }}"
                             readonly
                         />
                     </div>
@@ -270,7 +465,7 @@ Mobile{% endblock %} {% block content %}
                     </div>
 
                     <div class="alert alert-info" id="stock-preview">
-                        <small>Stock actuel: {{ produit.quantite }}</small>
+                        <small>Stock actuel: {{ produit.quantite or 0 }}</small>
                     </div>
                 </form>
             </div>
@@ -299,48 +494,73 @@ Mobile{% endblock %} {% block content %}
 </div>
 {% endblock %} {% block extra_js %}
 <script>
-    let currentStock = {{ produit.quantite }};
+    let currentStock = {{ produit.quantite or 0 }};
 
     document.addEventListener('DOMContentLoaded', function() {
         loadHistorique();
     });
 
     function loadHistorique() {
-        makeRequest(`/historique/reference/{{ produit.reference }}`)
+        fetch(`/historique/reference/{{ produit.reference }}`)
+            .then(response => response.json())
             .then(historique => {
                 const container = document.getElementById('historique-container');
 
                 if (historique && historique.length > 0) {
                     let html = '';
+                    let totalMouvements30j = 0;
+                    const date30jAgo = new Date();
+                    date30jAgo.setDate(date30jAgo.getDate() - 30);
+
                     historique.slice(0, 5).forEach(mouvement => {
-                        const date = new Date(mouvement.date_mouvement).toLocaleString('fr-FR');
-                        const icon = mouvement.nature === 'entree' ? 'plus-circle text-success' :
-                                    mouvement.nature === 'sortie' ? 'dash-circle text-warning' :
+                        const dateMouvement = new Date(mouvement.date_mouvement);
+                        const dateFormatted = dateMouvement.toLocaleString('fr-FR');
+
+                        // Calculer la rotation sur 30 jours
+                        if (dateMouvement >= date30jAgo && (mouvement.nature === 'Sortie' || mouvement.nature === 'sortie')) {
+                            totalMouvements30j += mouvement.quantite_mouvement || mouvement.quantite || 0;
+                        }
+
+                        const icon = (mouvement.nature === 'Entrée' || mouvement.nature === 'entree') ? 'plus-circle text-success' :
+                                    (mouvement.nature === 'Sortie' || mouvement.nature === 'sortie') ? 'dash-circle text-danger' :
                                     'clipboard-check text-info';
+
+                        const natureDisplay = mouvement.nature === 'Entrée' || mouvement.nature === 'entree' ? 'Entrée' :
+                                            mouvement.nature === 'Sortie' || mouvement.nature === 'sortie' ? 'Sortie' :
+                                            'Ajustement';
 
                         html += `
                             <div class="d-flex justify-content-between align-items-center border-bottom py-2">
                                 <div>
                                     <i class="bi bi-${icon}"></i>
-                                    <strong>${mouvement.nature.charAt(0).toUpperCase() + mouvement.nature.slice(1)}</strong>
-                                    <span class="text-muted">- ${mouvement.quantite}</span>
+                                    <strong>${natureDisplay}</strong>
+                                    <span class="text-muted">- ${mouvement.quantite_mouvement || mouvement.quantite || 0}</span>
                                     <br>
-                                    <small class="text-muted">${date}</small>
+                                    <small class="text-muted">${dateFormatted}</small>
                                 </div>
                                 <div class="text-end">
-                                    <small class="text-muted">Par: ${mouvement.utilisateur}</small>
+                                    <div class="badge bg-secondary">${mouvement.quantite_apres || 'N/A'}</div>
+                                    <br>
+                                    <small class="text-muted">Stock après</small>
                                 </div>
                             </div>
                         `;
                     });
+
                     container.innerHTML = html;
+
+                    // Mettre à jour la rotation
+                    document.getElementById('rotation-stock').textContent = totalMouvements30j;
                 } else {
-                    container.innerHTML = '<div class="text-muted text-center">Aucun mouvement récent</div>';
+                    container.innerHTML = '<div class="text-muted text-center py-3"><i class="bi bi-inbox"></i><br>Aucun mouvement récent</div>';
+                    document.getElementById('rotation-stock').textContent = '0';
                 }
             })
             .catch(error => {
+                console.error('Erreur lors du chargement de l\'historique:', error);
                 document.getElementById('historique-container').innerHTML =
-                    '<div class="text-danger text-center">Erreur lors du chargement</div>';
+                    '<div class="text-danger text-center py-3"><i class="bi bi-exclamation-triangle"></i><br>Erreur lors du chargement</div>';
+                document.getElementById('rotation-stock').textContent = '-';
             });
     }
 
@@ -394,7 +614,7 @@ Mobile{% endblock %} {% block content %}
             newStock = quantity;
         }
 
-        const color = newStock < 0 ? 'danger' : newStock <= {{ produit.seuil_alerte }} ? 'warning' : 'info';
+        const color = newStock < 0 ? 'danger' : newStock <= {{ produit.seuil_alerte or 0 }} ? 'warning' : 'info';
         preview.className = `alert alert-${color}`;
         preview.innerHTML = `<small>Stock actuel: ${currentStock} → Nouveau stock: ${newStock}</small>`;
     }
@@ -410,12 +630,12 @@ Mobile{% endblock %} {% block content %}
         const user = document.getElementById('movement-user').value.trim();
 
         if (!quantity || quantity < 1) {
-            showNotification('Veuillez entrer une quantité valide', 'danger');
+            alert('Veuillez entrer une quantité valide');
             return;
         }
 
         if (!user) {
-            showNotification('Veuillez entrer votre nom', 'danger');
+            alert('Veuillez entrer votre nom');
             return;
         }
 
@@ -432,10 +652,17 @@ Mobile{% endblock %} {% block content %}
             commentaires: document.getElementById('movement-comments').value
         };
 
-        makeRequest('/mouvement-stock', 'POST', data)
+        fetch('/mouvement-stock', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
             .then(response => {
                 if (response.success) {
-                    showNotification('Mouvement enregistré avec succès', 'success');
+                    alert('Mouvement enregistré avec succès');
 
                     // Mettre à jour le stock affiché
                     const newStock = response.nouveau_stock || (currentStock +
@@ -452,11 +679,12 @@ Mobile{% endblock %} {% block content %}
                     // Fermer le modal
                     bootstrap.Modal.getInstance(document.getElementById('movementModal')).hide();
                 } else {
-                    showNotification(response.message || 'Erreur lors de l\'enregistrement', 'danger');
+                    alert(response.message || 'Erreur lors de l\'enregistrement');
                 }
             })
             .catch(error => {
-                showNotification('Erreur lors de l\'enregistrement', 'danger');
+                console.error('Erreur:', error);
+                alert('Erreur lors de l\'enregistrement');
             })
             .finally(() => {
                 // Re-enable button
@@ -475,8 +703,8 @@ Mobile{% endblock %} {% block content %}
 
                 // Mettre à jour la classe selon le nouveau stock
                 badge.className = 'badge fs-6 ' +
-                    (newStock <= {{ produit.seuil_alerte }} ? 'bg-danger' :
-                     newStock <= {{ produit.seuil_alerte }} * 2 ? 'bg-warning text-dark' : 'bg-success');
+                    (newStock <= {{ produit.seuil_alerte or 0 }} ? 'bg-danger' :
+                     newStock <= {{ produit.seuil_alerte or 0 }} * 2 ? 'bg-warning text-dark' : 'bg-success');
             }
         });
     }
@@ -492,14 +720,14 @@ Mobile{% endblock %} {% block content %}
     function shareQR() {
         if (navigator.share) {
             navigator.share({
-                title: 'QR Code - {{ produit.designation }}',
-                text: 'QR Code pour {{ produit.designation }} ({{ produit.reference }})',
+                title: 'QR Code - {{ produit.nom or produit.reference }}',
+                text: 'QR Code pour {{ produit.nom or produit.reference }} ({{ produit.reference }})',
                 url: window.location.href
             });
         } else {
             // Fallback: copier l'URL
             navigator.clipboard.writeText(window.location.href).then(() => {
-                showNotification('Lien copié dans le presse-papiers', 'success');
+                alert('Lien copié dans le presse-papiers');
             });
         }
     }
