@@ -2,550 +2,451 @@
 %} {% block extra_css %}
 <style>
     .scanner-container {
-        position: relative;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        min-height: 70vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .scan-input-container {
+        background: linear-gradient(135deg, #0d6efd, #6610f2);
+        border-radius: 20px;
+        padding: 40px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(13, 110, 253, 0.3);
+        text-align: center;
+    }
+
+    .scan-input-container h3 {
+        color: white;
+        margin-bottom: 20px;
+        font-weight: 600;
+    }
+
+    .scan-input-container p {
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 30px;
+    }
+
+    #qr-input {
+        font-size: 1.5rem;
+        padding: 15px 20px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        text-align: center;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+        width: 100%;
         max-width: 400px;
+    }
+
+    #qr-input:focus {
+        outline: none;
+        border-color: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        transform: scale(1.02);
+    }
+
+    #qr-input::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+    }
+
+    .status-message {
+        text-align: center;
+        margin: 20px 0;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+
+    .status-ready {
+        color: #28a745;
+    }
+
+    .status-scanning {
+        color: #0d6efd;
+    }
+
+    .status-error {
+        color: #dc3545;
+    }
+
+    .status-success {
+        color: #28a745;
+    }
+
+    .clear-input-btn {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+
+    .clear-input-btn:hover {
+        color: white;
+    }
+
+    .input-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .error-message {
+        background: rgba(220, 53, 69, 0.1);
+        border: 2px solid rgba(220, 53, 69, 0.3);
+        border-radius: 15px;
+        padding: 20px;
+        margin: 20px 0;
+        text-align: center;
+        color: #dc3545;
+    }
+
+    .error-message h5 {
+        color: #dc3545;
+        margin-bottom: 15px;
+    }
+
+    .error-message .btn {
+        margin: 5px;
+    }
+
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+        }
+    }
+
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top: 3px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 10px;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .instructions {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 20px;
+        text-align: center;
+        color: #495057;
+    }
+
+    .instructions h6 {
+        color: #0d6efd;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+    .instructions ul {
+        text-align: left;
+        max-width: 300px;
         margin: 0 auto;
     }
 
-    #qr-reader {
-        border-radius: 15px;
-        overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .scanner-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        pointer-events: none;
-        z-index: 10;
-    }
-
-    .scanner-frame {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 200px;
-        height: 200px;
-        border: 3px solid #fff;
-        border-radius: 15px;
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-    }
-
-    .scanner-corners {
-        position: absolute;
-        width: 30px;
-        height: 30px;
-        border: 4px solid #0d6efd;
-    }
-
-    .corner-tl {
-        top: -2px;
-        left: -2px;
-        border-right: none;
-        border-bottom: none;
-    }
-    .corner-tr {
-        top: -2px;
-        right: -2px;
-        border-left: none;
-        border-bottom: none;
-    }
-    .corner-bl {
-        bottom: -2px;
-        left: -2px;
-        border-right: none;
-        border-top: none;
-    }
-    .corner-br {
-        bottom: -2px;
-        right: -2px;
-        border-left: none;
-        border-top: none;
-    }
-
-    .scan-line {
-        position: absolute;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, transparent, #0d6efd, transparent);
-        animation: scan 2s linear infinite;
-    }
-
-    @keyframes scan {
-        0% {
-            top: 0;
-        }
-        100% {
-            top: 100%;
-        }
-    }
-
-    .manual-input {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-radius: 15px;
-        padding: 20px;
-        margin-top: 20px;
-    }
-
-    .camera-controls {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        margin: 20px 0;
-    }
-
-    .camera-btn {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        transition: all 0.3s ease;
-    }
-
-    .camera-btn:hover {
-        transform: scale(1.1);
-    }
-
-    .result-card {
-        background: linear-gradient(135deg, #28a745, #20c997);
-        color: white;
-        border-radius: 15px;
-        padding: 20px;
-        margin-top: 20px;
-        animation: slideUp 0.5s ease;
-    }
-
-    @keyframes slideUp {
-        from {
-            transform: translateY(20px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
+    .instructions li {
+        margin-bottom: 8px;
+        color: #6c757d;
     }
 </style>
 {% endblock %} {% block content %}
-<div class="row justify-content-center">
-    <div class="col-12 col-md-8 col-lg-6">
-        <!-- En-tête -->
-        <div class="text-center mb-4">
-            <h3>
-                <i class="bi bi-qr-code-scan text-primary"></i> Scanner QR Code
-            </h3>
-            <p class="text-muted">
-                Pointez la caméra vers un QR code pour scanner un produit
-            </p>
-        </div>
+<div class="scanner-container">
+    <!-- Zone de scan principale -->
+    <div class="scan-input-container">
+        <h3><i class="bi bi-qr-code-scan"></i> Scanner QR Code</h3>
+        <p>Utilisez votre lecteur QR code pour scanner un produit</p>
 
-        <!-- Zone de scan -->
-        <div class="scanner-container">
-            <div id="qr-reader"></div>
-            <div class="scanner-overlay">
-                <div class="scanner-frame">
-                    <div class="scanner-corners corner-tl"></div>
-                    <div class="scanner-corners corner-tr"></div>
-                    <div class="scanner-corners corner-bl"></div>
-                    <div class="scanner-corners corner-br"></div>
-                    <div class="scan-line"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Contrôles de la caméra -->
-        <div class="camera-controls">
+        <div class="input-wrapper">
+            <input
+                type="text"
+                id="qr-input"
+                class="form-control"
+                placeholder="Scannez ou saisissez un code..."
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+            />
             <button
-                id="start-btn"
-                class="camera-btn btn btn-success"
-                onclick="startScanner()"
+                type="button"
+                class="clear-input-btn"
+                onclick="clearInput()"
             >
-                <i class="bi bi-play-fill"></i>
-            </button>
-            <button
-                id="stop-btn"
-                class="camera-btn btn btn-danger"
-                onclick="stopScanner()"
-                style="display: none"
-            >
-                <i class="bi bi-stop-fill"></i>
-            </button>
-            <button
-                id="switch-camera-btn"
-                class="camera-btn btn btn-secondary"
-                onclick="switchCamera()"
-                style="display: none"
-            >
-                <i class="bi bi-camera-reels"></i>
-            </button>
-            <button
-                class="camera-btn btn btn-info"
-                onclick="toggleManualInput()"
-            >
-                <i class="bi bi-keyboard"></i>
+                <i class="bi bi-x-circle"></i>
             </button>
         </div>
+    </div>
 
-        <!-- Statut du scanner -->
-        <div id="scanner-status" class="text-center">
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i>
-                Cliquez sur le bouton play pour démarrer le scanner
-            </div>
-        </div>
+    <!-- Message de statut -->
+    <div id="status-message" class="status-message status-ready">
+        <i class="bi bi-check-circle"></i> Prêt à scanner
+    </div>
 
-        <!-- Saisie manuelle -->
-        <div id="manual-input" class="manual-input" style="display: none">
-            <h5><i class="bi bi-keyboard"></i> Saisie manuelle</h5>
-            <div class="input-group mb-3">
-                <input
-                    type="text"
-                    id="manual-code"
-                    class="form-control"
-                    placeholder="Entrez le code ou la référence"
-                />
-                <button class="btn btn-primary" onclick="searchManual()">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
-        </div>
+    <!-- Zone d'erreur -->
+    <div id="error-result" style="display: none"></div>
 
-        <!-- Résultat du scan -->
-        <div id="scan-result" style="display: none"></div>
-
-        <!-- Historique des scans récents -->
-        <div class="mt-4">
-            <h5><i class="bi bi-clock-history"></i> Scans récents</h5>
-            <div id="recent-scans" class="list-group">
-                <!-- Les scans récents seront ajoutés ici -->
-            </div>
-        </div>
+    <!-- Instructions d'utilisation -->
+    <div class="instructions">
+        <h6><i class="bi bi-info-circle"></i> Instructions</h6>
+        <ul>
+            <li>Pointez votre lecteur QR vers un code produit</li>
+            <li>Le code sera automatiquement saisi dans le champ</li>
+            <li>Vous serez redirigé vers la page du produit</li>
+            <li>Vous pouvez aussi saisir manuellement un code</li>
+        </ul>
     </div>
 </div>
 {% endblock %} {% block extra_js %}
-<!-- Html5-QRCode Library -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
 <script>
-    let html5QrcodeScanner = null;
-    let currentCamera = 0;
-    let cameras = [];
+    let scanTimeout = null;
+    let isProcessing = false;
 
     document.addEventListener("DOMContentLoaded", function () {
-        loadRecentScans();
-        getCameras();
+        // Focus automatique sur l'input
+        const qrInput = document.getElementById("qr-input");
+        qrInput.focus();
+
+        // Maintenir le focus sur l'input
+        setInterval(() => {
+            if (!isProcessing && document.activeElement !== qrInput) {
+                qrInput.focus();
+            }
+        }, 1000);
     });
 
-    async function getCameras() {
-        try {
-            const devices = await Html5Qrcode.getCameras();
-            cameras = devices;
+    // Gestion de l'input en temps réel
+    document.getElementById("qr-input").addEventListener("input", function (e) {
+        const value = e.target.value.trim();
 
-            if (cameras.length > 1) {
-                document.getElementById("switch-camera-btn").style.display =
-                    "block";
+        // Effacer le timeout précédent
+        if (scanTimeout) {
+            clearTimeout(scanTimeout);
+        }
+
+        if (value.length > 0) {
+            updateStatus("Scan en cours...", "scanning");
+
+            // Attendre 500ms après la dernière saisie pour traiter
+            scanTimeout = setTimeout(() => {
+                processScannedCode(value);
+            }, 500);
+        } else {
+            updateStatus("Prêt à scanner", "ready");
+            hideError();
+        }
+    });
+
+    // Gestion de la touche Entrée
+    document
+        .getElementById("qr-input")
+        .addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                const value = e.target.value.trim();
+                if (value && !isProcessing) {
+                    if (scanTimeout) {
+                        clearTimeout(scanTimeout);
+                    }
+                    processScannedCode(value);
+                }
             }
-        } catch (err) {
-            console.error("Erreur lors de la récupération des caméras:", err);
-        }
-    }
-
-    function startScanner() {
-        const config = {
-            fps: 10,
-            qrbox: { width: 200, height: 200 },
-            aspectRatio: 1.0,
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-        };
-
-        html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", config, false);
-
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-
-        document.getElementById("start-btn").style.display = "none";
-        document.getElementById("stop-btn").style.display = "block";
-
-        updateStatus("Scanner actif - Pointez vers un QR code", "success");
-    }
-
-    function stopScanner() {
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.clear();
-            html5QrcodeScanner = null;
-        }
-
-        document.getElementById("start-btn").style.display = "block";
-        document.getElementById("stop-btn").style.display = "none";
-
-        updateStatus("Scanner arrêté", "secondary");
-    }
-
-    function switchCamera() {
-        if (cameras.length > 1) {
-            currentCamera = (currentCamera + 1) % cameras.length;
-
-            if (html5QrcodeScanner) {
-                stopScanner();
-                setTimeout(startScanner, 500);
-            }
-
-            showNotification(
-                `Caméra ${currentCamera + 1} sélectionnée`,
-                "info"
-            );
-        }
-    }
-
-    function onScanSuccess(decodedText, decodedResult) {
-        // Arrêter le scanner temporairement
-        stopScanner();
-
-        // Traiter le résultat
-        processScannedCode(decodedText);
-
-        // Ajouter à l'historique
-        addToRecentScans(decodedText);
-
-        // Vibration si supportée
-        if (navigator.vibrate) {
-            navigator.vibrate(200);
-        }
-    }
-
-    function onScanFailure(error) {
-        // Ne pas afficher les erreurs de scan en continu
-        // console.log(`Scan error: ${error}`);
-    }
+        });
 
     function processScannedCode(code) {
-        updateStatus("Code scanné avec succès!", "success");
+        if (isProcessing) return;
+
+        isProcessing = true;
+        updateStatus("Recherche du produit...", "scanning");
+        hideError();
+
+        // Ajouter l'animation pulse
+        document.getElementById("qr-input").classList.add("pulse-animation");
 
         // Rechercher le produit
         makeRequest(`/api/produit/${encodeURIComponent(code)}`)
             .then((produit) => {
                 if (produit && !produit.error) {
-                    displayProductResult(produit);
+                    // Produit trouvé - redirection
+                    updateStatus("Produit trouvé! Redirection...", "success");
+
+                    // Vibration si supportée
+                    if (navigator.vibrate) {
+                        navigator.vibrate([200, 100, 200]);
+                    }
+
+                    // Redirection après un court délai pour montrer le succès
+                    setTimeout(() => {
+                        window.location.href = `/produit/${produit.reference}`;
+                    }, 800);
                 } else {
-                    displayNotFoundResult(code);
+                    // Produit non trouvé
+                    displayNotFoundError(code);
+                    updateStatus("Produit non trouvé", "error");
                 }
             })
             .catch((error) => {
                 console.error("Erreur:", error);
-                displayErrorResult(code);
+                displaySearchError(code);
+                updateStatus("Erreur de recherche", "error");
+            })
+            .finally(() => {
+                isProcessing = false;
+                document
+                    .getElementById("qr-input")
+                    .classList.remove("pulse-animation");
+
+                // Vider et refocus l'input après un délai (seulement si pas de redirection)
+                setTimeout(() => {
+                    if (!document.hidden) {
+                        // Vérifier que la page est toujours active
+                        clearInput();
+                    }
+                }, 2000);
             });
     }
 
-    function displayProductResult(produit) {
-        const resultDiv = document.getElementById("scan-result");
+    function displayNotFoundError(code) {
+        const errorDiv = document.getElementById("error-result");
 
-        const stockClass = getStockClass(
-            produit.quantite,
-            produit.seuil_alerte
-        );
-
-        resultDiv.innerHTML = `
-        <div class="result-card">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-                <h5 class="mb-0">${produit.designation}</h5>
-                <span class="badge ${stockClass} stock-badge">${produit.quantite}</span>
+        errorDiv.innerHTML = `
+            <div class="error-message">
+                <h5><i class="bi bi-exclamation-triangle"></i> Produit non trouvé</h5>
+                <p>Le code <strong>${code}</strong> ne correspond à aucun produit dans l'inventaire.</p>
+                <div class="mt-3">
+                    <button class="btn btn-primary btn-sm" onclick="searchSimilar('${code}')">
+                        <i class="bi bi-search"></i> Rechercher des produits similaires
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="clearInput()">
+                        <i class="bi bi-arrow-clockwise"></i> Nouveau scan
+                    </button>
+                </div>
             </div>
-            <p class="mb-2"><strong>Code:</strong> ${produit.code}</p>
-            <p class="mb-2"><strong>Référence:</strong> ${produit.reference}</p>
-            <p class="mb-2"><strong>Emplacement:</strong> ${produit.emplacement}</p>
-            <p class="mb-3"><strong>Fournisseur:</strong> ${produit.fournisseur}</p>
-            
-            <div class="d-grid gap-2">
-                <a href="/produit/${produit.reference}" class="btn btn-light">
-                    <i class="bi bi-eye"></i> Voir détails
-                </a>
-                <button class="btn btn-outline-light" onclick="quickMovement('${produit.reference}')">
-                    <i class="bi bi-arrow-left-right"></i> Mouvement rapide
-                </button>
-                <button class="btn btn-outline-light" onclick="restartScanner()">
-                    <i class="bi bi-qr-code-scan"></i> Scanner un autre
-                </button>
+        `;
+
+        errorDiv.style.display = "block";
+    }
+
+    function displaySearchError(code) {
+        const errorDiv = document.getElementById("error-result");
+
+        errorDiv.innerHTML = `
+            <div class="error-message">
+                <h5><i class="bi bi-exclamation-circle"></i> Erreur de recherche</h5>
+                <p>Une erreur s'est produite lors de la recherche du produit.</p>
+                <div class="mt-3">
+                    <button class="btn btn-danger btn-sm" onclick="processScannedCode('${code}')">
+                        <i class="bi bi-arrow-clockwise"></i> Réessayer
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="clearInput()">
+                        <i class="bi bi-x"></i> Annuler
+                    </button>
+                </div>
             </div>
-        </div>
-    `;
+        `;
 
-        resultDiv.style.display = "block";
+        errorDiv.style.display = "block";
     }
 
-    function displayNotFoundResult(code) {
-        const resultDiv = document.getElementById("scan-result");
-
-        resultDiv.innerHTML = `
-        <div class="alert alert-warning">
-            <h5><i class="bi bi-exclamation-triangle"></i> Produit non trouvé</h5>
-            <p>Le code scanné <strong>${code}</strong> ne correspond à aucun produit dans l'inventaire.</p>
-            <div class="d-grid gap-2">
-                <button class="btn btn-primary" onclick="searchSimilar('${code}')">
-                    <i class="bi bi-search"></i> Rechercher des produits similaires
-                </button>
-                <button class="btn btn-outline-primary" onclick="restartScanner()">
-                    <i class="bi bi-qr-code-scan"></i> Scanner un autre
-                </button>
-            </div>
-        </div>
-    `;
-
-        resultDiv.style.display = "block";
-    }
-
-    function displayErrorResult(code) {
-        const resultDiv = document.getElementById("scan-result");
-
-        resultDiv.innerHTML = `
-        <div class="alert alert-danger">
-            <h5><i class="bi bi-exclamation-circle"></i> Erreur</h5>
-            <p>Une erreur s'est produite lors de la recherche du produit.</p>
-            <div class="d-grid gap-2">
-                <button class="btn btn-danger" onclick="processScannedCode('${code}')">
-                    <i class="bi bi-arrow-clockwise"></i> Réessayer
-                </button>
-                <button class="btn btn-outline-danger" onclick="restartScanner()">
-                    <i class="bi bi-qr-code-scan"></i> Scanner un autre
-                </button>
-            </div>
-        </div>
-    `;
-
-        resultDiv.style.display = "block";
-    }
-
-    function getStockClass(quantite, seuil) {
-        if (quantite <= seuil) return "bg-danger";
-        if (quantite <= seuil * 2) return "bg-warning text-dark";
-        return "bg-success";
-    }
-
-    function restartScanner() {
-        document.getElementById("scan-result").style.display = "none";
-        startScanner();
-    }
-
-    function toggleManualInput() {
-        const manualDiv = document.getElementById("manual-input");
-        if (manualDiv.style.display === "none") {
-            manualDiv.style.display = "block";
-            document.getElementById("manual-code").focus();
-        } else {
-            manualDiv.style.display = "none";
-        }
-    }
-
-    function searchManual() {
-        const code = document.getElementById("manual-code").value.trim();
-        if (code) {
-            processScannedCode(code);
-            addToRecentScans(code);
-        }
-    }
-
-    function quickMovement(reference) {
-        // Rediriger vers la page de mouvement avec la référence pré-remplie
-        window.location.href = `/mouvement-stock?reference=${encodeURIComponent(
-            reference
-        )}`;
-    }
-
-    function searchSimilar(code) {
-        // Rediriger vers la recherche avec le code
-        window.location.href = `/inventaire?search=${encodeURIComponent(code)}`;
+    function hideError() {
+        document.getElementById("error-result").style.display = "none";
     }
 
     function updateStatus(message, type) {
-        const statusDiv = document.getElementById("scanner-status");
-        statusDiv.innerHTML = `
-        <div class="alert alert-${type}">
-            <i class="bi bi-${
-                type === "success"
-                    ? "check-circle"
-                    : type === "danger"
-                    ? "exclamation-circle"
-                    : "info-circle"
-            }"></i>
-            ${message}
-        </div>
-    `;
-    }
+        const statusDiv = document.getElementById("status-message");
+        const icons = {
+            ready: "check-circle",
+            scanning: "arrow-clockwise",
+            error: "exclamation-circle",
+            success: "check-circle-fill",
+        };
 
-    function addToRecentScans(code) {
-        let recentScans = JSON.parse(
-            localStorage.getItem("recentScans") || "[]"
-        );
+        statusDiv.className = `status-message status-${type}`;
 
-        // Éviter les doublons
-        recentScans = recentScans.filter((scan) => scan.code !== code);
-
-        // Ajouter le nouveau scan
-        recentScans.unshift({
-            code: code,
-            timestamp: new Date().toISOString(),
-        });
-
-        // Garder seulement les 5 derniers
-        recentScans = recentScans.slice(0, 5);
-
-        localStorage.setItem("recentScans", JSON.stringify(recentScans));
-        loadRecentScans();
-    }
-
-    function loadRecentScans() {
-        const recentScans = JSON.parse(
-            localStorage.getItem("recentScans") || "[]"
-        );
-        const container = document.getElementById("recent-scans");
-
-        if (recentScans.length === 0) {
-            container.innerHTML =
-                '<div class="text-muted text-center py-3">Aucun scan récent</div>';
-            return;
+        if (type === "scanning") {
+            statusDiv.innerHTML = `
+                <i class="bi bi-${icons[type]}"></i> ${message}
+                <span class="loading-spinner"></span>
+            `;
+        } else {
+            statusDiv.innerHTML = `
+                <i class="bi bi-${icons[type]}"></i> ${message}
+            `;
         }
-
-        container.innerHTML = recentScans
-            .map((scan) => {
-                const date = new Date(scan.timestamp).toLocaleString("fr-FR");
-                return `
-            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>${scan.code}</strong>
-                    <br>
-                    <small class="text-muted">${date}</small>
-                </div>
-                <button class="btn btn-sm btn-outline-primary" onclick="processScannedCode('${scan.code}')">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
-        `;
-            })
-            .join("");
     }
 
-    // Gestion du clavier pour la saisie manuelle
-    document.addEventListener("keydown", function (e) {
-        if (
-            e.key === "Enter" &&
-            document.getElementById("manual-code") === document.activeElement
-        ) {
-            searchManual();
+    function clearInput() {
+        const input = document.getElementById("qr-input");
+        input.value = "";
+        input.focus();
+        hideError();
+        updateStatus("Prêt à scanner", "ready");
+
+        if (scanTimeout) {
+            clearTimeout(scanTimeout);
+        }
+    }
+
+    function searchSimilar(code) {
+        window.location.href = `/magasin?search=${encodeURIComponent(code)}`;
+    }
+
+    // Fonction utilitaire pour les requêtes API
+    async function makeRequest(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    }
+
+    // Gestion du focus lors du clic ailleurs
+    document.addEventListener("click", function (e) {
+        if (!isProcessing && e.target.id !== "qr-input") {
+            setTimeout(() => {
+                document.getElementById("qr-input").focus();
+            }, 100);
         }
     });
 
-    // Nettoyage lors de la fermeture de la page
-    window.addEventListener("beforeunload", function () {
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.clear();
+    // Empêcher la perte de focus lors de l'utilisation des boutons
+    document.addEventListener("mousedown", function (e) {
+        if (e.target.tagName === "BUTTON" || e.target.tagName === "A") {
+            e.preventDefault();
         }
     });
 </script>

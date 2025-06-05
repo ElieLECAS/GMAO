@@ -35,10 +35,24 @@ class Fournisseur(Base):
     id = Column(Integer, primary_key=True, index=True)
     id_fournisseur = Column(String(20), unique=True, nullable=False, index=True)
     nom_fournisseur = Column(String(200), nullable=False, index=True)
-    contact_principal = Column(String(200))
-    email = Column(String(200))
-    telephone = Column(String(50))
     adresse = Column(Text)
+    
+    # Contact 1
+    contact1_nom = Column(String(100))
+    contact1_prenom = Column(String(100))
+    contact1_fonction = Column(String(100))
+    contact1_tel_fixe = Column(String(20))
+    contact1_tel_mobile = Column(String(20))
+    contact1_email = Column(String(200))
+    
+    # Contact 2
+    contact2_nom = Column(String(100))
+    contact2_prenom = Column(String(100))
+    contact2_fonction = Column(String(100))
+    contact2_tel_fixe = Column(String(20))
+    contact2_tel_mobile = Column(String(20))
+    contact2_email = Column(String(200))
+    
     statut = Column(String(20), default='Actif')
     date_creation = Column(Date, server_default=func.current_date())
     nb_produits = Column(Integer, default=0)

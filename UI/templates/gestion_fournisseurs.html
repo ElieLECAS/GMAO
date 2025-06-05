@@ -127,11 +127,9 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>Nom</th>
-                                    <th>Contact</th>
-                                    <th>Email</th>
-                                    <th>Téléphone</th>
                                     <th>Adresse</th>
-                                    <th>Type</th>
+                                    <th>Contact 1</th>
+                                    <th>Contact 2</th>
                                     <th>Statut</th>
                                     <th>Actions</th>
                                 </tr>
@@ -149,17 +147,60 @@
                                             }}</strong
                                         >
                                     </td>
-                                    <td>
-                                        {{ fournisseur.contact_principal or '-'
-                                        }}
-                                    </td>
-                                    <td>{{ fournisseur.email or '-' }}</td>
-                                    <td>{{ fournisseur.telephone or '-' }}</td>
                                     <td>{{ fournisseur.adresse or '-' }}</td>
                                     <td>
-                                        <span class="badge bg-primary">
-                                            Principal
-                                        </span>
+                                        {% if fournisseur.contact1_nom or
+                                        fournisseur.contact1_prenom %}
+                                        <div class="small">
+                                            <strong
+                                                >{{ fournisseur.contact1_nom }}
+                                                {{ fournisseur.contact1_prenom
+                                                }}</strong
+                                            ><br />
+                                            {% if fournisseur.contact1_fonction
+                                            %}<em
+                                                >{{
+                                                fournisseur.contact1_fonction
+                                                }}</em
+                                            ><br />{% endif %} {% if
+                                            fournisseur.contact1_tel_fixe %}📞
+                                            {{ fournisseur.contact1_tel_fixe
+                                            }}<br />{% endif %} {% if
+                                            fournisseur.contact1_tel_mobile %}📱
+                                            {{ fournisseur.contact1_tel_mobile
+                                            }}<br />{% endif %} {% if
+                                            fournisseur.contact1_email %}✉️ {{
+                                            fournisseur.contact1_email }}{%
+                                            endif %}
+                                        </div>
+                                        {% else %} - {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if fournisseur.contact2_nom or
+                                        fournisseur.contact2_prenom %}
+                                        <div class="small">
+                                            <strong
+                                                >{{ fournisseur.contact2_nom }}
+                                                {{ fournisseur.contact2_prenom
+                                                }}</strong
+                                            ><br />
+                                            {% if fournisseur.contact2_fonction
+                                            %}<em
+                                                >{{
+                                                fournisseur.contact2_fonction
+                                                }}</em
+                                            ><br />{% endif %} {% if
+                                            fournisseur.contact2_tel_fixe %}📞
+                                            {{ fournisseur.contact2_tel_fixe
+                                            }}<br />{% endif %} {% if
+                                            fournisseur.contact2_tel_mobile %}📱
+                                            {{ fournisseur.contact2_tel_mobile
+                                            }}<br />{% endif %} {% if
+                                            fournisseur.contact2_email %}✉️ {{
+                                            fournisseur.contact2_email }}{%
+                                            endif %}
+                                        </div>
+                                        {% else %} - {% endif %}
                                     </td>
                                     <td>
                                         <span
@@ -215,58 +256,24 @@
             <form id="nouveauFournisseurForm">
                 <div class="modal-body">
                     <div class="row g-3">
+                        <!-- Informations générales -->
+                        <div class="col-12">
+                            <h6 class="text-warning">
+                                <i class="bi bi-building"></i> Informations
+                                générales
+                            </h6>
+                        </div>
                         <div class="col-md-6">
-                            <label class="form-label">Nom *</label>
+                            <label class="form-label"
+                                >Nom du fournisseur *</label
+                            >
                             <input
                                 type="text"
                                 class="form-control"
-                                name="nom"
+                                name="nom_fournisseur"
                                 required
                                 placeholder="Nom du fournisseur"
                             />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Contact</label>
-                            <input
-                                type="text"
-                                class="form-control"
-                                name="contact"
-                                placeholder="Nom du contact"
-                            />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Email</label>
-                            <input
-                                type="email"
-                                class="form-control"
-                                name="email"
-                                placeholder="email@exemple.com"
-                            />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Téléphone</label>
-                            <input
-                                type="tel"
-                                class="form-control"
-                                name="telephone"
-                                placeholder="01 23 45 67 89"
-                            />
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Adresse</label>
-                            <textarea
-                                class="form-control"
-                                name="adresse"
-                                rows="3"
-                                placeholder="Adresse complète du fournisseur"
-                            ></textarea>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Type</label>
-                            <select class="form-select" name="type">
-                                <option value="Principal">Principal</option>
-                                <option value="Secondaire">Secondaire</option>
-                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Statut</label>
@@ -274,6 +281,137 @@
                                 <option value="Actif">Actif</option>
                                 <option value="Inactif">Inactif</option>
                             </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Adresse</label>
+                            <textarea
+                                class="form-control"
+                                name="adresse"
+                                rows="2"
+                                placeholder="Adresse complète du fournisseur"
+                            ></textarea>
+                        </div>
+
+                        <!-- Contact 1 -->
+                        <div class="col-12 mt-4">
+                            <h6 class="text-primary">
+                                <i class="bi bi-person"></i> Contact 1
+                            </h6>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Nom</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="contact1_nom"
+                                placeholder="Nom"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Prénom</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="contact1_prenom"
+                                placeholder="Prénom"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Fonction</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="contact1_fonction"
+                                placeholder="Fonction"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Téléphone fixe</label>
+                            <input
+                                type="tel"
+                                class="form-control"
+                                name="contact1_tel_fixe"
+                                placeholder="01 23 45 67 89"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Téléphone mobile</label>
+                            <input
+                                type="tel"
+                                class="form-control"
+                                name="contact1_tel_mobile"
+                                placeholder="06 12 34 56 78"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Email</label>
+                            <input
+                                type="email"
+                                class="form-control"
+                                name="contact1_email"
+                                placeholder="email@exemple.com"
+                            />
+                        </div>
+
+                        <!-- Contact 2 -->
+                        <div class="col-12 mt-4">
+                            <h6 class="text-info">
+                                <i class="bi bi-person"></i> Contact 2
+                            </h6>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Nom</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="contact2_nom"
+                                placeholder="Nom"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Prénom</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="contact2_prenom"
+                                placeholder="Prénom"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Fonction</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="contact2_fonction"
+                                placeholder="Fonction"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Téléphone fixe</label>
+                            <input
+                                type="tel"
+                                class="form-control"
+                                name="contact2_tel_fixe"
+                                placeholder="01 23 45 67 89"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Téléphone mobile</label>
+                            <input
+                                type="tel"
+                                class="form-control"
+                                name="contact2_tel_mobile"
+                                placeholder="06 12 34 56 78"
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Email</label>
+                            <input
+                                type="email"
+                                class="form-control"
+                                name="contact2_email"
+                                placeholder="email@exemple.com"
+                            />
                         </div>
                     </div>
                 </div>

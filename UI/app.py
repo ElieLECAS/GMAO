@@ -779,11 +779,25 @@ def creer_fournisseur():
         # Préparer les données pour l'API selon le schéma FournisseurCreate
         fournisseur_data = {
             'id_fournisseur': id_fournisseur,
-            'nom_fournisseur': data.get('nom', ''),  # Mapper 'nom' vers 'nom_fournisseur'
-            'contact_principal': data.get('contact', ''),
-            'email': data.get('email', ''),
-            'telephone': data.get('telephone', ''),
+            'nom_fournisseur': data.get('nom_fournisseur', ''),
             'adresse': data.get('adresse', ''),
+            
+            # Contact 1
+            'contact1_nom': data.get('contact1_nom', ''),
+            'contact1_prenom': data.get('contact1_prenom', ''),
+            'contact1_fonction': data.get('contact1_fonction', ''),
+            'contact1_tel_fixe': data.get('contact1_tel_fixe', ''),
+            'contact1_tel_mobile': data.get('contact1_tel_mobile', ''),
+            'contact1_email': data.get('contact1_email', ''),
+            
+            # Contact 2
+            'contact2_nom': data.get('contact2_nom', ''),
+            'contact2_prenom': data.get('contact2_prenom', ''),
+            'contact2_fonction': data.get('contact2_fonction', ''),
+            'contact2_tel_fixe': data.get('contact2_tel_fixe', ''),
+            'contact2_tel_mobile': data.get('contact2_tel_mobile', ''),
+            'contact2_email': data.get('contact2_email', ''),
+            
             'statut': data.get('statut', 'Actif')
         }
         
@@ -806,20 +820,39 @@ def modifier_fournisseur(fournisseur_id):
         # Préparer les données pour l'API (seulement les champs modifiés)
         fournisseur_data = {}
         
-        if data.get('nom'):
-            fournisseur_data['nom_fournisseur'] = data.get('nom')
-            
-        if data.get('contact') is not None:
-            fournisseur_data['contact_principal'] = data.get('contact')
-            
-        if data.get('email') is not None:
-            fournisseur_data['email'] = data.get('email')
-            
-        if data.get('telephone') is not None:
-            fournisseur_data['telephone'] = data.get('telephone')
+        if data.get('nom_fournisseur'):
+            fournisseur_data['nom_fournisseur'] = data.get('nom_fournisseur')
             
         if data.get('adresse') is not None:
             fournisseur_data['adresse'] = data.get('adresse')
+        
+        # Contact 1
+        if data.get('contact1_nom') is not None:
+            fournisseur_data['contact1_nom'] = data.get('contact1_nom')
+        if data.get('contact1_prenom') is not None:
+            fournisseur_data['contact1_prenom'] = data.get('contact1_prenom')
+        if data.get('contact1_fonction') is not None:
+            fournisseur_data['contact1_fonction'] = data.get('contact1_fonction')
+        if data.get('contact1_tel_fixe') is not None:
+            fournisseur_data['contact1_tel_fixe'] = data.get('contact1_tel_fixe')
+        if data.get('contact1_tel_mobile') is not None:
+            fournisseur_data['contact1_tel_mobile'] = data.get('contact1_tel_mobile')
+        if data.get('contact1_email') is not None:
+            fournisseur_data['contact1_email'] = data.get('contact1_email')
+        
+        # Contact 2
+        if data.get('contact2_nom') is not None:
+            fournisseur_data['contact2_nom'] = data.get('contact2_nom')
+        if data.get('contact2_prenom') is not None:
+            fournisseur_data['contact2_prenom'] = data.get('contact2_prenom')
+        if data.get('contact2_fonction') is not None:
+            fournisseur_data['contact2_fonction'] = data.get('contact2_fonction')
+        if data.get('contact2_tel_fixe') is not None:
+            fournisseur_data['contact2_tel_fixe'] = data.get('contact2_tel_fixe')
+        if data.get('contact2_tel_mobile') is not None:
+            fournisseur_data['contact2_tel_mobile'] = data.get('contact2_tel_mobile')
+        if data.get('contact2_email') is not None:
+            fournisseur_data['contact2_email'] = data.get('contact2_email')
             
         if data.get('statut') is not None:
             fournisseur_data['statut'] = data.get('statut')

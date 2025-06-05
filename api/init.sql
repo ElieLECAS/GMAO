@@ -34,10 +34,24 @@ CREATE TABLE IF NOT EXISTS fournisseurs (
     id SERIAL PRIMARY KEY,
     id_fournisseur VARCHAR(20) UNIQUE NOT NULL,
     nom_fournisseur VARCHAR(200) NOT NULL,
-    contact_principal VARCHAR(200),
-    email VARCHAR(200),
-    telephone VARCHAR(50),
     adresse TEXT,
+    
+    -- Contact 1
+    contact1_nom VARCHAR(100),
+    contact1_prenom VARCHAR(100),
+    contact1_fonction VARCHAR(100),
+    contact1_tel_fixe VARCHAR(20),
+    contact1_tel_mobile VARCHAR(20),
+    contact1_email VARCHAR(200),
+    
+    -- Contact 2
+    contact2_nom VARCHAR(100),
+    contact2_prenom VARCHAR(100),
+    contact2_fonction VARCHAR(100),
+    contact2_tel_fixe VARCHAR(20),
+    contact2_tel_mobile VARCHAR(20),
+    contact2_email VARCHAR(200),
+    
     statut VARCHAR(20) DEFAULT 'Actif',
     date_creation DATE DEFAULT CURRENT_DATE,
     nb_produits INTEGER DEFAULT 0,

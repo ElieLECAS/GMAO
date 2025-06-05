@@ -61,10 +61,24 @@ class InventaireResponse(InventaireBase):
 class FournisseurBase(BaseModel):
     id_fournisseur: str
     nom_fournisseur: str
-    contact_principal: Optional[str] = None
-    email: Optional[str] = None
-    telephone: Optional[str] = None
     adresse: Optional[str] = None
+    
+    # Contact 1
+    contact1_nom: Optional[str] = None
+    contact1_prenom: Optional[str] = None
+    contact1_fonction: Optional[str] = None
+    contact1_tel_fixe: Optional[str] = None
+    contact1_tel_mobile: Optional[str] = None
+    contact1_email: Optional[str] = None
+    
+    # Contact 2
+    contact2_nom: Optional[str] = None
+    contact2_prenom: Optional[str] = None
+    contact2_fonction: Optional[str] = None
+    contact2_tel_fixe: Optional[str] = None
+    contact2_tel_mobile: Optional[str] = None
+    contact2_email: Optional[str] = None
+    
     statut: str = 'Actif'
 
 class FournisseurCreate(FournisseurBase):
@@ -72,10 +86,24 @@ class FournisseurCreate(FournisseurBase):
 
 class FournisseurUpdate(BaseModel):
     nom_fournisseur: Optional[str] = None
-    contact_principal: Optional[str] = None
-    email: Optional[str] = None
-    telephone: Optional[str] = None
     adresse: Optional[str] = None
+    
+    # Contact 1
+    contact1_nom: Optional[str] = None
+    contact1_prenom: Optional[str] = None
+    contact1_fonction: Optional[str] = None
+    contact1_tel_fixe: Optional[str] = None
+    contact1_tel_mobile: Optional[str] = None
+    contact1_email: Optional[str] = None
+    
+    # Contact 2
+    contact2_nom: Optional[str] = None
+    contact2_prenom: Optional[str] = None
+    contact2_fonction: Optional[str] = None
+    contact2_tel_fixe: Optional[str] = None
+    contact2_tel_mobile: Optional[str] = None
+    contact2_email: Optional[str] = None
+    
     statut: Optional[str] = None
 
 class FournisseurResponse(FournisseurBase):
