@@ -12,72 +12,106 @@
     }
 
     .scan-input-container {
-        background: linear-gradient(135deg, #0d6efd, #6610f2);
-        border-radius: 20px;
-        padding: 40px;
-        margin-bottom: 30px;
-        box-shadow: 0 10px 30px rgba(13, 110, 253, 0.3);
+        background: linear-gradient(135deg, var(--primary-color), #6284f7);
+        border-radius: var(--border-radius);
+        padding: 2.5rem 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 15px 35px rgba(58, 109, 240, 0.25);
         text-align: center;
+        transition: var(--transition);
     }
 
     .scan-input-container h3 {
         color: white;
-        margin-bottom: 20px;
+        margin-bottom: 1.25rem;
         font-weight: 600;
+        font-size: 1.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .scan-input-container h3 i {
+        font-size: 2rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .scan-input-container p {
-        color: rgba(255, 255, 255, 0.8);
-        margin-bottom: 30px;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+        font-weight: 400;
     }
 
     #qr-input {
         font-size: 1.5rem;
-        padding: 15px 20px;
+        padding: 1rem 1.25rem;
         border: 3px solid rgba(255, 255, 255, 0.3);
         border-radius: 15px;
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.15);
         color: white;
         text-align: center;
         backdrop-filter: blur(10px);
         transition: all 0.3s ease;
         width: 100%;
         max-width: 400px;
+        letter-spacing: 1px;
     }
 
     #qr-input:focus {
         outline: none;
         border-color: rgba(255, 255, 255, 0.8);
-        background: rgba(255, 255, 255, 0.2);
-        box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.25);
+        box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
         transform: scale(1.02);
     }
 
     #qr-input::placeholder {
-        color: rgba(255, 255, 255, 0.6);
+        color: rgba(255, 255, 255, 0.7);
+        font-weight: 400;
     }
 
     .status-message {
         text-align: center;
-        margin: 20px 0;
+        margin: 1.5rem 0;
         font-size: 1.1rem;
         font-weight: 500;
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        background: var(--card-bg);
+        box-shadow: var(--box-shadow);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: var(--transition);
     }
 
     .status-ready {
-        color: #28a745;
+        color: var(--success-color);
+        border-left: 4px solid var(--success-color);
     }
 
     .status-scanning {
-        color: #0d6efd;
+        color: var(--primary-color);
+        border-left: 4px solid var(--primary-color);
     }
 
     .status-error {
-        color: #dc3545;
+        color: var(--danger-color);
+        border-left: 4px solid var(--danger-color);
     }
 
     .status-success {
-        color: #28a745;
+        color: var(--success-color);
+        border-left: 4px solid var(--success-color);
     }
 
     .clear-input-btn {
@@ -91,10 +125,17 @@
         font-size: 1.2rem;
         cursor: pointer;
         transition: color 0.3s ease;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
     }
 
     .clear-input-btn:hover {
         color: white;
+        background: rgba(255, 255, 255, 0.1);
     }
 
     .input-wrapper {
@@ -105,22 +146,29 @@
     }
 
     .error-message {
-        background: rgba(220, 53, 69, 0.1);
-        border: 2px solid rgba(220, 53, 69, 0.3);
-        border-radius: 15px;
-        padding: 20px;
-        margin: 20px 0;
+        background: var(--card-bg);
+        border-left: 4px solid var(--danger-color);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin: 1.5rem 0;
         text-align: center;
-        color: #dc3545;
+        color: var(--text-color);
+        box-shadow: var(--box-shadow);
     }
 
     .error-message h5 {
-        color: #dc3545;
-        margin-bottom: 15px;
+        color: var(--danger-color);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
     }
 
     .error-message .btn {
         margin: 5px;
+        border-radius: 50px;
+        padding: 8px 16px;
     }
 
     @keyframes pulse {
@@ -128,7 +176,7 @@
             box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
         }
         70% {
-            box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+            box-shadow: 0 0 0 15px rgba(255, 255, 255, 0);
         }
         100% {
             box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
@@ -143,8 +191,8 @@
         display: inline-block;
         width: 20px;
         height: 20px;
-        border: 3px solid rgba(255, 255, 255, 0.3);
-        border-top: 3px solid white;
+        border: 3px solid rgba(58, 109, 240, 0.3);
+        border-top: 3px solid var(--primary-color);
         border-radius: 50%;
         animation: spin 1s linear infinite;
         margin-left: 10px;
@@ -160,29 +208,75 @@
     }
 
     .instructions {
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 15px;
-        padding: 20px;
-        margin-top: 20px;
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-top: 1.5rem;
         text-align: center;
-        color: #495057;
+        color: var(--text-color);
+        box-shadow: var(--box-shadow);
     }
 
     .instructions h6 {
-        color: #0d6efd;
-        margin-bottom: 15px;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
         font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
     }
 
     .instructions ul {
         text-align: left;
-        max-width: 300px;
+        max-width: 320px;
         margin: 0 auto;
+        padding-left: 1.5rem;
     }
 
     .instructions li {
-        margin-bottom: 8px;
-        color: #6c757d;
+        margin-bottom: 0.75rem;
+        color: var(--secondary-color);
+    }
+
+    .scanner-actions {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .scanner-action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1.25rem;
+        border-radius: var(--border-radius);
+        background: var(--card-bg);
+        box-shadow: var(--box-shadow);
+        border: none;
+        transition: var(--transition);
+        color: var(--text-color);
+        text-decoration: none;
+        flex: 1;
+        max-width: 170px;
+    }
+
+    .scanner-action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        color: var(--primary-color);
+        text-decoration: none;
+    }
+
+    .scanner-action-btn i {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+        color: var(--primary-color);
+    }
+
+    .scanner-action-btn span {
+        font-weight: 500;
     }
 </style>
 {% endblock %} {% block content %}
@@ -219,6 +313,29 @@
 
     <!-- Zone d'erreur -->
     <div id="error-result" style="display: none"></div>
+
+    <!-- Actions rapides -->
+    <div class="scanner-actions">
+        <a href="{{ url_for('magasin') }}" class="scanner-action-btn">
+            <i class="bi bi-search"></i>
+            <span>Rechercher un produit</span>
+        </a>
+        <a href="{{ url_for('entree_stock') }}" class="scanner-action-btn">
+            <i class="bi bi-box-arrow-in-down"></i>
+            <span>Entrée de stock</span>
+        </a>
+    </div>
+
+    <!-- Instructions d'utilisation -->
+    <div class="instructions">
+        <h6><i class="bi bi-info-circle"></i> Comment scanner un code</h6>
+        <ul>
+            <li>Placez le code QR face à la caméra</li>
+            <li>Assurez-vous que le code est bien éclairé</li>
+            <li>Maintenez le scanner stable pendant la lecture</li>
+            <li>Vous pouvez aussi saisir le code manuellement</li>
+        </ul>
+    </div>
 </div>
 {% endblock %} {% block extra_js %}
 <script>

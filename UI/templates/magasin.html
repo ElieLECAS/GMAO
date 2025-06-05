@@ -6,21 +6,27 @@
     }
 
     .stat-card {
-        background: white;
-        border-radius: 15px;
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
         padding: 1.5rem;
         text-align: center;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--box-shadow);
         border: none;
         height: 100%;
+        transition: var(--transition);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
     }
 
     .stat-card.critique {
-        border-left: 5px solid #dc3545;
+        border-left: 5px solid var(--danger-color);
     }
 
     .stat-card.faible {
-        border-left: 5px solid #ffc107;
+        border-left: 5px solid var(--warning-color);
     }
 
     .stat-card.surstock {
@@ -28,47 +34,112 @@
     }
 
     .stat-card.normal {
-        border-left: 5px solid #198754;
+        border-left: 5px solid var(--success-color);
     }
 
     .stat-card.valeur {
-        border-left: 5px solid #0d6efd;
+        border-left: 5px solid var(--primary-color);
     }
 
     .stat-number {
-        font-size: 2rem;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
+        font-size: 2.25rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .stat-icon {
+        font-size: 1.75rem;
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .stat-card.critique .stat-icon {
+        background-color: rgba(var(--bs-danger-rgb), 0.1);
+        color: var(--danger-color);
+    }
+
+    .stat-card.faible .stat-icon {
+        background-color: rgba(var(--bs-warning-rgb), 0.1);
+        color: var(--warning-color);
+    }
+
+    .stat-card.surstock .stat-icon {
+        background-color: rgba(253, 126, 20, 0.1);
+        color: #fd7e14;
+    }
+
+    .stat-card.normal .stat-icon {
+        background-color: rgba(var(--bs-success-rgb), 0.1);
+        color: var(--success-color);
+    }
+
+    .stat-card.valeur .stat-icon {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--primary-color);
     }
 
     .stat-label {
         font-size: 0.9rem;
-        color: #6c757d;
+        color: var(--secondary-color);
         margin: 0;
+        font-weight: 500;
     }
 
     .product-card {
         border: none;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1rem;
-        border-radius: 10px;
+        box-shadow: var(--box-shadow);
+        margin-bottom: 1.25rem;
+        border-radius: var(--border-radius);
+        transition: var(--transition);
+        overflow: hidden;
+    }
+
+    .product-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+    }
+
+    .product-card .card-body {
+        padding: 1.25rem;
+    }
+
+    .product-card h5 {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .product-card .text-muted {
+        color: var(--secondary-color) !important;
     }
 
     .stock-status {
         font-size: 0.8rem;
-        padding: 4px 8px;
+        padding: 5px 10px;
         border-radius: 20px;
-        font-weight: bold;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     }
 
     .status-critique {
-        background-color: #dc3545;
+        background-color: var(--danger-color);
         color: white;
     }
 
     .status-faible {
-        background-color: #ffc107;
-        color: black;
+        background-color: var(--warning-color);
+        color: #7c4a03;
     }
 
     .status-surstock {
@@ -77,7 +148,7 @@
     }
 
     .status-normal {
-        background-color: #198754;
+        background-color: var(--success-color);
         color: white;
     }
 
@@ -85,28 +156,120 @@
         position: sticky;
         top: 70px;
         z-index: 100;
-        background: #f8f9fa;
-        padding: 1rem 0;
-        margin-bottom: 1rem;
+        background: var(--card-bg);
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow);
     }
 
     .filter-btn {
         margin: 0.25rem;
-        border-radius: 20px;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        padding: 6px 12px;
+        font-weight: 500;
+        transition: var(--transition);
     }
 
     .filter-btn.active {
-        background-color: #0d6efd;
-        border-color: #0d6efd;
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
         color: white;
+        box-shadow: 0 2px 10px rgba(58, 109, 240, 0.25);
+    }
+
+    .filter-btn:hover:not(.active) {
+        background-color: var(--primary-light);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .product-category {
+        display: inline-block;
+        font-size: 0.75rem;
+        background-color: var(--primary-light);
+        color: var(--primary-color);
+        padding: 3px 10px;
+        border-radius: 20px;
+        margin-right: 5px;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+
+    .no-products {
+        background-color: var(--card-bg);
+        border-radius: var(--border-radius);
+        padding: 2.5rem;
+        text-align: center;
+        box-shadow: var(--box-shadow);
+    }
+
+    .no-products i {
+        font-size: 3rem;
+        color: var(--secondary-color);
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .product-metadata {
+        font-size: 0.85rem;
+        color: var(--secondary-color);
+    }
+
+    .product-metadata span {
+        display: inline-block;
+        margin-right: 1rem;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .page-header h4 {
+        font-weight: 600;
+        color: var(--text-color);
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-header h4 i {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+    }
+
+    .refresh-btn {
+        border-radius: 50px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--primary-light);
+        color: var(--primary-color);
+        border: none;
+        transition: var(--transition);
+    }
+
+    .refresh-btn:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: rotate(180deg);
     }
 </style>
 {% endblock %} {% block content %}
 <div class="container-fluid">
     <!-- En-tête -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="page-header">
         <h4><i class="bi bi-shop"></i> Magasin</h4>
-        <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+        <button class="refresh-btn" onclick="refreshData()" title="Actualiser">
             <i class="bi bi-arrow-clockwise"></i>
         </button>
     </div>
@@ -117,41 +280,56 @@
             <div class="col-6 col-md">
                 <div class="stat-card critique">
                     <div class="stat-number text-danger">
+                        <div class="stat-icon">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
                         {{ stats.stock_critique }}
                     </div>
-                    <p class="stat-label">🔴 Stock critique</p>
+                    <p class="stat-label">Stock critique</p>
                 </div>
             </div>
             <div class="col-6 col-md">
                 <div class="stat-card faible">
                     <div class="stat-number text-warning">
+                        <div class="stat-icon">
+                            <i class="bi bi-exclamation-circle"></i>
+                        </div>
                         {{ stats.stock_faible }}
                     </div>
-                    <p class="stat-label">🟠 Bientôt rupture</p>
+                    <p class="stat-label">Bientôt rupture</p>
                 </div>
             </div>
             <div class="col-6 col-md">
                 <div class="stat-card surstock">
                     <div class="stat-number" style="color: #fd7e14">
+                        <div class="stat-icon">
+                            <i class="bi bi-archive"></i>
+                        </div>
                         {{ stats.surstock }}
                     </div>
-                    <p class="stat-label">🟡 Surstock</p>
+                    <p class="stat-label">Surstock</p>
                 </div>
             </div>
             <div class="col-6 col-md">
                 <div class="stat-card normal">
                     <div class="stat-number text-success">
+                        <div class="stat-icon">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
                         {{ stats.stock_normal }}
                     </div>
-                    <p class="stat-label">🟢 Stock normal</p>
+                    <p class="stat-label">Stock normal</p>
                 </div>
             </div>
             <div class="col-12 col-md">
                 <div class="stat-card valeur">
                     <div class="stat-number text-primary">
+                        <div class="stat-icon">
+                            <i class="bi bi-currency-euro"></i>
+                        </div>
                         {{ "%.2f"|format(stats.valeur_totale) }}€
                     </div>
-                    <p class="stat-label">💰 Valeur totale</p>
+                    <p class="stat-label">Valeur totale</p>
                 </div>
             </div>
         </div>
@@ -181,7 +359,7 @@
         </div>
 
         <!-- Filtres par statut -->
-        <div class="mt-2">
+        <div class="mt-3">
             <button
                 class="btn btn-outline-secondary filter-btn active"
                 data-filter="all"
@@ -192,101 +370,150 @@
                 class="btn btn-outline-danger filter-btn"
                 data-filter="critique"
             >
-                🔴 Critique ({{ stats.stock_critique }})
+                <i class="bi bi-exclamation-triangle-fill"></i> Critique ({{
+                stats.stock_critique }})
             </button>
             <button
                 class="btn btn-outline-warning filter-btn"
                 data-filter="faible"
             >
-                🟠 Faible ({{ stats.stock_faible }})
+                <i class="bi bi-exclamation-circle-fill"></i> Faible ({{
+                stats.stock_faible }})
             </button>
             <button
                 class="btn btn-outline-success filter-btn"
                 data-filter="normal"
             >
-                🟢 Normal ({{ stats.stock_normal }})
+                <i class="bi bi-check-circle-fill"></i> Normal ({{
+                stats.stock_normal }})
             </button>
             <button
                 class="btn filter-btn"
                 style="color: #fd7e14; border-color: #fd7e14"
                 data-filter="surstock"
             >
-                🟡 Surstock ({{ stats.surstock }})
+                <i class="bi bi-archive-fill"></i> Surstock ({{ stats.surstock
+                }})
             </button>
         </div>
     </div>
 
     <!-- Liste des produits -->
-    <div id="productsList">
+    <div id="productsList" class="row g-3">
         {% if produits %} {% for produit in produits %}
-        <div
-            class="product-card card"
-            data-product-id="{{ produit.id }}"
-            data-status="{{ get_stock_status(produit) }}"
-        >
-            <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-8">
-                        <h6 class="card-title mb-1">
-                            {{ produit.designation }}
-                        </h6>
-                        <p class="text-muted mb-1">
-                            <small
-                                >{{ produit.code }} | {{ produit.reference
-                                }}</small
+        <div class="col-12 col-md-6 col-lg-4">
+            <div
+                class="product-card card"
+                data-product-id="{{ produit.id }}"
+                data-status="{{ get_stock_status(produit) }}"
+            >
+                <div class="card-body">
+                    <div
+                        class="d-flex justify-content-between align-items-start mb-3"
+                    >
+                        <div class="d-flex align-items-center">
+                            {% if produit.image_url %}
+                            <img
+                                src="{{ produit.image_url }}"
+                                class="me-2 rounded"
+                                width="50"
+                                height="50"
+                                alt="{{ produit.designation }}"
+                            />
+                            {% else %}
+                            <div
+                                class="me-2 rounded bg-light d-flex align-items-center justify-content-center"
+                                style="width: 50px; height: 50px"
                             >
-                        </p>
-                        <p class="text-muted mb-0">
-                            <small>📍 {{ produit.emplacement }}</small>
-                        </p>
+                                <i
+                                    class="bi bi-box text-secondary"
+                                    style="font-size: 1.5rem"
+                                ></i>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <h6 class="card-title mb-1">
+                                    {{ produit.designation }}
+                                </h6>
+                                <span class="product-category"
+                                    >{{ produit.categorie }}</span
+                                >
+                            </div>
+                        </div>
+                        <span
+                            class="stock-status {{ get_status_class(produit) }}"
+                        >
+                            <i class="bi bi-box-seam"></i> {{
+                            get_stock_status_text(produit) }}
+                        </span>
                     </div>
-                    <div class="col-4 text-end">
-                        <div class="mb-2">
-                            <span
-                                class="stock-status {{ get_status_class(produit) }}"
-                            >
-                                {{ get_stock_status_text(produit) }}
-                            </span>
-                        </div>
-                        <div class="fw-bold">
-                            {{ produit.quantite }} {{ produit.unite_stockage }}
-                        </div>
-                        <small class="text-muted"
-                            >{{ "%.2f"|format(produit.prix_unitaire|float)
-                            }}€</small
+
+                    <div class="product-metadata mb-3">
+                        <span
+                            ><i class="bi bi-upc"></i> {{ produit.reference
+                            }}</span
+                        >
+                        <span
+                            ><i class="bi bi-box"></i> {{ produit.quantite }} {{
+                            produit.unite_stockage }}</span
+                        >
+                        <span
+                            ><i class="bi bi-currency-euro"></i> {{
+                            "%.2f"|format(produit.prix_unitaire|float) }}€</span
                         >
                     </div>
-                </div>
 
-                <!-- Actions rapides -->
-                <div class="row mt-2">
-                    <div class="col-6">
+                    <div class="d-flex align-items-center text-muted mb-3">
+                        <i class="bi bi-geo-alt me-1"></i> {{
+                        produit.emplacement }}
+                    </div>
+
+                    <!-- Actions rapides -->
+                    <div class="d-flex justify-content-between">
                         <a
                             href="{{ url_for('produit_detail', reference=produit.reference) }}"
-                            class="btn btn-outline-primary btn-sm w-100"
+                            class="btn btn-outline-primary btn-sm"
                         >
                             <i class="bi bi-eye"></i> Détails
                         </a>
-                    </div>
-                    <div class="col-6">
-                        <button
-                            class="btn btn-outline-success btn-sm w-100"
-                            onclick="quickMovement('{{ produit.reference }}')"
-                        >
-                            <i class="bi bi-arrow-left-right"></i> Mouvement
-                        </button>
+                        <div>
+                            <button
+                                class="btn btn-outline-success btn-sm me-1"
+                                onclick="quickMovement('{{ produit.reference }}', 'entree')"
+                            >
+                                <i class="bi bi-plus-circle"></i>
+                            </button>
+                            <button
+                                class="btn btn-outline-danger btn-sm me-1"
+                                onclick="quickMovement('{{ produit.reference }}', 'sortie')"
+                            >
+                                <i class="bi bi-dash-circle"></i>
+                            </button>
+                            <button
+                                class="btn btn-outline-secondary btn-sm"
+                                onclick="quickMovement('{{ produit.reference }}')"
+                            >
+                                <i class="bi bi-arrow-left-right"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         {% endfor %} {% else %}
-        <div class="text-center py-5">
-            <i class="bi bi-inbox display-1 text-muted"></i>
-            <h5 class="text-muted mt-3">Aucun produit trouvé</h5>
-            <p class="text-muted">
-                L'inventaire est vide ou aucun produit ne correspond à votre
-                recherche.
-            </p>
+        <div class="col-12">
+            <div class="no-products">
+                <i class="bi bi-search"></i>
+                <h4>Aucun produit trouvé</h4>
+                <p class="text-muted">
+                    L'inventaire est vide ou aucun produit ne correspond à votre
+                    recherche.
+                </p>
+                <button class="btn btn-primary" onclick="clearSearch()">
+                    <i class="bi bi-arrow-clockwise"></i> Réinitialiser la
+                    recherche
+                </button>
+            </div>
         </div>
         {% endif %}
     </div>
@@ -299,17 +526,29 @@
         <div class="btn-group-vertical">
             <a
                 href="{{ url_for('scanner') }}"
-                class="btn btn-primary btn-lg rounded-circle mb-2"
-                style="width: 60px; height: 60px"
+                class="btn btn-primary btn-lg rounded-circle mb-2 shadow"
+                style="
+                    width: 60px;
+                    height: 60px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                "
             >
                 <i class="bi bi-qr-code-scan"></i>
             </a>
             <button
-                class="btn btn-success btn-lg rounded-circle"
+                class="btn btn-success btn-lg rounded-circle shadow"
                 onclick="showQuickAdd()"
-                style="width: 60px; height: 60px"
+                style="
+                    width: 60px;
+                    height: 60px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                "
             >
-                <i class="bi bi-plus"></i>
+                <i class="bi bi-plus-lg"></i>
             </button>
         </div>
     </div>
@@ -317,63 +556,99 @@
 
 <!-- Modal de mouvement rapide -->
 <div class="modal fade" id="quickMovementModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Mouvement rapide</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div
+            class="modal-content"
+            style="border-radius: var(--border-radius); overflow: hidden"
+        >
+            <div
+                class="modal-header"
+                style="border-bottom: 2px solid var(--border-color)"
+            >
+                <h5 class="modal-title">
+                    <i class="bi bi-arrow-left-right me-2 text-primary"></i
+                    >Mouvement rapide
+                </h5>
                 <button
                     type="button"
                     class="btn-close"
                     data-bs-dismiss="modal"
                 ></button>
             </div>
-            <div class="modal-body">
-                <div id="productInfo" class="mb-3"></div>
+            <div class="modal-body p-4">
+                <div
+                    id="productInfo"
+                    class="mb-4 p-3 rounded"
+                    style="background-color: var(--primary-light)"
+                ></div>
 
-                <div class="mb-3">
-                    <label class="form-label">Type de mouvement</label>
-                    <select class="form-select" id="movementType">
-                        <option value="entree">Entrée de stock</option>
-                        <option value="sortie">Sortie de stock</option>
-                        <option value="inventaire">
-                            Ajustement inventaire
-                        </option>
-                    </select>
+                <div class="mb-4">
+                    <label class="form-label fw-medium"
+                        >Type de mouvement</label
+                    >
+                    <div class="input-group">
+                        <span class="input-group-text"
+                            ><i class="bi bi-arrow-down-up"></i
+                        ></span>
+                        <select class="form-select" id="movementType">
+                            <option value="entree">Entrée de stock</option>
+                            <option value="sortie">Sortie de stock</option>
+                            <option value="inventaire">
+                                Ajustement inventaire
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-medium">Quantité</label>
+                    <div class="input-group">
+                        <span class="input-group-text"
+                            ><i class="bi bi-123"></i
+                        ></span>
+                        <input
+                            type="number"
+                            class="form-control"
+                            id="movementQuantity"
+                            min="1"
+                        />
+                    </div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Quantité</label>
-                    <input
-                        type="number"
-                        class="form-control"
-                        id="movementQuantity"
-                        min="1"
-                    />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Commentaires (optionnel)</label>
-                    <textarea
-                        class="form-control"
-                        id="movementComments"
-                        rows="2"
-                    ></textarea>
+                    <label class="form-label fw-medium"
+                        >Commentaires (optionnel)</label
+                    >
+                    <div class="input-group">
+                        <span class="input-group-text"
+                            ><i class="bi bi-chat-text"></i
+                        ></span>
+                        <textarea
+                            class="form-control"
+                            id="movementComments"
+                            rows="2"
+                            placeholder="Indiquez un motif ou des informations complémentaires..."
+                        ></textarea>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div
+                class="modal-footer"
+                style="border-top: 2px solid var(--border-color)"
+            >
                 <button
                     type="button"
-                    class="btn btn-secondary"
+                    class="btn btn-outline-secondary"
                     data-bs-dismiss="modal"
                 >
-                    Annuler
+                    <i class="bi bi-x"></i> Annuler
                 </button>
                 <button
                     type="button"
                     class="btn btn-primary"
                     onclick="submitMovement()"
                 >
-                    <i class="bi bi-check"></i> Valider
+                    <i class="bi bi-check2"></i> Valider
                 </button>
             </div>
         </div>
@@ -389,6 +664,15 @@
             .getElementById("searchInput")
             .addEventListener("input", debounce(performSearch, 300));
 
+        // Touche entrée pour rechercher
+        document
+            .getElementById("searchInput")
+            .addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    performSearch();
+                }
+            });
+
         // Filtres
         document.querySelectorAll(".filter-btn").forEach((btn) => {
             btn.addEventListener("click", function () {
@@ -403,6 +687,9 @@
                 filterProducts(filter);
             });
         });
+
+        // Ajouter des animations d'entrée pour les cartes
+        animateProductCards();
     });
 
     function debounce(func, wait) {
@@ -463,7 +750,7 @@
         });
     }
 
-    function quickMovement(reference) {
+    function quickMovement(reference, type = null) {
         currentProductRef = reference;
 
         // Charger les informations du produit
@@ -471,11 +758,21 @@
             .then((produit) => {
                 if (produit) {
                     document.getElementById("productInfo").innerHTML = `
-                    <div class="alert alert-info">
-                        <strong>${produit.designation}</strong><br>
-                        <small>Stock actuel: ${produit.quantite} ${produit.unite_stockage}</small>
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <h6 class="mb-1">${produit.designation}</h6>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-primary me-2">Réf: ${produit.reference}</span>
+                                <span><i class="bi bi-box me-1"></i>${produit.quantite} ${produit.unite_stockage}</span>
+                            </div>
+                        </div>
                     </div>
                 `;
+
+                    // Préselectionner le type de mouvement si spécifié
+                    if (type) {
+                        document.getElementById("movementType").value = type;
+                    }
 
                     const modal = new bootstrap.Modal(
                         document.getElementById("quickMovementModal")
@@ -554,6 +851,24 @@
 
     function showQuickAdd() {
         window.location.href = '{{ url_for("gestion_produits") }}';
+    }
+
+    function clearSearch() {
+        window.location.href = "/magasin";
+    }
+
+    function animateProductCards() {
+        const cards = document.querySelectorAll(".product-card");
+        cards.forEach((card, index) => {
+            card.style.opacity = "0";
+            card.style.transform = "translateY(20px)";
+
+            setTimeout(() => {
+                card.style.transition = "all 0.5s ease";
+                card.style.opacity = "1";
+                card.style.transform = "translateY(0)";
+            }, index * 80);
+        });
     }
 </script>
 {% endblock %}

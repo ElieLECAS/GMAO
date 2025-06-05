@@ -2,98 +2,155 @@
 {% block extra_css %}
 <style>
     .menu-section {
-        margin-bottom: 2rem;
+        margin-bottom: 2.5rem;
     }
 
     .menu-section h5 {
-        color: #0d6efd;
-        font-weight: bold;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e9ecef;
+        color: var(--primary-color);
+        font-weight: 600;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .menu-card {
-        transition: all 0.3s ease;
+        transition: var(--transition);
         border: none;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--box-shadow);
         height: 100%;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        background-color: var(--card-bg);
     }
 
     .menu-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
     }
 
     .menu-card .card-body {
-        padding: 1.5rem;
+        padding: 1.75rem 1.5rem;
         text-align: center;
     }
 
     .menu-card i {
         font-size: 2.5rem;
-        margin-bottom: 1rem;
+        margin-bottom: 1.25rem;
+        background-color: var(--primary-light);
+        border-radius: 50%;
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: auto;
+        margin-right: auto;
+        transition: transform 0.3s ease;
+    }
+
+    .menu-card:hover i {
+        transform: scale(1.1);
     }
 
     .menu-card h6 {
-        font-weight: bold;
-        margin-bottom: 0.5rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        font-size: 1rem;
+        color: var(--text-color);
     }
 
     .menu-card .text-muted {
-        font-size: 0.9rem;
+        font-size: 0.875rem;
+        color: var(--secondary-color) !important;
     }
 
     .admin-section {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-top: 2rem;
+        background: var(--primary-light);
+        border-radius: var(--border-radius);
+        padding: 2rem 1.5rem;
+        margin-top: 2.5rem;
+        box-shadow: var(--box-shadow);
+    }
+
+    .admin-section h5 {
+        color: var(--primary-color);
+        border-bottom-color: rgba(58, 109, 240, 0.2);
     }
 
     .admin-section .card {
-        background: white;
-        border: 1px solid #dee2e6;
+        background: var(--card-bg);
     }
 
     .stats-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #4776e6 0%, #8e54e9 100%);
         color: white;
-        border-radius: 15px;
-        padding: 1.5rem;
+        border-radius: var(--border-radius);
+        padding: 1.75rem;
         margin-bottom: 2rem;
+        box-shadow: 0 8px 20px rgba(71, 118, 230, 0.2);
     }
 
     .stats-card h4 {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+
+    .quick-action-container {
+        background-color: var(--card-bg);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 2.5rem;
+        box-shadow: var(--box-shadow);
+        text-align: center;
+    }
+
+    .quick-action-container h5 {
+        border-bottom: none;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
     }
 
     .quick-action-btn {
-        background: linear-gradient(45deg, #28a745, #20c997);
+        background: linear-gradient(45deg, var(--primary-color), #6284f7);
         border: none;
         border-radius: 50px;
-        padding: 15px 30px;
+        padding: 14px 28px;
         color: white;
-        font-weight: bold;
+        font-weight: 600;
         text-decoration: none;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         margin: 0.5rem;
-        transition: all 0.3s ease;
+        transition: var(--transition);
+        box-shadow: 0 4px 12px rgba(58, 109, 240, 0.2);
     }
 
     .quick-action-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(58, 109, 240, 0.3);
         color: white;
         text-decoration: none;
+    }
+
+    .quick-action-btn i {
+        font-size: 1.25rem;
+    }
+
+    .menu-row {
+        margin-bottom: 1rem;
     }
 </style>
 {% endblock %} {% block content %}
 <div class="container-fluid">
-
     <!-- Actions rapides -->
-    <div class="text-center mb-4">
-        <h5><i class="bi bi-lightning-charge"></i> Actions rapides</h5>
+    <div class="quick-action-container">
+        <h5 class="section-title">
+            <i class="bi bi-lightning-charge"></i> Actions rapides
+        </h5>
         <a href="{{ url_for('scanner') }}" class="quick-action-btn">
             <i class="bi bi-qr-code-scan"></i> Scanner QR
         </a>
@@ -105,7 +162,7 @@
     <!-- ACTIONS PRINCIPALES -->
     <div class="menu-section">
         <h5><i class="bi bi-star-fill"></i> Actions principales</h5>
-        <div class="row g-3">
+        <div class="row g-4 menu-row">
             <div class="col-12 col-md-4">
                 <a href="{{ url_for('magasin') }}" class="text-decoration-none">
                     <div class="card menu-card">
@@ -153,7 +210,7 @@
     <!-- DEMANDES -->
     <div class="menu-section">
         <h5><i class="bi bi-clipboard-check"></i> Demandes</h5>
-        <div class="row g-3">
+        <div class="row g-4 menu-row">
             <div class="col-12 col-md-6">
                 <a
                     href="{{ url_for('demande_materiel') }}"
@@ -188,7 +245,7 @@
     <!-- MOUVEMENTS -->
     <div class="menu-section">
         <h5><i class="bi bi-arrow-left-right"></i> Mouvements</h5>
-        <div class="row g-3">
+        <div class="row g-4 menu-row">
             <div class="col-6 col-md-3">
                 <a
                     href="{{ url_for('entree_stock') }}"
@@ -251,7 +308,7 @@
     <!-- ADMINISTRATION -->
     <div class="admin-section">
         <h5><i class="bi bi-gear-fill"></i> Administration</h5>
-        <div class="row g-3">
+        <div class="row g-4 menu-row">
             <div class="col-6 col-md-3">
                 <a
                     href="{{ url_for('gestion_produits') }}"
@@ -314,7 +371,7 @@
     <!-- Outils mobiles -->
     <div class="menu-section">
         <h5><i class="bi bi-phone"></i> Outils mobiles</h5>
-        <div class="row g-3">
+        <div class="row g-4 menu-row">
             <div class="col-12 col-md-6">
                 <a href="{{ url_for('scanner') }}" class="text-decoration-none">
                     <div class="card menu-card">
@@ -355,7 +412,20 @@
                 card.style.transition = "all 0.5s ease";
                 card.style.opacity = "1";
                 card.style.transform = "translateY(0)";
-            }, index * 100);
+            }, index * 80);
+        });
+
+        // Animation pour les boutons d'action rapide
+        const actionBtns = document.querySelectorAll(".quick-action-btn");
+        actionBtns.forEach((btn, index) => {
+            btn.style.opacity = "0";
+            btn.style.transform = "scale(0.9)";
+
+            setTimeout(() => {
+                btn.style.transition = "all 0.5s ease";
+                btn.style.opacity = "1";
+                btn.style.transform = "scale(1)";
+            }, index * 150 + 200);
         });
     });
 </script>
