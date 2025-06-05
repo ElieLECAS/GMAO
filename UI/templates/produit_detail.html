@@ -1,0 +1,510 @@
+{% extends "base.html" %} {% block title %}{{ produit.designation }} - GMAO
+Mobile{% endblock %} {% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        <!-- En-tête avec retour -->
+        <div class="d-flex align-items-center mb-4">
+            <button
+                onclick="history.back()"
+                class="btn btn-outline-secondary me-3"
+            >
+                <i class="bi bi-arrow-left"></i>
+            </button>
+            <h4 class="mb-0">Détail produit</h4>
+        </div>
+
+        <!-- Carte principale du produit -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ produit.designation }}</h5>
+                    {% set stock_class = 'bg-danger' if produit.quantite <=
+                    produit.seuil_alerte else 'bg-warning text-dark' if
+                    produit.quantite <= produit.seuil_alerte * 2 else
+                    'bg-success' %}
+                    <span class="badge {{ stock_class }} fs-6"
+                        >{{ produit.quantite }}</span
+                    >
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Informations principales -->
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Code:</strong><br />
+                        <span class="text-muted">{{ produit.code }}</span>
+                    </div>
+                    <div class="col-6">
+                        <strong>Référence:</strong><br />
+                        <span class="text-muted">{{ produit.reference }}</span>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Emplacement:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.emplacement }}</span
+                        >
+                    </div>
+                    <div class="col-6">
+                        <strong>Fournisseur:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.fournisseur }}</span
+                        >
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Seuil d'alerte:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.seuil_alerte }}</span
+                        >
+                    </div>
+                    <div class="col-6">
+                        <strong>Unité:</strong><br />
+                        <span class="text-muted"
+                            >{{ produit.unite if produit.unite else 'Non
+                            définie' }}</span
+                        >
+                    </div>
+                </div>
+
+                {% if produit.description %}
+                <div class="mb-3">
+                    <strong>Description:</strong><br />
+                    <span class="text-muted">{{ produit.description }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Statut du stock -->
+                <div
+                    class="alert {% if produit.quantite <= produit.seuil_alerte %}alert-danger{% elif produit.quantite <= produit.seuil_alerte * 2 %}alert-warning{% else %}alert-success{% endif %}"
+                >
+                    <i
+                        class="bi bi-{% if produit.quantite <= produit.seuil_alerte %}exclamation-triangle{% elif produit.quantite <= produit.seuil_alerte * 2 %}exclamation-circle{% else %}check-circle{% endif %}"
+                    ></i>
+                    {% if produit.quantite <= produit.seuil_alerte %}
+                    <strong>Stock critique!</strong> Réapprovisionnement urgent
+                    nécessaire. {% elif produit.quantite <= produit.seuil_alerte
+                    * 2 %} <strong>Stock faible.</strong> Prévoir un
+                    réapprovisionnement. {% else %}
+                    <strong>Stock suffisant.</strong>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- QR Code -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-qr-code"></i> QR Code</h6>
+            </div>
+            <div class="card-body text-center">
+                <img
+                    src="{{ qr_code }}"
+                    alt="QR Code"
+                    class="img-fluid mb-3"
+                    style="max-width: 200px"
+                />
+                <p class="text-muted small">{{ produit.reference }}</p>
+                <button
+                    class="btn btn-outline-primary btn-sm"
+                    onclick="downloadQR()"
+                >
+                    <i class="bi bi-download"></i> Télécharger
+                </button>
+                <button
+                    class="btn btn-outline-secondary btn-sm"
+                    onclick="shareQR()"
+                >
+                    <i class="bi bi-share"></i> Partager
+                </button>
+            </div>
+        </div>
+
+        <!-- Actions rapides -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-lightning-charge"></i> Actions rapides
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button
+                        class="btn btn-success"
+                        onclick="showMovementModal('entree')"
+                    >
+                        <i class="bi bi-plus-circle"></i> Entrée de stock
+                    </button>
+                    <button
+                        class="btn btn-warning"
+                        onclick="showMovementModal('sortie')"
+                    >
+                        <i class="bi bi-dash-circle"></i> Sortie de stock
+                    </button>
+                    <button
+                        class="btn btn-info"
+                        onclick="showMovementModal('inventaire')"
+                    >
+                        <i class="bi bi-clipboard-check"></i> Correction
+                        inventaire
+                    </button>
+                    <a
+                        href="{{ url_for('nouvelle_demande') }}?produit={{ produit.reference }}"
+                        class="btn btn-outline-primary"
+                    >
+                        <i class="bi bi-clipboard-plus"></i> Créer une demande
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historique récent -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Historique récent
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="historique-container">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm"></div>
+                        <span class="ms-2">Chargement...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de mouvement de stock -->
+<div class="modal fade" id="movementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="movementModalTitle">
+                    Mouvement de stock
+                </h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <form id="movementForm">
+                    <input
+                        type="hidden"
+                        id="movement-reference"
+                        value="{{ produit.reference }}"
+                    />
+                    <input type="hidden" id="movement-nature" />
+
+                    <div class="mb-3">
+                        <label class="form-label">Produit</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            value="{{ produit.designation }}"
+                            readonly
+                        />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="movement-quantity" class="form-label"
+                            >Quantité</label
+                        >
+                        <div class="input-group">
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary"
+                                onclick="adjustQuantity(-1)"
+                            >
+                                <i class="bi bi-dash"></i>
+                            </button>
+                            <input
+                                type="number"
+                                class="form-control text-center"
+                                id="movement-quantity"
+                                min="1"
+                                value="1"
+                                required
+                            />
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary"
+                                onclick="adjustQuantity(1)"
+                            >
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="movement-user" class="form-label"
+                            >Utilisateur</label
+                        >
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="movement-user"
+                            placeholder="Votre nom"
+                            required
+                        />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="movement-comments" class="form-label"
+                            >Commentaires (optionnel)</label
+                        >
+                        <textarea
+                            class="form-control"
+                            id="movement-comments"
+                            rows="3"
+                            placeholder="Raison du mouvement..."
+                        ></textarea>
+                    </div>
+
+                    <div class="alert alert-info" id="stock-preview">
+                        <small>Stock actuel: {{ produit.quantite }}</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Annuler
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    onclick="submitMovement()"
+                >
+                    <span id="submit-btn-text">Confirmer</span>
+                    <span
+                        id="submit-btn-spinner"
+                        class="spinner-border spinner-border-sm d-none"
+                    ></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    let currentStock = {{ produit.quantite }};
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadHistorique();
+    });
+
+    function loadHistorique() {
+        makeRequest(`/historique/reference/{{ produit.reference }}`)
+            .then(historique => {
+                const container = document.getElementById('historique-container');
+
+                if (historique && historique.length > 0) {
+                    let html = '';
+                    historique.slice(0, 5).forEach(mouvement => {
+                        const date = new Date(mouvement.date_mouvement).toLocaleString('fr-FR');
+                        const icon = mouvement.nature === 'entree' ? 'plus-circle text-success' :
+                                    mouvement.nature === 'sortie' ? 'dash-circle text-warning' :
+                                    'clipboard-check text-info';
+
+                        html += `
+                            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                <div>
+                                    <i class="bi bi-${icon}"></i>
+                                    <strong>${mouvement.nature.charAt(0).toUpperCase() + mouvement.nature.slice(1)}</strong>
+                                    <span class="text-muted">- ${mouvement.quantite}</span>
+                                    <br>
+                                    <small class="text-muted">${date}</small>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted">Par: ${mouvement.utilisateur}</small>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="text-muted text-center">Aucun mouvement récent</div>';
+                }
+            })
+            .catch(error => {
+                document.getElementById('historique-container').innerHTML =
+                    '<div class="text-danger text-center">Erreur lors du chargement</div>';
+            });
+    }
+
+    function showMovementModal(nature) {
+        const modal = new bootstrap.Modal(document.getElementById('movementModal'));
+        const title = document.getElementById('movementModalTitle');
+        const natureInput = document.getElementById('movement-nature');
+
+        natureInput.value = nature;
+
+        switch(nature) {
+            case 'entree':
+                title.textContent = 'Entrée de stock';
+                break;
+            case 'sortie':
+                title.textContent = 'Sortie de stock';
+                break;
+            case 'inventaire':
+                title.textContent = 'Correction inventaire';
+                break;
+        }
+
+        // Reset form
+        document.getElementById('movement-quantity').value = 1;
+        document.getElementById('movement-comments').value = '';
+        updateStockPreview();
+
+        modal.show();
+    }
+
+    function adjustQuantity(delta) {
+        const input = document.getElementById('movement-quantity');
+        const newValue = parseInt(input.value) + delta;
+        if (newValue >= 1) {
+            input.value = newValue;
+            updateStockPreview();
+        }
+    }
+
+    function updateStockPreview() {
+        const quantity = parseInt(document.getElementById('movement-quantity').value) || 0;
+        const nature = document.getElementById('movement-nature').value;
+        const preview = document.getElementById('stock-preview');
+
+        let newStock = currentStock;
+        if (nature === 'entree') {
+            newStock += quantity;
+        } else if (nature === 'sortie') {
+            newStock -= quantity;
+        } else if (nature === 'inventaire') {
+            newStock = quantity;
+        }
+
+        const color = newStock < 0 ? 'danger' : newStock <= {{ produit.seuil_alerte }} ? 'warning' : 'info';
+        preview.className = `alert alert-${color}`;
+        preview.innerHTML = `<small>Stock actuel: ${currentStock} → Nouveau stock: ${newStock}</small>`;
+    }
+
+    function submitMovement() {
+        const form = document.getElementById('movementForm');
+        const submitBtn = document.querySelector('#movementModal .btn-primary');
+        const submitText = document.getElementById('submit-btn-text');
+        const submitSpinner = document.getElementById('submit-btn-spinner');
+
+        // Validation
+        const quantity = parseInt(document.getElementById('movement-quantity').value);
+        const user = document.getElementById('movement-user').value.trim();
+
+        if (!quantity || quantity < 1) {
+            showNotification('Veuillez entrer une quantité valide', 'danger');
+            return;
+        }
+
+        if (!user) {
+            showNotification('Veuillez entrer votre nom', 'danger');
+            return;
+        }
+
+        // Disable button and show spinner
+        submitBtn.disabled = true;
+        submitText.classList.add('d-none');
+        submitSpinner.classList.remove('d-none');
+
+        const data = {
+            reference: document.getElementById('movement-reference').value,
+            nature: document.getElementById('movement-nature').value,
+            quantite: quantity,
+            utilisateur: user,
+            commentaires: document.getElementById('movement-comments').value
+        };
+
+        makeRequest('/mouvement-stock', 'POST', data)
+            .then(response => {
+                if (response.success) {
+                    showNotification('Mouvement enregistré avec succès', 'success');
+
+                    // Mettre à jour le stock affiché
+                    const newStock = response.nouveau_stock || (currentStock +
+                        (data.nature === 'entree' ? quantity :
+                         data.nature === 'sortie' ? -quantity :
+                         quantity - currentStock));
+
+                    currentStock = newStock;
+                    updateStockDisplay(newStock);
+
+                    // Recharger l'historique
+                    loadHistorique();
+
+                    // Fermer le modal
+                    bootstrap.Modal.getInstance(document.getElementById('movementModal')).hide();
+                } else {
+                    showNotification(response.message || 'Erreur lors de l\'enregistrement', 'danger');
+                }
+            })
+            .catch(error => {
+                showNotification('Erreur lors de l\'enregistrement', 'danger');
+            })
+            .finally(() => {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitText.classList.remove('d-none');
+                submitSpinner.classList.add('d-none');
+            });
+    }
+
+    function updateStockDisplay(newStock) {
+        // Mettre à jour l'affichage du stock dans la page
+        const stockBadges = document.querySelectorAll('.badge');
+        stockBadges.forEach(badge => {
+            if (badge.textContent.trim() === currentStock.toString()) {
+                badge.textContent = newStock;
+
+                // Mettre à jour la classe selon le nouveau stock
+                badge.className = 'badge fs-6 ' +
+                    (newStock <= {{ produit.seuil_alerte }} ? 'bg-danger' :
+                     newStock <= {{ produit.seuil_alerte }} * 2 ? 'bg-warning text-dark' : 'bg-success');
+            }
+        });
+    }
+
+    function downloadQR() {
+        const qrImage = document.querySelector('#qr-code img');
+        const link = document.createElement('a');
+        link.download = `qr-${produit.reference}.png`;
+        link.href = qrImage.src;
+        link.click();
+    }
+
+    function shareQR() {
+        if (navigator.share) {
+            navigator.share({
+                title: 'QR Code - {{ produit.designation }}',
+                text: 'QR Code pour {{ produit.designation }} ({{ produit.reference }})',
+                url: window.location.href
+            });
+        } else {
+            // Fallback: copier l'URL
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                showNotification('Lien copié dans le presse-papiers', 'success');
+            });
+        }
+    }
+
+    // Mise à jour du preview en temps réel
+    document.getElementById('movement-quantity').addEventListener('input', updateStockPreview);
+</script>
+{% endblock %}

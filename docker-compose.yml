@@ -41,6 +41,22 @@ services:
                 condition: service_healthy
         restart: unless-stopped
 
+    # Application Flask Mobile
+    flask-mobile:
+        build: ./UI
+        container_name: gmao-flask-mobile
+        ports:
+            - "8080:5000"
+        environment:
+            - API_BASE_URL=http://api:8000
+            - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+            - FLASK_ENV=production
+        volumes:
+            - ./UI:/app
+        depends_on:
+            - api
+        restart: unless-stopped
+
     # Application Streamlit existante (optionnel)
     gmao-app:
         build: .

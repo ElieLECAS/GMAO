@@ -1,0 +1,314 @@
+{% extends "base.html" %} {% block title %}Inventaire - GMAO Mobile{% endblock
+%} {% block content %}
+<!-- Barre de recherche sticky -->
+<div class="search-container">
+    <form method="GET" action="{{ url_for('inventaire') }}">
+        <div class="input-group">
+            <input
+                type="text"
+                class="form-control"
+                name="search"
+                value="{{ search }}"
+                placeholder="Rechercher un produit..."
+                autocomplete="off"
+            />
+            <button class="btn btn-primary" type="submit">
+                <i class="bi bi-search"></i>
+            </button>
+            {% if search %}
+            <a
+                href="{{ url_for('inventaire') }}"
+                class="btn btn-outline-secondary"
+            >
+                <i class="bi bi-x"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Résultats -->
+<div class="row">
+    <div class="col-12">
+        {% if search %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5>Résultats pour "{{ search }}"</h5>
+            <span class="badge bg-primary"
+                >{{ produits|length }} résultat(s)</span
+            >
+        </div>
+        {% else %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="bi bi-list-ul"></i> Inventaire</h5>
+            <span class="badge bg-primary"
+                >{{ produits|length }} produit(s)</span
+            >
+        </div>
+        {% endif %}
+
+        <!-- Filtres rapides -->
+        <div class="mb-3">
+            <div class="btn-group btn-group-sm" role="group">
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    onclick="filterByStock('all')"
+                >
+                    Tous
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-outline-warning"
+                    onclick="filterByStock('low')"
+                >
+                    Stock faible
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-outline-success"
+                    onclick="filterByStock('good')"
+                >
+                    Stock OK
+                </button>
+            </div>
+        </div>
+
+        <!-- Liste des produits -->
+        <div id="products-list">
+            {% if produits %} {% for produit in produits %}
+            <div
+                class="card mb-3 product-card"
+                data-stock="{{ produit.quantite }}"
+                data-seuil="{{ produit.seuil_alerte }}"
+            >
+                <div class="card-body">
+                    <div
+                        class="d-flex justify-content-between align-items-start mb-2"
+                    >
+                        <h6 class="card-title mb-0">
+                            {{ produit.designation }}
+                        </h6>
+                        {% set stock_class = 'bg-danger' if produit.quantite <=
+                        produit.seuil_alerte else 'bg-warning text-dark' if
+                        produit.quantite <= produit.seuil_alerte * 2 else
+                        'bg-success' %}
+                        <span class="badge {{ stock_class }} stock-badge"
+                            >{{ produit.quantite }}</span
+                        >
+                    </div>
+
+                    <div class="row text-muted small mb-2">
+                        <div class="col-6">
+                            <i class="bi bi-upc-scan"></i> {{ produit.code }}
+                        </div>
+                        <div class="col-6">
+                            <i class="bi bi-geo-alt"></i> {{ produit.emplacement
+                            }}
+                        </div>
+                    </div>
+
+                    <div class="row text-muted small mb-3">
+                        <div class="col-6">
+                            <i class="bi bi-building"></i> {{
+                            produit.fournisseur }}
+                        </div>
+                        <div class="col-6">
+                            <i class="bi bi-exclamation-triangle"></i> Seuil: {{
+                            produit.seuil_alerte }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <a
+                            href="{{ url_for('produit_detail', reference=produit.reference) }}"
+                            class="btn btn-primary btn-sm flex-fill"
+                        >
+                            <i class="bi bi-eye"></i> Détails
+                        </a>
+                        <button
+                            class="btn btn-outline-primary btn-sm"
+                            onclick="quickScan('{{ produit.reference }}')"
+                        >
+                            <i class="bi bi-qr-code"></i>
+                        </button>
+                        <button
+                            class="btn btn-outline-success btn-sm"
+                            onclick="quickMovement('{{ produit.reference }}')"
+                        >
+                            <i class="bi bi-arrow-left-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %} {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <h5 class="text-muted mt-3">
+                    {% if search %} Aucun produit trouvé pour "{{ search }}" {%
+                    else %} Aucun produit dans l'inventaire {% endif %}
+                </h5>
+                {% if search %}
+                <a
+                    href="{{ url_for('inventaire') }}"
+                    class="btn btn-primary mt-2"
+                >
+                    Voir tous les produits
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Bouton d'action flottant -->
+        <div
+            class="position-fixed bottom-0 end-0 p-3"
+            style="z-index: 1000; margin-bottom: 80px"
+        >
+            <div class="btn-group-vertical">
+                <a
+                    href="{{ url_for('scanner') }}"
+                    class="btn btn-primary btn-lg rounded-circle mb-2"
+                    style="
+                        width: 60px;
+                        height: 60px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    "
+                >
+                    <i class="bi bi-qr-code-scan"></i>
+                </a>
+                <button
+                    class="btn btn-success rounded-circle"
+                    style="
+                        width: 50px;
+                        height: 50px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    "
+                    onclick="scrollToTop()"
+                >
+                    <i class="bi bi-arrow-up"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal QR Code -->
+<div class="modal fade" id="qrModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">QR Code</h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="qr-code-container"></div>
+                <p class="mt-3 mb-0" id="qr-reference"></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    function filterByStock(type) {
+        const cards = document.querySelectorAll(".product-card");
+
+        cards.forEach((card) => {
+            const stock = parseInt(card.dataset.stock);
+            const seuil = parseInt(card.dataset.seuil);
+            let show = true;
+
+            switch (type) {
+                case "low":
+                    show = stock <= seuil;
+                    break;
+                case "good":
+                    show = stock > seuil * 2;
+                    break;
+                case "all":
+                default:
+                    show = true;
+                    break;
+            }
+
+            card.style.display = show ? "block" : "none";
+        });
+
+        // Mettre à jour les boutons actifs
+        document.querySelectorAll(".btn-group .btn").forEach((btn) => {
+            btn.classList.remove("active");
+        });
+        event.target.classList.add("active");
+    }
+
+    function quickScan(reference) {
+        // Générer et afficher le QR code
+        const qrContainer = document.getElementById("qr-code-container");
+        const qrReference = document.getElementById("qr-reference");
+
+        // Utiliser une API de génération de QR code
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+            reference
+        )}`;
+
+        qrContainer.innerHTML = `<img src="${qrUrl}" alt="QR Code" class="img-fluid">`;
+        qrReference.textContent = reference;
+
+        const modal = new bootstrap.Modal(document.getElementById("qrModal"));
+        modal.show();
+    }
+
+    function quickMovement(reference) {
+        window.location.href = `/mouvement-stock?reference=${encodeURIComponent(
+            reference
+        )}`;
+    }
+
+    function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // Recherche en temps réel (optionnel)
+    let searchTimeout;
+    document
+        .querySelector('input[name="search"]')
+        .addEventListener("input", function (e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (e.target.value.length >= 3 || e.target.value.length === 0) {
+                    // Optionnel: recherche automatique
+                    // e.target.form.submit();
+                }
+            }, 500);
+        });
+
+    // Gestion du scroll infini (si beaucoup de produits)
+    let isLoading = false;
+    window.addEventListener("scroll", function () {
+        if (isLoading) return;
+
+        if (
+            window.innerHeight + window.scrollY >=
+            document.body.offsetHeight - 1000
+        ) {
+            // Charger plus de produits si nécessaire
+            // loadMoreProducts();
+        }
+    });
+
+    // Raccourci clavier pour la recherche
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "/" && !e.target.matches("input, textarea")) {
+            e.preventDefault();
+            document.querySelector('input[name="search"]').focus();
+        }
+    });
+</script>
+{% endblock %}

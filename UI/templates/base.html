@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{% block title %}GMAO Mobile{% endblock %}</title>
+
+        <!-- Bootstrap CSS -->
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <!-- Bootstrap Icons -->
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
+            rel="stylesheet"
+        />
+        <!-- PWA Meta Tags -->
+        <meta name="theme-color" content="#0d6efd" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="GMAO Mobile" />
+
+        <style>
+            :root {
+                --primary-color: #0d6efd;
+                --secondary-color: #6c757d;
+                --success-color: #198754;
+                --danger-color: #dc3545;
+                --warning-color: #ffc107;
+            }
+
+            body {
+                padding-bottom: 80px; /* Space for bottom navigation */
+                background-color: #f8f9fa;
+            }
+
+            .navbar-brand {
+                font-weight: bold;
+            }
+
+            .bottom-nav {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                border-top: 1px solid #dee2e6;
+                z-index: 1000;
+                padding: 10px 0;
+            }
+
+            .bottom-nav .nav-item {
+                flex: 1;
+                text-align: center;
+            }
+
+            .bottom-nav .nav-link {
+                color: var(--secondary-color);
+                text-decoration: none;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 5px;
+                font-size: 0.8rem;
+            }
+
+            .bottom-nav .nav-link.active {
+                color: var(--primary-color);
+            }
+
+            .bottom-nav .nav-link i {
+                font-size: 1.2rem;
+                margin-bottom: 2px;
+            }
+
+            .card {
+                border: none;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                margin-bottom: 1rem;
+            }
+
+            .btn-scan {
+                background: linear-gradient(
+                    45deg,
+                    var(--primary-color),
+                    #0056b3
+                );
+                border: none;
+                border-radius: 50px;
+                padding: 15px 30px;
+                font-weight: bold;
+                box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+            }
+
+            .btn-scan:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
+            }
+
+            .stock-badge {
+                font-size: 0.8rem;
+                padding: 4px 8px;
+            }
+
+            .stock-low {
+                background-color: var(--danger-color);
+            }
+
+            .stock-medium {
+                background-color: var(--warning-color);
+                color: black;
+            }
+
+            .stock-good {
+                background-color: var(--success-color);
+            }
+
+            .search-container {
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                background: white;
+                padding: 1rem;
+                border-bottom: 1px solid #dee2e6;
+            }
+
+            @media (max-width: 576px) {
+                .container-fluid {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                }
+            }
+
+            /* Animation pour les transitions */
+            .fade-in {
+                animation: fadeIn 0.3s ease-in;
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            /* Style pour le scanner QR */
+            #qr-reader {
+                width: 100%;
+                max-width: 400px;
+                margin: 0 auto;
+            }
+
+            .scanner-container {
+                background: black;
+                border-radius: 10px;
+                overflow: hidden;
+                margin: 1rem 0;
+            }
+        </style>
+
+        {% block extra_css %}{% endblock %}
+    </head>
+    <body>
+        <!-- Top Navigation -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="{{ url_for('index') }}">
+                    <i class="bi bi-boxes"></i> GMAO Mobile
+                </a>
+                <button
+                    class="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav"
+                >
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('scanner') }}">
+                                <i class="bi bi-qr-code-scan"></i> Scanner
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a
+                                class="nav-link"
+                                href="{{ url_for('inventaire') }}"
+                            >
+                                <i class="bi bi-list-ul"></i> Inventaire
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %} {% if
+        messages %}
+        <div class="container-fluid mt-2">
+            {% for category, message in messages %}
+            <div
+                class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
+                role="alert"
+            >
+                {{ message }}
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                ></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %} {% endwith %}
+
+        <!-- Main Content -->
+        <main class="container-fluid py-3 fade-in">
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="d-flex">
+                <div class="nav-item">
+                    <a
+                        href="{{ url_for('index') }}"
+                        class="nav-link {% if request.endpoint == 'index' %}active{% endif %}"
+                    >
+                        <i class="bi bi-house"></i>
+                        <span>Accueil</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a
+                        href="{{ url_for('scanner') }}"
+                        class="nav-link {% if request.endpoint == 'scanner' %}active{% endif %}"
+                    >
+                        <i class="bi bi-qr-code-scan"></i>
+                        <span>Scanner</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a
+                        href="{{ url_for('magasin') }}"
+                        class="nav-link {% if request.endpoint == 'magasin' or request.endpoint == 'inventaire' %}active{% endif %}"
+                    >
+                        <i class="bi bi-shop"></i>
+                        <span>Magasin</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a
+                        href="{{ url_for('gestion_demandes') }}"
+                        class="nav-link {% if request.endpoint == 'gestion_demandes' or request.endpoint == 'demande_materiel' or request.endpoint == 'demandes' %}active{% endif %}"
+                    >
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Demandes</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a
+                        href="{{ url_for('alertes_stock') }}"
+                        class="nav-link {% if request.endpoint == 'alertes_stock' or request.endpoint == 'stock_faible' %}active{% endif %}"
+                    >
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>Alertes</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Bootstrap JS -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+        <!-- Common JavaScript -->
+        <script>
+            // Fonction utilitaire pour les requêtes AJAX
+            function makeRequest(url, method = "GET", data = null) {
+                const options = {
+                    method: method,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                return fetch(url, options)
+                    .then((response) => response.json())
+                    .catch((error) => {
+                        console.error("Erreur:", error);
+                        throw error;
+                    });
+            }
+
+            // Fonction pour afficher les notifications
+            function showNotification(message, type = "info") {
+                const alertDiv = document.createElement("div");
+                alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+                alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+                const container = document.querySelector(".container-fluid");
+                container.insertBefore(alertDiv, container.firstChild);
+
+                // Auto-dismiss after 5 seconds
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 5000);
+            }
+
+            // Gestion du mode hors ligne
+            window.addEventListener("online", () => {
+                showNotification("Connexion rétablie", "success");
+            });
+
+            window.addEventListener("offline", () => {
+                showNotification("Mode hors ligne activé", "warning");
+            });
+        </script>
+
+        {% block extra_js %}{% endblock %}
+    </body>
+</html>

@@ -1,0 +1,438 @@
+{% extends "base.html" %} {% block title %}Historique des Mouvements - GMAO
+Mobile{% endblock %} {% block extra_css %}
+<style>
+    .stats-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border: none;
+        height: 100%;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin: 0;
+    }
+
+    .movement-card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem;
+        border-radius: 10px;
+    }
+
+    .movement-type {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+
+    .type-entree {
+        background-color: #198754;
+        color: white;
+    }
+
+    .type-sortie {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .type-inventaire {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+    .filter-sticky {
+        position: sticky;
+        top: 70px;
+        z-index: 100;
+        background: #f8f9fa;
+        padding: 1rem 0;
+        margin-bottom: 1rem;
+    }
+
+    .export-btn {
+        margin: 0.25rem;
+    }
+</style>
+{% endblock %} {% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4><i class="bi bi-graph-up"></i> Historique des Mouvements</h4>
+        <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+
+    <!-- Statistiques générales -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stats-card">
+                <div class="stat-number text-primary" id="total-mouvements">
+                    {{ historique|length }}
+                </div>
+                <p class="stat-label">📊 Total mouvements</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stats-card">
+                <div class="stat-number text-success" id="total-entrees">
+                    {{ historique|selectattr('nature', 'equalto',
+                    'entree')|list|length }}
+                </div>
+                <p class="stat-label">📥 Entrées</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stats-card">
+                <div class="stat-number text-danger" id="total-sorties">
+                    {{ historique|selectattr('nature', 'equalto',
+                    'sortie')|list|length }}
+                </div>
+                <p class="stat-label">📤 Sorties</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stats-card">
+                <div class="stat-number text-info" id="total-inventaires">
+                    {{ historique|selectattr('nature', 'equalto',
+                    'inventaire')|list|length }}
+                </div>
+                <p class="stat-label">📋 Inventaires</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filter-sticky">
+        <div class="row g-2">
+            <div class="col-12 col-md-3">
+                <select class="form-select" id="filterType">
+                    <option value="">🔄 Tous les types</option>
+                    <option value="entree">📥 Entrées</option>
+                    <option value="sortie">📤 Sorties</option>
+                    <option value="inventaire">📋 Inventaires</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <input
+                    type="text"
+                    class="form-control"
+                    id="filterProduct"
+                    placeholder="📦 Filtrer par produit..."
+                />
+            </div>
+            <div class="col-12 col-md-3">
+                <input
+                    type="text"
+                    class="form-control"
+                    id="filterReference"
+                    placeholder="🆔 Filtrer par référence..."
+                />
+            </div>
+            <div class="col-12 col-md-3">
+                <input type="date" class="form-control" id="filterDate" />
+            </div>
+        </div>
+
+        <!-- Boutons d'export -->
+        <div class="mt-2">
+            <button
+                class="btn btn-outline-success export-btn"
+                onclick="exportToCSV()"
+            >
+                <i class="bi bi-file-earmark-spreadsheet"></i> CSV
+            </button>
+            <button
+                class="btn btn-outline-primary export-btn"
+                onclick="exportToExcel()"
+            >
+                <i class="bi bi-file-earmark-excel"></i> Excel
+            </button>
+            <button
+                class="btn btn-outline-secondary export-btn"
+                onclick="clearFilters()"
+            >
+                <i class="bi bi-x-circle"></i> Effacer filtres
+            </button>
+        </div>
+    </div>
+
+    <!-- Liste des mouvements -->
+    <div id="movementsList">
+        {% if historique %} {% for mouvement in historique %}
+        <div
+            class="movement-card card"
+            data-movement-id="{{ mouvement.id }}"
+            data-type="{{ mouvement.nature }}"
+            data-product="{{ mouvement.produit|lower }}"
+            data-reference="{{ mouvement.reference|lower }}"
+            data-date="{{ mouvement.date }}"
+        >
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-8">
+                        <div class="d-flex align-items-center mb-2">
+                            <span
+                                class="movement-type type-{{ mouvement.nature }}"
+                            >
+                                {% if mouvement.nature == 'entree' %}📥 Entrée
+                                {% elif mouvement.nature == 'sortie' %}📤 Sortie
+                                {% else %}📋 Inventaire{% endif %}
+                            </span>
+                            <small class="text-muted ms-2"
+                                >{{ mouvement.date }}</small
+                            >
+                        </div>
+                        <h6 class="card-title mb-1">{{ mouvement.produit }}</h6>
+                        <p class="text-muted mb-0">
+                            <small>🆔 {{ mouvement.reference }}</small>
+                        </p>
+                        {% if mouvement.commentaires %}
+                        <p class="text-muted mb-0">
+                            <small>💬 {{ mouvement.commentaires }}</small>
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-4 text-end">
+                        <div class="fw-bold mb-1">
+                            {% if mouvement.nature == 'entree' %}
+                            <span class="text-success"
+                                >+{{ mouvement.quantite_mouvement }}</span
+                            >
+                            {% elif mouvement.nature == 'sortie' %}
+                            <span class="text-danger"
+                                >-{{ mouvement.quantite_mouvement }}</span
+                            >
+                            {% else %}
+                            <span class="text-primary"
+                                >{{ mouvement.quantite_mouvement }}</span
+                            >
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">
+                            {{ mouvement.quantite_avant }} → {{
+                            mouvement.quantite_apres }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %} {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-clock-history display-1 text-muted"></i>
+            <h5 class="text-muted mt-3">Aucun mouvement enregistré</h5>
+            <p class="text-muted">
+                L'historique des mouvements apparaîtra ici.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Message si aucun résultat après filtrage -->
+    <div id="noResults" class="text-center py-5" style="display: none">
+        <i class="bi bi-search display-1 text-muted"></i>
+        <h5 class="text-muted mt-3">Aucun mouvement trouvé</h5>
+        <p class="text-muted">
+            Aucun mouvement ne correspond aux filtres sélectionnés.
+        </p>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    let allMovements = [];
+    let filteredMovements = [];
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // Initialiser la liste des mouvements
+        allMovements = Array.from(document.querySelectorAll(".movement-card"));
+        filteredMovements = [...allMovements];
+
+        // Événements de filtrage
+        document
+            .getElementById("filterType")
+            .addEventListener("change", applyFilters);
+        document
+            .getElementById("filterProduct")
+            .addEventListener("input", debounce(applyFilters, 300));
+        document
+            .getElementById("filterReference")
+            .addEventListener("input", debounce(applyFilters, 300));
+        document
+            .getElementById("filterDate")
+            .addEventListener("change", applyFilters);
+    });
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    function applyFilters() {
+        const typeFilter = document
+            .getElementById("filterType")
+            .value.toLowerCase();
+        const productFilter = document
+            .getElementById("filterProduct")
+            .value.toLowerCase();
+        const referenceFilter = document
+            .getElementById("filterReference")
+            .value.toLowerCase();
+        const dateFilter = document.getElementById("filterDate").value;
+
+        let visibleCount = 0;
+
+        allMovements.forEach((card) => {
+            const cardType = card.dataset.type;
+            const cardProduct = card.dataset.product;
+            const cardReference = card.dataset.reference;
+            const cardDate = card.dataset.date;
+
+            let show = true;
+
+            // Filtre par type
+            if (typeFilter && cardType !== typeFilter) {
+                show = false;
+            }
+
+            // Filtre par produit
+            if (productFilter && !cardProduct.includes(productFilter)) {
+                show = false;
+            }
+
+            // Filtre par référence
+            if (referenceFilter && !cardReference.includes(referenceFilter)) {
+                show = false;
+            }
+
+            // Filtre par date
+            if (dateFilter && !cardDate.includes(dateFilter)) {
+                show = false;
+            }
+
+            if (show) {
+                card.style.display = "block";
+                visibleCount++;
+            } else {
+                card.style.display = "none";
+            }
+        });
+
+        // Afficher/masquer le message "aucun résultat"
+        const noResults = document.getElementById("noResults");
+        if (visibleCount === 0 && allMovements.length > 0) {
+            noResults.style.display = "block";
+        } else {
+            noResults.style.display = "none";
+        }
+
+        // Mettre à jour les statistiques
+        updateStats();
+    }
+
+    function updateStats() {
+        const visibleMovements = allMovements.filter(
+            (card) => card.style.display !== "none"
+        );
+
+        let entrees = 0,
+            sorties = 0,
+            inventaires = 0;
+
+        visibleMovements.forEach((card) => {
+            const type = card.dataset.type;
+            if (type === "entree") entrees++;
+            else if (type === "sortie") sorties++;
+            else if (type === "inventaire") inventaires++;
+        });
+
+        document.getElementById("total-mouvements").textContent =
+            visibleMovements.length;
+        document.getElementById("total-entrees").textContent = entrees;
+        document.getElementById("total-sorties").textContent = sorties;
+        document.getElementById("total-inventaires").textContent = inventaires;
+    }
+
+    function clearFilters() {
+        document.getElementById("filterType").value = "";
+        document.getElementById("filterProduct").value = "";
+        document.getElementById("filterReference").value = "";
+        document.getElementById("filterDate").value = "";
+        applyFilters();
+    }
+
+    function exportToCSV() {
+        const visibleMovements = allMovements.filter(
+            (card) => card.style.display !== "none"
+        );
+
+        if (visibleMovements.length === 0) {
+            showAlert("Aucun mouvement à exporter", "warning");
+            return;
+        }
+
+        let csv =
+            "Date,Référence,Produit,Type,Quantité,Stock Avant,Stock Après,Commentaires\n";
+
+        visibleMovements.forEach((card) => {
+            const date = card.dataset.date;
+            const reference = card.dataset.reference;
+            const product = card.querySelector(".card-title").textContent;
+            const type = card.dataset.type;
+            const quantityElement = card.querySelector(".fw-bold");
+            const quantity = quantityElement.textContent.replace(/[+\-]/g, "");
+            const stockInfo = card
+                .querySelector(".text-muted:last-child")
+                .textContent.split(" → ");
+            const stockBefore = stockInfo[0] || "";
+            const stockAfter = stockInfo[1] || "";
+            const commentElement = card.querySelector('small:contains("💬")');
+            const comment = commentElement
+                ? commentElement.textContent.replace("💬 ", "")
+                : "";
+
+            csv += `"${date}","${reference}","${product}","${type}","${quantity}","${stockBefore}","${stockAfter}","${comment}"\n`;
+        });
+
+        downloadFile(csv, "historique_mouvements.csv", "text/csv");
+    }
+
+    function exportToExcel() {
+        showAlert("Export Excel en cours de développement", "info");
+    }
+
+    function downloadFile(content, filename, contentType) {
+        const blob = new Blob([content], { type: contentType });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+
+    function refreshData() {
+        location.reload();
+    }
+</script>
+{% endblock %}

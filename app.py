@@ -168,7 +168,7 @@ def generer_reference_qr(code, designation):
 
 def load_data():
     """
-    Charge les données depuis l'API ou depuis Excel en fallback
+    Charge les données depuis l'API uniquement
     """
     # Essayer d'abord de charger depuis l'API
     try:
@@ -207,108 +207,7 @@ def load_data():
                 st.warning("⚠️ Aucun produit trouvé dans la base de données")
                 
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors de la connexion à l'API: {str(e)}")
-    
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Chargement des données depuis les fichiers Excel (mode fallback)")
-    
-    # Créer le dossier data s'il n'existe pas
-    os.makedirs("data", exist_ok=True)
-    
-    # Vérifier d'abord si le fichier enrichi existe
-    fichier_enrichi = "data/inventaire_avec_references.xlsx"
-    fichier_original = "data/exemple  Boschat Faille et SFS pour essai ACCESS.xlsx"
-    
-    # Utiliser le fichier enrichi s'il existe, sinon le fichier original
-    if os.path.exists(fichier_enrichi):
-        file_path = fichier_enrichi
-    else:
-        file_path = fichier_original
-    
-    try:
-        # Lire le fichier Excel existant avec gestion d'erreur robuste
-        try:
-            df = pd.read_excel(file_path, engine='openpyxl')
-        except Exception as excel_error:
-            st.warning(f"⚠️ Erreur avec openpyxl: {str(excel_error)}")
-            # Essayer avec xlrd comme alternative
-            try:
-                df = pd.read_excel(file_path, engine='xlrd')
-                st.info("✅ Lecture réussie avec xlrd")
-            except Exception as xlrd_error:
-                st.error(f"❌ Erreur avec xlrd: {str(xlrd_error)}")
-                # Si les deux échouent, essayer de recréer depuis le fichier original
-                if file_path == fichier_enrichi:
-                    st.info("🔄 Tentative de lecture du fichier original...")
-                    df = pd.read_excel(fichier_original, engine='openpyxl')
-                    st.success("✅ Lecture du fichier original réussie")
-                else:
-                    raise excel_error
-        
-        # Renommer les colonnes pour correspondre à l'application
-        column_mapping = {
-            'Code': 'Code',
-            'Référence fournisseur': 'Reference_Fournisseur', 
-            'Désignation': 'Produits',
-            'Unité de stockage': 'Unite_Stockage',
-            'Unite Commande': 'Unite_Commande',
-            'Min': 'Stock_Min',
-            'Max': 'Stock_Max',
-            'Site': 'Site',
-            'Lieu': 'Lieu',
-            'Emplacement': 'Emplacement',
-            'Fournisseur Standard': 'Fournisseur',
-            'Prix': 'Prix_Unitaire',
-            'Catégorie': 'Categorie',
-            'Secteur': 'Secteur'
-        }
-        
-        # Renommer les colonnes
-        df = df.rename(columns=column_mapping)
-        
-        # Variable pour savoir si on doit sauvegarder les modifications
-        modifications_apportees = False
-        
-        # Ajouter une colonne Reference pour les QR codes si elle n'existe pas
-        if 'Reference' not in df.columns:
-            df['Reference'] = df.apply(lambda row: generer_reference_qr(row['Code'], row['Produits']), axis=1)
-            modifications_apportees = True
-        
-        # S'assurer que la colonne Reference est de type string
-        df['Reference'] = df['Reference'].astype(str)
-        
-        # S'assurer que les colonnes Min et Max sont numériques
-        df['Stock_Min'] = pd.to_numeric(df['Stock_Min'], errors='coerce').fillna(0)
-        df['Stock_Max'] = pd.to_numeric(df['Stock_Max'], errors='coerce').fillna(100)
-        df['Prix_Unitaire'] = pd.to_numeric(df['Prix_Unitaire'], errors='coerce').fillna(0)
-        
-        # Ajouter une colonne Quantite avec la valeur 0 par défaut si elle n'existe pas
-        if 'Quantite' not in df.columns:
-            # Initialiser toutes les quantités à 0
-            df['Quantite'] = 0
-            modifications_apportees = True
-        else:
-            df['Quantite'] = pd.to_numeric(df['Quantite'], errors='coerce').fillna(0)
-            
-        # Ajouter une colonne Date_Entree si elle n'existe pas
-        if 'Date_Entree' not in df.columns:
-            df['Date_Entree'] = datetime.now().strftime("%Y-%m-%d")
-            modifications_apportees = True
-        
-        # Sauvegarder le fichier avec les nouvelles colonnes si des modifications ont été apportées
-        if modifications_apportees:
-            try:
-                # Créer un nouveau fichier avec les données enrichies
-                nouveau_fichier = "data/inventaire_avec_references.xlsx"
-                df.to_excel(nouveau_fichier, index=False, engine='openpyxl')
-                st.success(f"✅ Fichier enrichi sauvegardé : {nouveau_fichier}")
-            except Exception as e:
-                st.warning(f"⚠️ Impossible de sauvegarder le fichier enrichi : {str(e)}")
-        
-        return df
-        
-    except Exception as e:
-        st.error(f"Erreur lors de la lecture du fichier Excel: {str(e)}")
+        st.error(f"❌ Erreur lors de la connexion à l'API: {str(e)}")
         # En cas d'erreur, créer un DataFrame vide avec les colonnes nécessaires
         df = pd.DataFrame(columns=['Code', 'Reference_Fournisseur', 'Produits', 'Unite_Stockage', 
                                  'Unite_Commande', 'Stock_Min', 'Stock_Max', 'Site', 'Lieu', 
@@ -319,7 +218,7 @@ def load_data():
 # Fonction pour sauvegarder les données
 def save_data(df):
     """
-    Sauvegarde les données via l'API ou dans Excel en fallback
+    Sauvegarde les données via l'API uniquement
     """
     try:
         # Essayer d'abord de sauvegarder via l'API
@@ -365,34 +264,11 @@ def save_data(df):
             return
             
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors de la sauvegarde via l'API: {str(e)}")
-    
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Sauvegarde des données dans Excel (mode fallback)")
-    
-    try:
-        # S'assurer que la colonne Reference est de type string avant la sauvegarde
-        if 'Reference' in df.columns:
-            # Traitement spécial pour éviter les .0 sur les nombres entiers
-            df['Reference'] = df['Reference'].apply(lambda x: 
-                str(int(float(x))) if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() and float(x) == int(float(x))
-                else str(x) if pd.notna(x) and str(x) not in ['nan', 'None', ''] 
-                else ''
-            )
-        
-        # Sauvegarder dans le fichier enrichi pour maintenir la persistance
-        fichier_enrichi = "data/inventaire_avec_references.xlsx"
-        df.to_excel(fichier_enrichi, index=False, engine='openpyxl')
-        
-        # Aussi sauvegarder une copie de sauvegarde
-        df.to_excel("data/inventaire_sauvegarde.xlsx", index=False, engine='openpyxl')
-        st.success("✅ Données sauvegardées dans Excel")
-    except Exception as e:
-        st.error(f"Erreur lors de la sauvegarde du fichier Excel: {str(e)}")
+        st.error(f"❌ Erreur lors de la sauvegarde via l'API: {str(e)}")
 
 def log_mouvement(produit, nature, quantite_mouvement, quantite_apres, quantite_avant, reference=None):
     """
-    Enregistre un mouvement de stock via l'API ou dans Excel en fallback
+    Enregistre un mouvement de stock via l'API uniquement
     """
     try:
         # Essayer d'abord d'enregistrer via l'API
@@ -413,49 +289,11 @@ def log_mouvement(produit, nature, quantite_mouvement, quantite_apres, quantite_
                 st.warning("⚠️ Erreur lors de l'enregistrement du mouvement via l'API")
                 
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors de l'enregistrement via l'API: {str(e)}")
-    
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Enregistrement du mouvement dans Excel (mode fallback)")
-    
-    os.makedirs("data", exist_ok=True)
-    file_path = "data/historique.xlsx"
-    new_row = {
-        'Date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'Reference': str(reference) if reference else "",
-        'Produit': produit,
-        'Nature': nature,
-        'Quantite_Mouvement': quantite_mouvement,
-        'Quantite_Avant': quantite_avant,
-        'Quantite_Apres': quantite_apres
-    }
-    if os.path.exists(file_path):
-        df_hist = pd.read_excel(file_path, engine='openpyxl')
-        # S'assurer que la colonne Reference existe et est de type string
-        if 'Reference' not in df_hist.columns:
-            df_hist['Reference'] = ""
-        # Traitement spécial pour éviter les .0 sur les nombres entiers
-        df_hist['Reference'] = df_hist['Reference'].apply(lambda x: 
-            str(int(float(x))) if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() and float(x) == int(float(x))
-            else str(x) if pd.notna(x) and str(x) not in ['nan', 'None', ''] 
-            else ''
-        )
-        df_hist = pd.concat([df_hist, pd.DataFrame([new_row])], ignore_index=True)
-    else:
-        df_hist = pd.DataFrame([new_row])
-    
-    # S'assurer que la colonne Reference est de type string avant la sauvegarde
-    # Traitement spécial pour éviter les .0 sur les nombres entiers
-    df_hist['Reference'] = df_hist['Reference'].apply(lambda x: 
-        str(int(float(x))) if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() and float(x) == int(float(x))
-        else str(x) if pd.notna(x) and str(x) not in ['nan', 'None', ''] 
-        else ''
-    )
-    df_hist.to_excel(file_path, index=False, engine='openpyxl')
+        st.error(f"❌ Erreur lors de l'enregistrement via l'API: {str(e)}")
 
 def sauvegarder_demande(demandeur, produits_demandes, motif):
     """
-    Sauvegarde une nouvelle demande de matériel via l'API ou Excel en fallback
+    Sauvegarde une nouvelle demande de matériel via l'API uniquement
     """
     try:
         # Essayer d'abord de sauvegarder via l'API
@@ -475,41 +313,12 @@ def sauvegarder_demande(demandeur, produits_demandes, motif):
                 st.warning("⚠️ Erreur lors de la sauvegarde de la demande via l'API")
                 
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors de la sauvegarde via l'API: {str(e)}")
-    
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Sauvegarde de la demande dans Excel (mode fallback)")
-    
-    os.makedirs("data", exist_ok=True)
-    file_path = "data/demandes.xlsx"
-    
-    # Créer un ID unique pour la demande
-    demande_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
-    new_row = {
-        'ID_Demande': demande_id,
-        'Date_Demande': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'Demandeur': demandeur,
-        'Produits_Demandes': str(produits_demandes),  # Convertir le dict en string
-        'Motif': motif,
-        'Statut': 'En attente',
-        'Date_Traitement': '',
-        'Traite_Par': '',
-        'Commentaires': ''
-    }
-    
-    if os.path.exists(file_path):
-        df_demandes = pd.read_excel(file_path, engine='openpyxl')
-        df_demandes = pd.concat([df_demandes, pd.DataFrame([new_row])], ignore_index=True)
-    else:
-        df_demandes = pd.DataFrame([new_row])
-    
-    df_demandes.to_excel(file_path, index=False, engine='openpyxl')
-    return demande_id
+        st.error(f"❌ Erreur lors de la sauvegarde via l'API: {str(e)}")
+        return None
 
 def charger_demandes():
     """
-    Charge toutes les demandes depuis l'API ou Excel en fallback
+    Charge toutes les demandes depuis l'API uniquement
     """
     try:
         # Essayer d'abord de charger depuis l'API
@@ -524,24 +333,12 @@ def charger_demandes():
                 return pd.DataFrame()
                 
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors du chargement via l'API: {str(e)}")
-    
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Chargement des demandes depuis Excel (mode fallback)")
-    
-    file_path = "data/demandes.xlsx"
-    if os.path.exists(file_path):
-        try:
-            return pd.read_excel(file_path, engine='openpyxl')
-        except Exception as e:
-            st.error(f"Erreur lors de la lecture du fichier des demandes: {str(e)}")
-            return pd.DataFrame()
-    else:
+        st.error(f"❌ Erreur lors du chargement via l'API: {str(e)}")
         return pd.DataFrame()
 
 def mettre_a_jour_demande(demande_id, nouveau_statut, traite_par, commentaires=""):
     """
-    Met à jour le statut d'une demande via l'API ou Excel en fallback
+    Met à jour le statut d'une demande via l'API uniquement
     """
     try:
         # Essayer d'abord de mettre à jour via l'API
@@ -576,34 +373,7 @@ def mettre_a_jour_demande(demande_id, nouveau_statut, traite_par, commentaires="
                 st.warning("⚠️ Aucune demande trouvée dans la base de données")
                 
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors de la mise à jour via l'API: {str(e)}")
-    
-    # Fallback vers Excel si l'API n'est pas disponible
-    st.info("📂 Mise à jour de la demande dans Excel (mode fallback)")
-    
-    file_path = "data/demandes.xlsx"
-    if os.path.exists(file_path):
-        try:
-            df_demandes = pd.read_excel(file_path, engine='openpyxl')
-            
-            # Trouver la demande à mettre à jour
-            mask = df_demandes['ID_Demande'] == demande_id
-            if mask.any():
-                df_demandes.loc[mask, 'Statut'] = nouveau_statut
-                df_demandes.loc[mask, 'Traite_Par'] = traite_par
-                df_demandes.loc[mask, 'Commentaires'] = commentaires
-                df_demandes.loc[mask, 'Date_Traitement'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                
-                # Sauvegarder les modifications
-                df_demandes.to_excel(file_path, index=False, engine='openpyxl')
-                st.success("✅ Demande mise à jour dans Excel")
-            else:
-                st.error(f"Demande {demande_id} non trouvée")
-                
-        except Exception as e:
-            st.error(f"Erreur lors de la mise à jour de la demande: {str(e)}")
-    else:
-        st.error("Fichier des demandes non trouvé")
+        st.error(f"❌ Erreur lors de la mise à jour via l'API: {str(e)}")
 
 def charger_tables_atelier():
     """Charge toutes les tables d'atelier depuis l'API uniquement"""
@@ -684,50 +454,9 @@ def charger_fournisseurs():
                                    'Valeur_Stock_Total', 'Date_Creation'])
 
 def creer_fichier_fournisseurs_initial():
-    """Crée le fichier initial des fournisseurs basé sur l'inventaire existant"""
-    global df
-    
-    if df.empty or 'Fournisseur' not in df.columns:
-        # Créer des fournisseurs par défaut
-        fournisseurs_initiaux = {
-            'ID_Fournisseur': ['FOUR001', 'FOUR002', 'FOUR003'],
-            'Nom_Fournisseur': ['Fournisseur A', 'Fournisseur B', 'Fournisseur C'],
-            'Contact_Principal': ['Jean Martin', 'Marie Dubois', 'Pierre Leroy'],
-            'Email': ['contact@fournisseur-a.fr', 'info@fournisseur-b.fr', 'commandes@fournisseur-c.fr'],
-            'Telephone': ['01 23 45 67 89', '01 98 76 54 32', '01 11 22 33 44'],
-            'Adresse': ['123 Rue de la Paix, 75001 Paris', '456 Avenue des Champs, 69000 Lyon', '789 Boulevard Central, 13000 Marseille'],
-            'Statut': ['Actif', 'Actif', 'Actif'],
-            'Date_Creation': ['2024-01-01', '2024-01-01', '2024-01-01'],
-            'Nb_Produits': [0, 0, 0],
-            'Valeur_Stock_Total': [0.0, 0.0, 0.0]
-        }
-    else:
-        # Extraire les fournisseurs uniques de l'inventaire
-        fournisseurs_uniques = df['Fournisseur'].dropna().unique()
-        
-        fournisseurs_initiaux = {
-            'ID_Fournisseur': [f"FOUR{str(i+1).zfill(3)}" for i in range(len(fournisseurs_uniques))],
-            'Nom_Fournisseur': fournisseurs_uniques.tolist(),
-            'Contact_Principal': ['À définir'] * len(fournisseurs_uniques),
-            'Email': [''] * len(fournisseurs_uniques),
-            'Telephone': [''] * len(fournisseurs_uniques),
-            'Adresse': [''] * len(fournisseurs_uniques),
-            'Statut': ['Actif'] * len(fournisseurs_uniques),
-            'Date_Creation': [datetime.now().strftime("%Y-%m-%d")] * len(fournisseurs_uniques),
-            'Nb_Produits': [0] * len(fournisseurs_uniques),
-            'Valeur_Stock_Total': [0.0] * len(fournisseurs_uniques)
-        }
-        
-        # Calculer le nombre de produits et la valeur du stock pour chaque fournisseur
-        for i, fournisseur in enumerate(fournisseurs_uniques):
-            produits_fournisseur = df[df['Fournisseur'] == fournisseur]
-            fournisseurs_initiaux['Nb_Produits'][i] = len(produits_fournisseur)
-            fournisseurs_initiaux['Valeur_Stock_Total'][i] = (produits_fournisseur['Quantite'] * produits_fournisseur['Prix_Unitaire']).sum()
-    
-    df_fournisseurs = pd.DataFrame(fournisseurs_initiaux)
-    os.makedirs("data", exist_ok=True)
-    df_fournisseurs.to_excel("data/fournisseurs.xlsx", index=False, engine='openpyxl')
-    return df_fournisseurs
+    """Fonction obsolète - les fournisseurs sont maintenant gérés uniquement via l'API"""
+    st.warning("⚠️ Cette fonction est obsolète. Les fournisseurs sont maintenant gérés uniquement via l'API.")
+    return pd.DataFrame()
 
 def sauvegarder_fournisseurs(df_fournisseurs):
     """Les fournisseurs sont maintenant gérés uniquement via l'API"""
@@ -764,67 +493,42 @@ def ajouter_fournisseur(nom_fournisseur, contact_principal, email, telephone, ad
         return False, "Erreur lors de l'ajout du fournisseur"
 
 def ajouter_fournisseur_automatique(nom_fournisseur):
-    """Ajoute automatiquement un fournisseur s'il n'existe pas déjà dans le fichier fournisseurs.xlsx"""
+    """Ajoute automatiquement un fournisseur s'il n'existe pas déjà dans la base de données des fournisseurs"""
     df_fournisseurs = charger_fournisseurs()
     
     # Vérifier si le fournisseur existe déjà
-    if nom_fournisseur in df_fournisseurs['Nom_Fournisseur'].values:
+    if not df_fournisseurs.empty and nom_fournisseur in df_fournisseurs['Nom_Fournisseur'].values:
         return True  # Le fournisseur existe déjà, pas besoin de l'ajouter
     
-    # Générer un nouvel ID
-    if not df_fournisseurs.empty:
-        dernier_id = df_fournisseurs['ID_Fournisseur'].str.extract(r'(\d+)').astype(int).max().iloc[0]
-        nouvel_id = f"FOUR{str(dernier_id + 1).zfill(3)}"
-    else:
-        nouvel_id = "FOUR001"
-    
-    # Créer le nouveau fournisseur avec des valeurs par défaut
-    nouveau_fournisseur = {
-        'ID_Fournisseur': nouvel_id,
-        'Nom_Fournisseur': nom_fournisseur,
-        'Contact_Principal': 'À définir',
-        'Email': '',
-        'Telephone': '',
-        'Adresse': 'À définir',
-        'Statut': 'Actif',
-        'Date_Creation': datetime.now().strftime("%Y-%m-%d"),
-        'Nb_Produits': 1,  # Il aura au moins 1 produit (celui qu'on est en train d'ajouter)
-        'Valeur_Stock_Total': 0.0
-    }
-    
-    df_fournisseurs = pd.concat([df_fournisseurs, pd.DataFrame([nouveau_fournisseur])], ignore_index=True)
-    
-    return sauvegarder_fournisseurs(df_fournisseurs)
+    # Essayer d'ajouter via l'API
+    try:
+        if api_client.test_connection():
+            # Générer un ID fournisseur unique
+            id_fournisseur = f"F{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
+            fournisseur_data = {
+                'ID_Fournisseur': id_fournisseur,
+                'Nom_Fournisseur': nom_fournisseur,
+                'Contact_Principal': 'À définir',
+                'Email': '',
+                'Telephone': '',
+                'Adresse': 'À définir'
+            }
+            
+            result = api_client.create_fournisseur(fournisseur_data)
+            return result is not None
+        else:
+            st.error("❌ API non disponible pour ajouter le fournisseur automatiquement")
+            return False
+            
+    except Exception as e:
+        st.error(f"❌ Erreur lors de l'ajout automatique du fournisseur via l'API: {str(e)}")
+        return False
 
 def mettre_a_jour_statistiques_fournisseurs():
-    """Met à jour les statistiques des fournisseurs basées sur l'inventaire actuel"""
-    global df
-    df_fournisseurs = charger_fournisseurs()
-    
-    if df.empty or df_fournisseurs.empty:
-        return df_fournisseurs
-    
-    # Réinitialiser les statistiques
-    df_fournisseurs['Nb_Produits'] = 0
-    df_fournisseurs['Valeur_Stock_Total'] = 0.0
-    
-    # Calculer les nouvelles statistiques
-    for idx, fournisseur_row in df_fournisseurs.iterrows():
-        nom_fournisseur = fournisseur_row['Nom_Fournisseur']
-        
-        # Trouver les produits de ce fournisseur
-        produits_fournisseur = df[df['Fournisseur'] == nom_fournisseur]
-        
-        if not produits_fournisseur.empty:
-            nb_produits = len(produits_fournisseur)
-            valeur_stock = (produits_fournisseur['Quantite'] * produits_fournisseur['Prix_Unitaire']).sum()
-            
-            df_fournisseurs.loc[idx, 'Nb_Produits'] = nb_produits
-            df_fournisseurs.loc[idx, 'Valeur_Stock_Total'] = valeur_stock
-    
-    # Sauvegarder les statistiques mises à jour
-    sauvegarder_fournisseurs(df_fournisseurs)
-    return df_fournisseurs
+    """Fonction obsolète - les statistiques des fournisseurs sont maintenant calculées côté API"""
+    st.info("ℹ️ Les statistiques des fournisseurs sont maintenant calculées automatiquement côté API.")
+    return charger_fournisseurs()
 
 def charger_emplacements():
     """Charge tous les emplacements depuis l'API uniquement"""
@@ -849,63 +553,14 @@ def charger_emplacements():
                                    'Statut', 'Nb_Produits', 'Taux_Occupation', 'Date_Creation'])
 
 def creer_fichier_emplacements_initial():
-    """Crée le fichier initial des emplacements basé sur l'inventaire existant"""
-    global df
-    
-    if df.empty or 'Emplacement' not in df.columns:
-        # Créer des emplacements par défaut
-        emplacements_initiaux = {
-            'ID_Emplacement': ['EMP001', 'EMP002', 'EMP003', 'EMP004', 'EMP005'],
-            'Nom_Emplacement': ['Atelier A', 'Atelier B', 'Stockage', 'Magasin', 'Zone de réception'],
-            'Type_Zone': ['Atelier', 'Atelier', 'Stockage', 'Magasin', 'Réception'],
-            'Batiment': ['Bâtiment 1', 'Bâtiment 1', 'Bâtiment 2', 'Bâtiment 1', 'Bâtiment 2'],
-            'Niveau': ['RDC', 'RDC', 'RDC', '1er étage', 'RDC'],
-            'Responsable': ['Jean Martin', 'Marie Dubois', 'Pierre Leroy', 'Sophie Bernard', 'Luc Moreau'],
-            'Capacite_Max': [100, 150, 500, 200, 80],
-            'Statut': ['Actif', 'Actif', 'Actif', 'Actif', 'Actif'],
-            'Date_Creation': ['2024-01-01', '2024-01-01', '2024-01-01', '2024-01-01', '2024-01-01'],
-            'Nb_Produits': [0, 0, 0, 0, 0],
-            'Taux_Occupation': [0.0, 0.0, 0.0, 0.0, 0.0]
-        }
-    else:
-        # Extraire les emplacements uniques de l'inventaire
-        emplacements_uniques = df['Emplacement'].dropna().unique()
-        
-        emplacements_initiaux = {
-            'ID_Emplacement': [f"EMP{str(i+1).zfill(3)}" for i in range(len(emplacements_uniques))],
-            'Nom_Emplacement': emplacements_uniques.tolist(),
-            'Type_Zone': ['À définir'] * len(emplacements_uniques),
-            'Batiment': ['À définir'] * len(emplacements_uniques),
-            'Niveau': ['À définir'] * len(emplacements_uniques),
-            'Responsable': ['À définir'] * len(emplacements_uniques),
-            'Capacite_Max': [100] * len(emplacements_uniques),
-            'Statut': ['Actif'] * len(emplacements_uniques),
-            'Date_Creation': [datetime.now().strftime("%Y-%m-%d")] * len(emplacements_uniques),
-            'Nb_Produits': [0] * len(emplacements_uniques),
-            'Taux_Occupation': [0.0] * len(emplacements_uniques)
-        }
-        
-        # Calculer le nombre de produits pour chaque emplacement
-        for i, emplacement in enumerate(emplacements_uniques):
-            produits_emplacement = df[df['Emplacement'] == emplacement]
-            emplacements_initiaux['Nb_Produits'][i] = len(produits_emplacement)
-            # Calculer le taux d'occupation (nombre de produits / capacité max * 100)
-            taux = (len(produits_emplacement) / emplacements_initiaux['Capacite_Max'][i]) * 100
-            emplacements_initiaux['Taux_Occupation'][i] = min(taux, 100.0)  # Limiter à 100%
-    
-    df_emplacements = pd.DataFrame(emplacements_initiaux)
-    os.makedirs("data", exist_ok=True)
-    df_emplacements.to_excel("data/emplacements.xlsx", index=False, engine='openpyxl')
-    return df_emplacements
+    """Fonction obsolète - les emplacements sont maintenant gérés uniquement via l'API"""
+    st.warning("⚠️ Cette fonction est obsolète. Les emplacements sont maintenant gérés uniquement via l'API.")
+    return pd.DataFrame()
 
 def sauvegarder_emplacements(df_emplacements):
-    """Sauvegarde les emplacements dans le fichier Excel"""
-    try:
-        df_emplacements.to_excel("data/emplacements.xlsx", index=False, engine='openpyxl')
-        return True
-    except Exception as e:
-        st.error(f"Erreur lors de la sauvegarde des emplacements: {str(e)}")
-        return False
+    """Les emplacements sont maintenant gérés uniquement via l'API"""
+    st.warning("⚠️ Les emplacements sont maintenant gérés uniquement via l'API. Utilisez les fonctions d'ajout/modification.")
+    return False
 
 def ajouter_emplacement(nom_emplacement, type_zone, batiment, niveau, responsable, capacite_max):
     """Ajoute un nouvel emplacement via l'API uniquement"""
@@ -964,77 +619,19 @@ def ajouter_emplacement_automatique(nom_emplacement):
             result = api_client.create_emplacement(emplacement_data)
             return result is not None
         else:
-            # Fallback vers le fichier Excel si l'API n'est pas disponible
-            return ajouter_emplacement_automatique_excel(nom_emplacement)
+            st.error("❌ API non disponible pour ajouter l'emplacement automatiquement")
+            return False
             
     except Exception as e:
-        st.warning(f"⚠️ Erreur lors de l'ajout automatique de l'emplacement via l'API: {str(e)}")
-        # Fallback vers le fichier Excel
-        return ajouter_emplacement_automatique_excel(nom_emplacement)
+        st.error(f"❌ Erreur lors de l'ajout automatique de l'emplacement via l'API: {str(e)}")
+        return False
 
-def ajouter_emplacement_automatique_excel(nom_emplacement):
-    """Ajoute automatiquement un emplacement dans le fichier Excel (fallback)"""
-    df_emplacements = charger_emplacements()
-    
-    # Générer un nouvel ID
-    if not df_emplacements.empty:
-        dernier_id = df_emplacements['ID_Emplacement'].str.extract(r'(\d+)').astype(int).max().iloc[0]
-        nouvel_id = f"EMP{str(dernier_id + 1).zfill(3)}"
-    else:
-        nouvel_id = "EMP001"
-    
-    # Créer le nouvel emplacement avec des valeurs par défaut
-    nouvel_emplacement = {
-        'ID_Emplacement': nouvel_id,
-        'Nom_Emplacement': nom_emplacement,
-        'Type_Zone': 'À définir',
-        'Batiment': 'À définir',
-        'Niveau': 'À définir',
-        'Responsable': 'À définir',
-        'Capacite_Max': 100,
-        'Statut': 'Actif',
-        'Date_Creation': datetime.now().strftime("%Y-%m-%d"),
-        'Nb_Produits': 1,  # Il aura au moins 1 produit (celui qu'on est en train d'ajouter)
-        'Taux_Occupation': 1.0
-    }
-    
-    df_emplacements = pd.concat([df_emplacements, pd.DataFrame([nouvel_emplacement])], ignore_index=True)
-    
-    return sauvegarder_emplacements(df_emplacements)
+
 
 def mettre_a_jour_statistiques_emplacements():
-    """Met à jour les statistiques des emplacements basées sur l'inventaire actuel"""
-    global df
-    df_emplacements = charger_emplacements()
-    
-    if df_emplacements.empty:
-        return df_emplacements
-    
-    # Réinitialiser les compteurs
-    df_emplacements['Nb_Produits'] = 0
-    df_emplacements['Taux_Occupation'] = 0.0
-    
-    # Calculer les statistiques pour chaque emplacement
-    for idx, emplacement_row in df_emplacements.iterrows():
-        nom_emplacement = emplacement_row['Nom_Emplacement']
-        capacite_max = emplacement_row['Capacite_Max']
-        
-        # Compter les produits dans cet emplacement
-        if not df.empty and 'Emplacement' in df.columns:
-            produits_emplacement = df[df['Emplacement'] == nom_emplacement]
-            nb_produits = len(produits_emplacement)
-            
-            # Calculer le taux d'occupation
-            taux_occupation = (nb_produits / capacite_max * 100) if capacite_max > 0 else 0
-            taux_occupation = min(taux_occupation, 100.0)  # Limiter à 100%
-            
-            # Mettre à jour les valeurs
-            df_emplacements.loc[idx, 'Nb_Produits'] = nb_produits
-            df_emplacements.loc[idx, 'Taux_Occupation'] = round(taux_occupation, 1)
-    
-    # Sauvegarder les statistiques mises à jour
-    sauvegarder_emplacements(df_emplacements)
-    return df_emplacements
+    """Fonction obsolète - les statistiques des emplacements sont maintenant calculées côté API"""
+    st.info("ℹ️ Les statistiques des emplacements sont maintenant calculées automatiquement côté API.")
+    return charger_emplacements()
 
 def charger_listes_inventaire():
     """Charge toutes les listes d'inventaire depuis le fichier Excel"""
@@ -2619,9 +2216,9 @@ elif action == "Gestion des produits":
                         if not reference:
                             reference = generer_reference_qr(produit, produit)
                         
-                        # Ajouter automatiquement le fournisseur s'il n'existe pas dans le fichier fournisseurs.xlsx
+                        # Ajouter automatiquement le fournisseur s'il n'existe pas dans la base de données
                         if not ajouter_fournisseur_automatique(fournisseur):
-                            st.warning(f"⚠️ Impossible d'ajouter automatiquement le fournisseur '{fournisseur}' au fichier fournisseurs.xlsx")
+                            st.warning(f"⚠️ Impossible d'ajouter automatiquement le fournisseur '{fournisseur}' à la base de données")
                         
                         # Ajouter automatiquement l'emplacement s'il n'existe pas dans la base de données des emplacements
                         if not ajouter_emplacement_automatique(emplacement):
@@ -2656,7 +2253,7 @@ elif action == "Gestion des produits":
                         
                         st.success(f"✅ Produit '{produit}' ajouté avec succès!")
                         if fournisseur not in df['Fournisseur'].dropna().unique().tolist()[:-1]:  # Si c'est un nouveau fournisseur
-                            st.info(f"ℹ️ Le fournisseur '{fournisseur}' a été automatiquement ajouté au fichier fournisseurs.xlsx")
+                            st.info(f"ℹ️ Le fournisseur '{fournisseur}' a été automatiquement ajouté à la base de données")
                         st.experimental_rerun()
         
         with sub_tab2:

@@ -1,0 +1,559 @@
+{% extends "base.html" %} {% block title %}Magasin - GMAO Mobile{% endblock %}
+{% block extra_css %}
+<style>
+    .stats-row {
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border: none;
+        height: 100%;
+    }
+
+    .stat-card.critique {
+        border-left: 5px solid #dc3545;
+    }
+
+    .stat-card.faible {
+        border-left: 5px solid #ffc107;
+    }
+
+    .stat-card.surstock {
+        border-left: 5px solid #fd7e14;
+    }
+
+    .stat-card.normal {
+        border-left: 5px solid #198754;
+    }
+
+    .stat-card.valeur {
+        border-left: 5px solid #0d6efd;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin: 0;
+    }
+
+    .product-card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem;
+        border-radius: 10px;
+    }
+
+    .stock-status {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+
+    .status-critique {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .status-faible {
+        background-color: #ffc107;
+        color: black;
+    }
+
+    .status-surstock {
+        background-color: #fd7e14;
+        color: white;
+    }
+
+    .status-normal {
+        background-color: #198754;
+        color: white;
+    }
+
+    .search-sticky {
+        position: sticky;
+        top: 70px;
+        z-index: 100;
+        background: #f8f9fa;
+        padding: 1rem 0;
+        margin-bottom: 1rem;
+    }
+
+    .filter-btn {
+        margin: 0.25rem;
+        border-radius: 20px;
+    }
+
+    .filter-btn.active {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+</style>
+{% endblock %} {% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4><i class="bi bi-shop"></i> Magasin</h4>
+        <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+
+    <!-- Statistiques rapides -->
+    <div class="stats-row">
+        <div class="row g-3">
+            <div class="col-6 col-md">
+                <div class="stat-card critique">
+                    <div class="stat-number text-danger">
+                        {{ stats.stock_critique }}
+                    </div>
+                    <p class="stat-label">🔴 Stock critique</p>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="stat-card faible">
+                    <div class="stat-number text-warning">
+                        {{ stats.stock_faible }}
+                    </div>
+                    <p class="stat-label">🟠 Bientôt rupture</p>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="stat-card surstock">
+                    <div class="stat-number" style="color: #fd7e14">
+                        {{ stats.surstock }}
+                    </div>
+                    <p class="stat-label">🟡 Surstock</p>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="stat-card normal">
+                    <div class="stat-number text-success">
+                        {{ stats.stock_normal }}
+                    </div>
+                    <p class="stat-label">🟢 Stock normal</p>
+                </div>
+            </div>
+            <div class="col-12 col-md">
+                <div class="stat-card valeur">
+                    <div class="stat-number text-primary">
+                        {{ "%.2f"|format(stats.valeur_totale) }}€
+                    </div>
+                    <p class="stat-label">💰 Valeur totale</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barre de recherche et filtres -->
+    <div class="search-sticky">
+        <div class="row g-2">
+            <div class="col-12 col-md-8">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="searchInput"
+                        placeholder="Rechercher par nom, code ou référence..."
+                    />
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <button class="btn btn-primary w-100" onclick="performSearch()">
+                    <i class="bi bi-search"></i> Rechercher
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtres par statut -->
+        <div class="mt-2">
+            <button
+                class="btn btn-outline-secondary filter-btn active"
+                data-filter="all"
+            >
+                Tous ({{ stats.total_produits }})
+            </button>
+            <button
+                class="btn btn-outline-danger filter-btn"
+                data-filter="critique"
+            >
+                🔴 Critique ({{ stats.stock_critique }})
+            </button>
+            <button
+                class="btn btn-outline-warning filter-btn"
+                data-filter="faible"
+            >
+                🟠 Faible ({{ stats.stock_faible }})
+            </button>
+            <button
+                class="btn btn-outline-success filter-btn"
+                data-filter="normal"
+            >
+                🟢 Normal ({{ stats.stock_normal }})
+            </button>
+            <button
+                class="btn filter-btn"
+                style="color: #fd7e14; border-color: #fd7e14"
+                data-filter="surstock"
+            >
+                🟡 Surstock ({{ stats.surstock }})
+            </button>
+        </div>
+    </div>
+
+    <!-- Liste des produits -->
+    <div id="productsList">
+        {% if produits %} {% for produit in produits %}
+        <div
+            class="product-card card"
+            data-product-id="{{ produit.id }}"
+            data-status="{{ get_stock_status(produit) }}"
+        >
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-8">
+                        <h6 class="card-title mb-1">
+                            {{ produit.designation }}
+                        </h6>
+                        <p class="text-muted mb-1">
+                            <small
+                                >{{ produit.code }} | {{ produit.reference
+                                }}</small
+                            >
+                        </p>
+                        <p class="text-muted mb-0">
+                            <small>📍 {{ produit.emplacement }}</small>
+                        </p>
+                    </div>
+                    <div class="col-4 text-end">
+                        <div class="mb-2">
+                            <span
+                                class="stock-status {{ get_status_class(produit) }}"
+                            >
+                                {{ get_stock_status_text(produit) }}
+                            </span>
+                        </div>
+                        <div class="fw-bold">
+                            {{ produit.quantite }} {{ produit.unite_stockage }}
+                        </div>
+                        <small class="text-muted"
+                            >{{ "%.2f"|format(produit.prix_unitaire|float)
+                            }}€</small
+                        >
+                    </div>
+                </div>
+
+                <!-- Actions rapides -->
+                <div class="row mt-2">
+                    <div class="col-6">
+                        <a
+                            href="{{ url_for('produit_detail', reference=produit.reference) }}"
+                            class="btn btn-outline-primary btn-sm w-100"
+                        >
+                            <i class="bi bi-eye"></i> Détails
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <button
+                            class="btn btn-outline-success btn-sm w-100"
+                            onclick="quickMovement('{{ produit.reference }}')"
+                        >
+                            <i class="bi bi-arrow-left-right"></i> Mouvement
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %} {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <h5 class="text-muted mt-3">Aucun produit trouvé</h5>
+            <p class="text-muted">
+                L'inventaire est vide ou aucun produit ne correspond à votre
+                recherche.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Bouton d'action flottant -->
+    <div
+        class="position-fixed bottom-0 end-0 p-3"
+        style="z-index: 1000; bottom: 100px !important"
+    >
+        <div class="btn-group-vertical">
+            <a
+                href="{{ url_for('scanner') }}"
+                class="btn btn-primary btn-lg rounded-circle mb-2"
+                style="width: 60px; height: 60px"
+            >
+                <i class="bi bi-qr-code-scan"></i>
+            </a>
+            <button
+                class="btn btn-success btn-lg rounded-circle"
+                onclick="showQuickAdd()"
+                style="width: 60px; height: 60px"
+            >
+                <i class="bi bi-plus"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de mouvement rapide -->
+<div class="modal fade" id="quickMovementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mouvement rapide</h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <div id="productInfo" class="mb-3"></div>
+
+                <div class="mb-3">
+                    <label class="form-label">Type de mouvement</label>
+                    <select class="form-select" id="movementType">
+                        <option value="entree">Entrée de stock</option>
+                        <option value="sortie">Sortie de stock</option>
+                        <option value="inventaire">
+                            Ajustement inventaire
+                        </option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Quantité</label>
+                    <input
+                        type="number"
+                        class="form-control"
+                        id="movementQuantity"
+                        min="1"
+                    />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Commentaires (optionnel)</label>
+                    <textarea
+                        class="form-control"
+                        id="movementComments"
+                        rows="2"
+                    ></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Annuler
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    onclick="submitMovement()"
+                >
+                    <i class="bi bi-check"></i> Valider
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    let currentProductRef = null;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // Recherche en temps réel
+        document
+            .getElementById("searchInput")
+            .addEventListener("input", debounce(performSearch, 300));
+
+        // Filtres
+        document.querySelectorAll(".filter-btn").forEach((btn) => {
+            btn.addEventListener("click", function () {
+                // Retirer la classe active de tous les boutons
+                document
+                    .querySelectorAll(".filter-btn")
+                    .forEach((b) => b.classList.remove("active"));
+                // Ajouter la classe active au bouton cliqué
+                this.classList.add("active");
+
+                const filter = this.dataset.filter;
+                filterProducts(filter);
+            });
+        });
+    });
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    function performSearch() {
+        const query = document.getElementById("searchInput").value.trim();
+
+        if (query.length === 0) {
+            // Afficher tous les produits
+            document.querySelectorAll(".product-card").forEach((card) => {
+                card.style.display = "block";
+            });
+            return;
+        }
+
+        // Filtrer les produits affichés
+        document.querySelectorAll(".product-card").forEach((card) => {
+            const title = card
+                .querySelector(".card-title")
+                .textContent.toLowerCase();
+            const details = card
+                .querySelector(".text-muted")
+                .textContent.toLowerCase();
+
+            if (
+                title.includes(query.toLowerCase()) ||
+                details.includes(query.toLowerCase())
+            ) {
+                card.style.display = "block";
+            } else {
+                card.style.display = "none";
+            }
+        });
+    }
+
+    function filterProducts(status) {
+        document.querySelectorAll(".product-card").forEach((card) => {
+            if (status === "all") {
+                card.style.display = "block";
+            } else {
+                const cardStatus = card.dataset.status;
+                if (cardStatus === status) {
+                    card.style.display = "block";
+                } else {
+                    card.style.display = "none";
+                }
+            }
+        });
+    }
+
+    function quickMovement(reference) {
+        currentProductRef = reference;
+
+        // Charger les informations du produit
+        makeRequest(`/api/produit/${reference}`)
+            .then((produit) => {
+                if (produit) {
+                    document.getElementById("productInfo").innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>${produit.designation}</strong><br>
+                        <small>Stock actuel: ${produit.quantite} ${produit.unite_stockage}</small>
+                    </div>
+                `;
+
+                    const modal = new bootstrap.Modal(
+                        document.getElementById("quickMovementModal")
+                    );
+                    modal.show();
+                }
+            })
+            .catch((error) => {
+                showAlert("Erreur lors du chargement du produit", "error");
+            });
+    }
+
+    function submitMovement() {
+        const type = document.getElementById("movementType").value;
+        const quantity = parseInt(
+            document.getElementById("movementQuantity").value
+        );
+        const comments = document.getElementById("movementComments").value;
+
+        if (!quantity || quantity <= 0) {
+            showAlert("Veuillez saisir une quantité valide", "error");
+            return;
+        }
+
+        const data = {
+            reference: currentProductRef,
+            nature: type,
+            quantite: quantity,
+            commentaires: comments,
+        };
+
+        // Déterminer l'endpoint selon le type
+        let endpoint;
+        switch (type) {
+            case "entree":
+                endpoint = "/entree-stock";
+                break;
+            case "sortie":
+                endpoint = "/sortie-stock";
+                break;
+            case "inventaire":
+                endpoint = "/regule-stock";
+                break;
+            default:
+                endpoint = "/entree-stock";
+        }
+
+        fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+        })
+            .then((response) => response.json())
+            .then((result) => {
+                if (result.success) {
+                    showAlert(result.message, "success");
+                    bootstrap.Modal.getInstance(
+                        document.getElementById("quickMovementModal")
+                    ).hide();
+                    // Recharger la page pour mettre à jour les données
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert(result.message, "error");
+                }
+            })
+            .catch((error) => {
+                showAlert("Erreur lors de l'enregistrement", "error");
+            });
+    }
+
+    function refreshData() {
+        location.reload();
+    }
+
+    function showQuickAdd() {
+        window.location.href = '{{ url_for("gestion_produits") }}';
+    }
+</script>
+{% endblock %}

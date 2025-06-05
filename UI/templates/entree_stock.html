@@ -1,0 +1,385 @@
+{% extends "base.html" %} {% block title %}Entrée de stock - GMAO Mobile{%
+endblock %} {% block extra_css %}
+<style>
+    .form-card {
+        border: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border-radius: 15px;
+    }
+
+    .scanner-btn {
+        background: linear-gradient(45deg, #198754, #20c997);
+        border: none;
+        color: white;
+        border-radius: 10px;
+    }
+
+    .scanner-btn:hover {
+        background: linear-gradient(45deg, #157347, #1aa179);
+        color: white;
+    }
+
+    .quick-actions {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .quick-btn {
+        margin: 0.25rem;
+        border-radius: 20px;
+    }
+</style>
+{% endblock %} {% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4><i class="bi bi-box-arrow-in-down"></i> Entrée de stock</h4>
+        <a
+            href="{{ url_for('index') }}"
+            class="btn btn-outline-secondary btn-sm"
+        >
+            <i class="bi bi-arrow-left"></i> Retour
+        </a>
+    </div>
+
+    <!-- Actions rapides -->
+    <div class="quick-actions">
+        <h6><i class="bi bi-lightning"></i> Actions rapides</h6>
+        <button
+            class="btn btn-outline-primary quick-btn"
+            onclick="setQuantity(1)"
+        >
+            +1
+        </button>
+        <button
+            class="btn btn-outline-primary quick-btn"
+            onclick="setQuantity(5)"
+        >
+            +5
+        </button>
+        <button
+            class="btn btn-outline-primary quick-btn"
+            onclick="setQuantity(10)"
+        >
+            +10
+        </button>
+        <button
+            class="btn btn-outline-primary quick-btn"
+            onclick="setQuantity(50)"
+        >
+            +50
+        </button>
+        <button
+            class="btn btn-outline-primary quick-btn"
+            onclick="setQuantity(100)"
+        >
+            +100
+        </button>
+    </div>
+
+    <div class="form-card card">
+        <div class="card-body">
+            <form id="entreeForm">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="reference" class="form-label"
+                            >Référence produit *</label
+                        >
+                        <div class="input-group">
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="reference"
+                                name="reference"
+                                required
+                            />
+                            <button
+                                type="button"
+                                class="btn scanner-btn"
+                                onclick="openScanner()"
+                            >
+                                <i class="bi bi-qr-code-scan"></i> Scanner
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="quantite" class="form-label"
+                            >Quantité à ajouter *</label
+                        >
+                        <input
+                            type="number"
+                            class="form-control"
+                            id="quantite"
+                            name="quantite"
+                            min="1"
+                            required
+                        />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="utilisateur" class="form-label"
+                            >Utilisateur</label
+                        >
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="utilisateur"
+                            name="utilisateur"
+                            value="Mobile User"
+                        />
+                    </div>
+
+                    <div class="col-12">
+                        <label for="commentaires" class="form-label"
+                            >Commentaires</label
+                        >
+                        <textarea
+                            class="form-control"
+                            id="commentaires"
+                            name="commentaires"
+                            rows="3"
+                            placeholder="Motif de l'entrée, numéro de livraison, etc."
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- Informations produit -->
+                <div id="produitInfo" class="mt-4" style="display: none">
+                    <h6>
+                        <i class="bi bi-info-circle"></i> Informations produit
+                    </h6>
+                    <div id="produitDetails" class="alert alert-info">
+                        <!-- Contenu chargé dynamiquement -->
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end mt-4">
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        onclick="resetForm()"
+                    >
+                        <i class="bi bi-arrow-clockwise"></i> Réinitialiser
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-plus-circle"></i> Enregistrer l'entrée
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Scanner -->
+<div class="modal fade" id="scannerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Scanner QR Code</h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <div id="qr-reader" style="width: 100%"></div>
+                <div class="mt-3">
+                    <label for="manualInput" class="form-label"
+                        >Ou saisir manuellement :</label
+                    >
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="manualInput"
+                            placeholder="Référence produit"
+                        />
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            onclick="useManualInput()"
+                        >
+                            Utiliser
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+    let html5QrcodeScanner = null;
+
+    // Gestion du changement de référence
+    document.getElementById("reference").addEventListener("blur", function () {
+        const reference = this.value.trim();
+        if (reference) {
+            loadProductInfo(reference);
+        }
+    });
+
+    // Fonction pour définir une quantité rapide
+    function setQuantity(qty) {
+        document.getElementById("quantite").value = qty;
+    }
+
+    // Fonction pour charger les informations produit
+    function loadProductInfo(reference) {
+        makeRequest(`/api/produit/${reference}`)
+            .then((response) => {
+                if (response && !response.error) {
+                    document.getElementById("produitDetails").innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Nom:</strong> ${
+                                    response.nom || "Non spécifié"
+                                }</p>
+                                <p><strong>Stock actuel:</strong> ${
+                                    response.quantite || 0
+                                }</p>
+                                <p><strong>Emplacement:</strong> ${
+                                    response.emplacement || "Non spécifié"
+                                }</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Description:</strong> ${
+                                    response.description || "Non spécifiée"
+                                }</p>
+                                <p><strong>Seuil d'alerte:</strong> ${
+                                    response.seuil_alerte || 0
+                                }</p>
+                                <p><strong>Stock max:</strong> ${
+                                    response.stock_max || "Non défini"
+                                }</p>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById("produitInfo").style.display =
+                        "block";
+                } else {
+                    document.getElementById("produitInfo").style.display =
+                        "none";
+                    showNotification("Produit non trouvé", "warning");
+                }
+            })
+            .catch((error) => {
+                document.getElementById("produitInfo").style.display = "none";
+                console.error("Erreur lors du chargement du produit:", error);
+            });
+    }
+
+    // Scanner QR Code
+    function openScanner() {
+        const modal = new bootstrap.Modal(
+            document.getElementById("scannerModal")
+        );
+        modal.show();
+
+        modal._element.addEventListener("shown.bs.modal", function () {
+            startScanner();
+        });
+
+        modal._element.addEventListener("hidden.bs.modal", function () {
+            stopScanner();
+        });
+    }
+
+    function startScanner() {
+        html5QrcodeScanner = new Html5QrcodeScanner(
+            "qr-reader",
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+            },
+            false
+        );
+
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+
+    function stopScanner() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear();
+            html5QrcodeScanner = null;
+        }
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        document.getElementById("reference").value = decodedText;
+        loadProductInfo(decodedText);
+        bootstrap.Modal.getInstance(
+            document.getElementById("scannerModal")
+        ).hide();
+        showNotification("QR Code scanné avec succès", "success");
+    }
+
+    function onScanFailure(error) {
+        // Ne pas afficher les erreurs de scan en continu
+    }
+
+    function useManualInput() {
+        const manualValue = document.getElementById("manualInput").value.trim();
+        if (manualValue) {
+            document.getElementById("reference").value = manualValue;
+            loadProductInfo(manualValue);
+            bootstrap.Modal.getInstance(
+                document.getElementById("scannerModal")
+            ).hide();
+        }
+    }
+
+    // Soumission du formulaire
+    document
+        .getElementById("entreeForm")
+        .addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            if (!data.reference || !data.quantite) {
+                showNotification(
+                    "Veuillez remplir tous les champs obligatoires",
+                    "danger"
+                );
+                return;
+            }
+
+            // Envoyer la requête
+            fetch("/entree-stock", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
+            })
+                .then((response) => response.json())
+                .then((result) => {
+                    if (result.success) {
+                        showNotification(result.message, "success");
+                        resetForm();
+                    } else {
+                        showNotification(result.message, "danger");
+                    }
+                })
+                .catch((error) => {
+                    showNotification("Erreur de connexion", "danger");
+                    console.error("Erreur:", error);
+                });
+        });
+
+    // Réinitialiser le formulaire
+    function resetForm() {
+        document.getElementById("entreeForm").reset();
+        document.getElementById("produitInfo").style.display = "none";
+        document.getElementById("utilisateur").value = "Mobile User";
+    }
+</script>
+{% endblock %}
