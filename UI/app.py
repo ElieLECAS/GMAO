@@ -98,7 +98,8 @@ def magasin():
     if fournisseurs_raw is None:
         fournisseurs = []
     else:
-        fournisseurs = fournisseurs_raw
+        # L'API retourne un objet avec une propriété 'value' contenant le tableau
+        fournisseurs = fournisseurs_raw.get('value', []) if isinstance(fournisseurs_raw, dict) else fournisseurs_raw
     
     # Filtrer par fournisseur si spécifié
     fournisseur_filtre = request.args.get('fournisseur')
@@ -172,7 +173,8 @@ def historique_mouvements():
     if fournisseurs_raw is None:
         fournisseurs = []
     else:
-        fournisseurs = fournisseurs_raw
+        # L'API retourne un objet avec une propriété 'value' contenant le tableau
+        fournisseurs = fournisseurs_raw.get('value', []) if isinstance(fournisseurs_raw, dict) else fournisseurs_raw
     
     # Traiter les données pour l'affichage
     for mouvement in historique:
@@ -233,7 +235,8 @@ def alertes_stock():
     if fournisseurs_raw is None:
         fournisseurs = []
     else:
-        fournisseurs = fournisseurs_raw
+        # L'API retourne un objet avec une propriété 'value' contenant le tableau
+        fournisseurs = fournisseurs_raw.get('value', []) if isinstance(fournisseurs_raw, dict) else fournisseurs_raw
     
     # Calculer les alertes comme dans Streamlit
     produits_avec_alertes = []

@@ -328,8 +328,8 @@
                     Tous les fournisseurs
                 </option>
                 {% for fournisseur in fournisseurs %}
-                <option value="{{ fournisseur.nom }}" {% if fournisseur_filtre == fournisseur.nom %}selected{% endif %}>
-                    {{ fournisseur.nom }}
+                <option value="{{ fournisseur.nom_fournisseur }}" {% if fournisseur_filtre == fournisseur.nom_fournisseur %}selected{% endif %}>
+                    {{ fournisseur.nom_fournisseur }}
                 </option>
                 {% endfor %}
             </select>
