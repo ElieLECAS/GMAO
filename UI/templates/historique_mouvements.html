@@ -122,7 +122,7 @@ Mobile{% endblock %} {% block extra_css %}
     <!-- Filtres -->
     <div class="filter-sticky">
         <div class="row g-2">
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
                 <select class="form-select" id="filterType">
                     <option value="">🔄 Tous les types</option>
                     <option value="entree">📥 Entrées</option>
@@ -131,24 +131,44 @@ Mobile{% endblock %} {% block extra_css %}
                     <option value="inventaire">📋 Inventaires</option>
                 </select>
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
+                <select class="form-select" id="fournisseurFilter" onchange="filterByFournisseur()">
+                    <option value="tous" {% if not fournisseur_filtre or fournisseur_filtre == 'tous' %}selected{% endif %}>
+                        🏢 Tous fournisseurs
+                    </option>
+                    {% for fournisseur in fournisseurs %}
+                    <option value="{{ fournisseur.nom }}" {% if fournisseur_filtre == fournisseur.nom %}selected{% endif %}>
+                        {{ fournisseur.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
                 <input
                     type="text"
                     class="form-control"
                     id="filterProduct"
-                    placeholder="📦 Filtrer par produit..."
+                    placeholder="📦 Produit..."
                 />
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
                 <input
                     type="text"
                     class="form-control"
                     id="filterReference"
-                    placeholder="🆔 Filtrer par référence..."
+                    placeholder="🆔 Référence..."
                 />
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
                 <input type="date" class="form-control" id="filterDate" />
+            </div>
+            <div class="col-12 col-md-2">
+                <button
+                    class="btn btn-outline-secondary w-100"
+                    onclick="clearFilters()"
+                >
+                    <i class="bi bi-x-circle"></i> Reset
+                </button>
             </div>
         </div>
 
@@ -165,12 +185,6 @@ Mobile{% endblock %} {% block extra_css %}
                 onclick="exportToExcel()"
             >
                 <i class="bi bi-file-earmark-excel"></i> Excel
-            </button>
-            <button
-                class="btn btn-outline-secondary export-btn"
-                onclick="clearFilters()"
-            >
-                <i class="bi bi-x-circle"></i> Effacer filtres
             </button>
         </div>
     </div>
@@ -386,11 +400,31 @@ Mobile{% endblock %} {% block extra_css %}
         document.getElementById("total-ajustements").textContent = ajustements;
     }
 
+    function filterByFournisseur() {
+        const fournisseur = document.getElementById('fournisseurFilter').value;
+        const currentUrl = new URL(window.location);
+        
+        if (fournisseur === 'tous') {
+            currentUrl.searchParams.delete('fournisseur');
+        } else {
+            currentUrl.searchParams.set('fournisseur', fournisseur);
+        }
+        
+        window.location.href = currentUrl.toString();
+    }
+
     function clearFilters() {
         document.getElementById("filterType").value = "";
         document.getElementById("filterProduct").value = "";
         document.getElementById("filterReference").value = "";
         document.getElementById("filterDate").value = "";
+        document.getElementById("fournisseurFilter").value = "tous";
+        
+        // Supprimer aussi le paramètre fournisseur de l'URL
+        const currentUrl = new URL(window.location);
+        currentUrl.searchParams.delete('fournisseur');
+        window.history.replaceState({}, '', currentUrl.toString());
+        
         applyFilters();
     }
 

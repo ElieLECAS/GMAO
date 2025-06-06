@@ -97,6 +97,27 @@ endblock %} {% block extra_css %}
         </button>
     </div>
 
+    <!-- Filtre par fournisseur -->
+    <div class="mb-3">
+        <div class="row g-2">
+            <div class="col-12 col-md-6">
+                <label class="form-label fw-bold">
+                    <i class="bi bi-building"></i> Filtrer par fournisseur
+                </label>
+                <select class="form-select" id="fournisseurFilter" onchange="filterByFournisseur()">
+                    <option value="tous" {% if not fournisseur_filtre or fournisseur_filtre == 'tous' %}selected{% endif %}>
+                        Tous les fournisseurs
+                    </option>
+                    {% for fournisseur in fournisseurs %}
+                    <option value="{{ fournisseur.nom }}" {% if fournisseur_filtre == fournisseur.nom %}selected{% endif %}>
+                        {{ fournisseur.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
     <!-- Statistiques des alertes -->
     <div class="row g-3 mb-4">
         <div class="col-4">
@@ -157,16 +178,27 @@ endblock %} {% block extra_css %}
                 <div class="row align-items-center">
                     <div class="col-8">
                         <h6 class="card-title mb-1">
-                            {{ produit.designation }}
+                            {{ produit.designation or produit.produits }}
                         </h6>
                         <p class="text-muted mb-1">
                             <small
-                                >🆔 {{ produit.reference }} | 📍 {{
-                                produit.emplacement }}</small
+                                >🆔 {{ produit.reference }} | 🏪 {{
+                                produit.fournisseur }}</small
                             >
                         </p>
+                        {% if produit.reference_fournisseur %}
+                        <p class="text-muted mb-1">
+                            <small
+                                >🏷️ Réf. fournisseur: {{
+                                produit.reference_fournisseur }}</small
+                            >
+                        </p>
+                        {% endif %}
                         <p class="text-muted mb-0">
-                            <small>🏪 {{ produit.fournisseur }}</small>
+                            <small
+                                >🏢 {{ produit.site }} > 🏭 {{ produit.lieu }} >
+                                📍 {{ produit.emplacement }}</small
+                            >
                         </p>
                     </div>
                     <div class="col-4 text-end">
@@ -174,10 +206,10 @@ endblock %} {% block extra_css %}
                             >🔴 Critique</span
                         >
                         <div class="fw-bold text-danger mt-1">
-                            {{ produit.quantite }} / {{ produit.seuil_alerte }}
+                            {{ produit.quantite }} / {{ produit.stock_min }}
                         </div>
                         <small class="text-muted"
-                            >Manque: {{ produit.seuil_alerte - produit.quantite
+                            >Manque: {{ produit.stock_min - produit.quantite
                             }}</small
                         >
                     </div>
@@ -217,16 +249,27 @@ endblock %} {% block extra_css %}
                 <div class="row align-items-center">
                     <div class="col-8">
                         <h6 class="card-title mb-1">
-                            {{ produit.designation }}
+                            {{ produit.designation or produit.produits }}
                         </h6>
                         <p class="text-muted mb-1">
                             <small
-                                >🆔 {{ produit.reference }} | 📍 {{
-                                produit.emplacement }}</small
+                                >🆔 {{ produit.reference }} | 🏪 {{
+                                produit.fournisseur }}</small
                             >
                         </p>
+                        {% if produit.reference_fournisseur %}
+                        <p class="text-muted mb-1">
+                            <small
+                                >🏷️ Réf. fournisseur: {{
+                                produit.reference_fournisseur }}</small
+                            >
+                        </p>
+                        {% endif %}
                         <p class="text-muted mb-0">
-                            <small>🏪 {{ produit.fournisseur }}</small>
+                            <small
+                                >🏢 {{ produit.site }} > 🏭 {{ produit.lieu }} >
+                                📍 {{ produit.emplacement }}</small
+                            >
                         </p>
                     </div>
                     <div class="col-4 text-end">
@@ -273,12 +316,26 @@ endblock %} {% block extra_css %}
                 <div class="row align-items-center">
                     <div class="col-8">
                         <h6 class="card-title mb-1">
-                            {{ produit.designation }}
+                            {{ produit.designation or produit.produits }}
                         </h6>
                         <p class="text-muted mb-1">
                             <small
-                                >🆔 {{ produit.reference }} | 📍 {{
-                                produit.emplacement }}</small
+                                >🆔 {{ produit.reference }} | 🏪 {{
+                                produit.fournisseur }}</small
+                            >
+                        </p>
+                        {% if produit.reference_fournisseur %}
+                        <p class="text-muted mb-1">
+                            <small
+                                >🏷️ Réf. fournisseur: {{
+                                produit.reference_fournisseur }}</small
+                            >
+                        </p>
+                        {% endif %}
+                        <p class="text-muted mb-0">
+                            <small
+                                >🏢 {{ produit.site }} > 🏭 {{ produit.lieu }} >
+                                📍 {{ produit.emplacement }}</small
                             >
                         </p>
                     </div>
@@ -384,6 +441,19 @@ endblock %} {% block extra_css %}
 </div>
 {% endblock %} {% block extra_js %}
 <script>
+    function filterByFournisseur() {
+        const fournisseur = document.getElementById('fournisseurFilter').value;
+        const currentUrl = new URL(window.location);
+        
+        if (fournisseur === 'tous') {
+            currentUrl.searchParams.delete('fournisseur');
+        } else {
+            currentUrl.searchParams.set('fournisseur', fournisseur);
+        }
+        
+        window.location.href = currentUrl.toString();
+    }
+
     function refreshData() {
         location.reload();
     }

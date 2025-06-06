@@ -86,6 +86,7 @@ def index():
 def magasin():
     """Page Magasin - Vue d'ensemble du stock"""
     produits_raw = api_client.get('/inventaire/')
+    fournisseurs_raw = api_client.get('/fournisseurs/')
     
     if produits_raw is None:
         produits = []
@@ -93,6 +94,16 @@ def magasin():
     else:
         # Normaliser les données des produits
         produits = [normalize_produit(p.copy()) for p in produits_raw]
+    
+    if fournisseurs_raw is None:
+        fournisseurs = []
+    else:
+        fournisseurs = fournisseurs_raw
+    
+    # Filtrer par fournisseur si spécifié
+    fournisseur_filtre = request.args.get('fournisseur')
+    if fournisseur_filtre and fournisseur_filtre != 'tous':
+        produits = [p for p in produits if p.get('fournisseur') == fournisseur_filtre]
     
     # Calculer les statistiques comme dans Streamlit
     stats = {
@@ -113,7 +124,7 @@ def magasin():
                 quantite = 0
                 
             try:
-                stock_min = int(produit.get('seuil_alerte', 0))
+                stock_min = int(produit.get('stock_min', 0))
             except (ValueError, TypeError):
                 stock_min = 0
                 
@@ -146,16 +157,22 @@ def magasin():
             # Valeur du stock
             stats['valeur_totale'] += quantite * prix
     
-    return render_template('magasin.html', produits=produits, stats=stats)
+    return render_template('magasin.html', produits=produits, stats=stats, fournisseurs=fournisseurs, fournisseur_filtre=fournisseur_filtre)
 
 @app.route('/historique-mouvements')
 def historique_mouvements():
     """Page Historique des mouvements"""
     historique = api_client.get('/historique/')
+    fournisseurs_raw = api_client.get('/fournisseurs/')
     
     if historique is None:
         historique = []
         flash('Erreur lors du chargement de l\'historique', 'error')
+    
+    if fournisseurs_raw is None:
+        fournisseurs = []
+    else:
+        fournisseurs = fournisseurs_raw
     
     # Traiter les données pour l'affichage
     for mouvement in historique:
@@ -196,16 +213,27 @@ def historique_mouvements():
         if 'commentaires' not in mouvement:
             mouvement['commentaires'] = ''
     
-    return render_template('historique_mouvements.html', historique=historique)
+    # Filtrer par fournisseur si spécifié
+    fournisseur_filtre = request.args.get('fournisseur')
+    if fournisseur_filtre and fournisseur_filtre != 'tous':
+        historique = [h for h in historique if h.get('fournisseur') == fournisseur_filtre]
+    
+    return render_template('historique_mouvements.html', historique=historique, fournisseurs=fournisseurs, fournisseur_filtre=fournisseur_filtre)
 
 @app.route('/alertes-stock')
 def alertes_stock():
     """Page Alertes de stock"""
     produits = api_client.get('/inventaire/')
+    fournisseurs_raw = api_client.get('/fournisseurs/')
     
     if produits is None:
         produits = []
         flash('Erreur lors du chargement de l\'inventaire', 'error')
+    
+    if fournisseurs_raw is None:
+        fournisseurs = []
+    else:
+        fournisseurs = fournisseurs_raw
     
     # Calculer les alertes comme dans Streamlit
     produits_avec_alertes = []
@@ -218,7 +246,7 @@ def alertes_stock():
             quantite = 0
             
         try:
-            stock_min = int(produit.get('seuil_alerte', 0))
+            stock_min = int(produit.get('stock_min', 0))
         except (ValueError, TypeError):
             stock_min = 0
             
@@ -247,9 +275,25 @@ def alertes_stock():
             produit_alerte = produit.copy()
             produit_alerte['statut'] = statut
             produit_alerte['seuil_alerte'] = int(seuil_alerte)
+            
+            # Ajouter des alias pour la compatibilité avec le template
+            if 'produits' in produit_alerte and 'designation' not in produit_alerte:
+                produit_alerte['designation'] = produit_alerte['produits']
+            
+            # S'assurer que les champs manquants ont des valeurs par défaut
+            produit_alerte['fournisseur'] = produit_alerte.get('fournisseur') or 'Non défini'
+            produit_alerte['emplacement'] = produit_alerte.get('emplacement') or 'Non défini'
+            produit_alerte['site'] = produit_alerte.get('site') or 'Non défini'
+            produit_alerte['lieu'] = produit_alerte.get('lieu') or 'Non défini'
+            
             produits_avec_alertes.append(produit_alerte)
     
-    return render_template('alertes_stock.html', produits=produits_avec_alertes)
+    # Filtrer par fournisseur si spécifié
+    fournisseur_filtre = request.args.get('fournisseur')
+    if fournisseur_filtre and fournisseur_filtre != 'tous':
+        produits_avec_alertes = [p for p in produits_avec_alertes if p.get('fournisseur') == fournisseur_filtre]
+    
+    return render_template('alertes_stock.html', produits=produits_avec_alertes, fournisseurs=fournisseurs, fournisseur_filtre=fournisseur_filtre)
 
 # =====================================================
 # DEMANDES

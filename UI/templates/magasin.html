@@ -318,6 +318,23 @@
             </div>
         </div>
 
+        <!-- Filtre par fournisseur -->
+        <div class="mt-3">
+            <label class="form-label fw-bold">
+                <i class="bi bi-building"></i> Filtrer par fournisseur
+            </label>
+            <select class="form-select" id="fournisseurFilter" onchange="filterByFournisseur()">
+                <option value="tous" {% if not fournisseur_filtre or fournisseur_filtre == 'tous' %}selected{% endif %}>
+                    Tous les fournisseurs
+                </option>
+                {% for fournisseur in fournisseurs %}
+                <option value="{{ fournisseur.nom }}" {% if fournisseur_filtre == fournisseur.nom %}selected{% endif %}>
+                    {{ fournisseur.nom }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
         <!-- Filtres par statut -->
         <div class="mt-3">
             <button
@@ -940,6 +957,19 @@
                 }
             }
         });
+    }
+
+    function filterByFournisseur() {
+        const fournisseur = document.getElementById('fournisseurFilter').value;
+        const currentUrl = new URL(window.location);
+        
+        if (fournisseur === 'tous') {
+            currentUrl.searchParams.delete('fournisseur');
+        } else {
+            currentUrl.searchParams.set('fournisseur', fournisseur);
+        }
+        
+        window.location.href = currentUrl.toString();
     }
 
     function refreshData() {
