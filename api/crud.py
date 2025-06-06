@@ -228,9 +228,13 @@ def get_emplacement_by_code(db: Session, code_emplacement: str):
 
 def create_emplacement(db: Session, emplacement: schemas.EmplacementCreate):
     """Créer un nouveau emplacement"""
-    # Générer un code emplacement automatique
+    # Générer un code emplacement automatique (max 20 caractères)
     from datetime import datetime
-    code_emplacement = f"EMP{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    import random
+    import string
+    timestamp = datetime.now().strftime('%y%m%d%H%M%S')  # 12 caractères
+    random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))  # 4 caractères
+    code_emplacement = f"E{timestamp}{random_suffix}"  # E + 12 + 4 = 17 caractères max
     
     # Créer le dictionnaire avec le code généré
     emplacement_data = emplacement.model_dump()

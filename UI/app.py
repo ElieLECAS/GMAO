@@ -451,6 +451,10 @@ def import_produits():
             try:
                 ligne_num = index + 2  # +2 car index commence à 0 et ligne 1 = en-têtes
                 
+                # Petite pause pour éviter les conflits de timestamp
+                import time
+                time.sleep(0.001)  # 1ms de pause
+                
                 # Extraire les données de base
                 designation = str(row.get('Désignation', '')).strip()
                 if not designation or designation == 'nan':
@@ -504,11 +508,12 @@ def import_produits():
                             }
                             
                             result = api_client.post('/fournisseurs/', fournisseur_data)
-                            if result:
+                            if result and 'id' in result:
                                 stats['fournisseurs_crees'] += 1
                                 fournisseurs_cache[fournisseur_nom] = True
                             else:
-                                stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création fournisseur {fournisseur_nom}")
+                                error_detail = result.get('message', 'Erreur inconnue') if result else 'Pas de réponse de l\'API'
+                                stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création fournisseur {fournisseur_nom} - {error_detail}")
                         else:
                             fournisseurs_cache[fournisseur_nom] = True
                     
@@ -530,13 +535,15 @@ def import_produits():
                         site_existant = next((s for s in sites_existants if s.get('nom_site') == site_nom), None)
                         
                         if not site_existant:
-                            # Créer le site avec un code unique
+                            # Créer le site avec un code unique (max 20 caractères)
                             from datetime import datetime
                             import random
                             import string
-                            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-                            random_suffix = ''.join(random.choices(string.digits, k=3))
-                            code_site = f"SITE{timestamp}{index}{random_suffix}"
+                            import time
+                            # Utiliser un timestamp plus court + suffixe aléatoire
+                            timestamp = datetime.now().strftime('%y%m%d%H%M%S')  # 12 caractères
+                            random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))  # 4 caractères
+                            code_site = f"S{timestamp}{random_suffix}"  # S + 12 + 4 = 17 caractères max
                             
                             site_data = {
                                 'code_site': code_site,
@@ -552,12 +559,13 @@ def import_produits():
                             }
                             
                             result = api_client.post('/sites/', site_data)
-                            if result:
+                            if result and 'id' in result:
                                 stats['sites_crees'] += 1
                                 sites_cache[site_nom] = result['id']
                                 site_id = result['id']
                             else:
-                                stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création site {site_nom}")
+                                error_detail = result.get('message', 'Erreur inconnue') if result else 'Pas de réponse de l\'API'
+                                stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création site {site_nom} - {error_detail}")
                         else:
                             sites_cache[site_nom] = site_existant['id']
                             site_id = site_existant['id']
@@ -580,9 +588,11 @@ def import_produits():
                                 from datetime import datetime
                                 import random
                                 import string
-                                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-                                random_suffix = ''.join(random.choices(string.digits, k=3))
-                                code_lieu = f"LIEU{timestamp}{index}{random_suffix}"
+                                import time
+                                # Utiliser un timestamp plus court + suffixe aléatoire (max 20 caractères)
+                                timestamp = datetime.now().strftime('%y%m%d%H%M%S')  # 12 caractères
+                                random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))  # 4 caractères
+                                code_lieu = f"L{timestamp}{random_suffix}"  # L + 12 + 4 = 17 caractères max
                                 
                                 lieu_data = {
                                     'code_lieu': code_lieu,
@@ -596,12 +606,13 @@ def import_produits():
                                 }
                                 
                                 result = api_client.post('/lieux/', lieu_data)
-                                if result:
+                                if result and 'id' in result:
                                     stats['lieux_crees'] += 1
                                     lieux_cache[lieu_key] = result['id']
                                     lieu_id = result['id']
                                 else:
-                                    stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création lieu {lieu_nom}")
+                                    error_detail = result.get('message', 'Erreur inconnue') if result else 'Pas de réponse de l\'API'
+                                    stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création lieu {lieu_nom} - {error_detail}")
                             else:
                                 lieux_cache[lieu_key] = lieu_existant['id']
                                 lieu_id = lieu_existant['id']
@@ -628,10 +639,11 @@ def import_produits():
                                 from datetime import datetime
                                 import random
                                 import string
-                                # Générer un code unique avec timestamp + index + random
-                                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-                                random_suffix = ''.join(random.choices(string.digits, k=3))
-                                code_emplacement = f"EMP{timestamp}{index}{random_suffix}"
+                                import time
+                                # Utiliser un timestamp plus court + suffixe aléatoire (max 20 caractères)
+                                timestamp = datetime.now().strftime('%y%m%d%H%M%S')  # 12 caractères
+                                random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))  # 4 caractères
+                                code_emplacement = f"E{timestamp}{random_suffix}"  # E + 12 + 4 = 17 caractères max
                                 
                                 emplacement_data = {
                                     'code_emplacement': code_emplacement,
@@ -649,12 +661,13 @@ def import_produits():
                                 }
                                 
                                 result = api_client.post('/emplacements/', emplacement_data)
-                                if result:
+                                if result and 'id' in result:
                                     stats['emplacements_crees'] += 1
                                     emplacements_cache[emplacement_key] = result['id']
                                     print(f"DEBUG: Emplacement créé avec succès: {emplacement_nom} (ID: {result.get('id')}) pour lieu_id: {lieu_id}")
                                 else:
-                                    error_msg = f"Ligne {ligne_num}: Erreur création emplacement {emplacement_nom} pour lieu_id {lieu_id}"
+                                    error_detail = result.get('message', 'Erreur inconnue') if result else 'Pas de réponse de l\'API'
+                                    error_msg = f"Ligne {ligne_num}: Erreur création emplacement {emplacement_nom} pour lieu_id {lieu_id} - {error_detail}"
                                     stats['erreurs'].append(error_msg)
                                     print(f"DEBUG: {error_msg}")
                             else:
@@ -691,10 +704,11 @@ def import_produits():
                 }
                 
                 result = api_client.post('/inventaire/', produit_final)
-                if result:
+                if result and 'id' in result:
                     stats['produits_crees'] += 1
                 else:
-                    stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création produit {designation}")
+                    error_detail = result.get('message', 'Erreur inconnue') if result else 'Pas de réponse de l\'API'
+                    stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création produit {designation} - {error_detail}")
                     
             except Exception as e:
                 stats['erreurs'].append(f"Ligne {ligne_num}: Erreur - {str(e)}")
@@ -1257,11 +1271,13 @@ def creer_site():
     try:
         data = request.get_json()
         
-        # Générer un code site automatique
+        # Générer un code site automatique (max 20 caractères)
         import random
         import string
         from datetime import datetime
-        code_site = f"SITE{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        timestamp = datetime.now().strftime('%y%m%d%H%M%S')  # 12 caractères
+        random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))  # 4 caractères
+        code_site = f"S{timestamp}{random_suffix}"  # S + 12 + 4 = 17 caractères max
         
         site_data = {
             'code_site': code_site,
@@ -1345,7 +1361,9 @@ def creer_lieu():
         
         # Générer un code lieu automatique
         from datetime import datetime
-        code_lieu = f"LIEU{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        timestamp = datetime.now().strftime('%y%m%d%H%M%S')  # 12 caractères
+        random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))  # 4 caractères
+        code_lieu = f"L{timestamp}{random_suffix}"  # L + 12 + 4 = 17 caractères max
         
         lieu_data = {
             'code_lieu': code_lieu,
@@ -1435,7 +1453,18 @@ def creer_emplacement():
     try:
         data = request.get_json()
         
+        # Générer un code emplacement automatique si non fourni
+        code_emplacement = data.get('code_emplacement')
+        if not code_emplacement:
+            from datetime import datetime
+            import random
+            import string
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')[:-3]  # Microseconde tronquée
+            random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+            code_emplacement = f"EMP{timestamp}{random_suffix}"
+        
         emplacement_data = {
+            'code_emplacement': code_emplacement,
             'nom_emplacement': data.get('nom_emplacement', ''),
             'lieu_id': int(data.get('lieu_id')),
             'type_emplacement': data.get('type_emplacement', ''),
