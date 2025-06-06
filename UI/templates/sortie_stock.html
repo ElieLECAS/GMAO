@@ -220,7 +220,8 @@ endblock %} {% block extra_css %}
         // Gestion du changement de référence (pour scanner QR)
         referenceInput.addEventListener("input", function () {
             const reference = this.value.trim();
-            if (reference && reference.length >= 8) {
+            if (reference && reference.length === 10) {
+                // Attendre exactement 10 caractères pour auto-focus
                 loadProductInfo(reference);
                 // Auto-focus sur quantité après scan
                 setTimeout(() => {
@@ -267,7 +268,7 @@ endblock %} {% block extra_css %}
                                 <p><strong>Nom:</strong> ${
                                     response.produits || "Non spécifié"
                                 }</p>
-                                <p><strong>Code:</strong> ${
+                                <p><strong>Référence PROFERM:</strong> ${
                                     response.code || "Non spécifié"
                                 }</p>
                                 <p><strong>Stock actuel:</strong> <span class="badge bg-primary">${
