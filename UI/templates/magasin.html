@@ -152,10 +152,7 @@
         color: white;
     }
 
-    .search-sticky {
-        position: sticky;
-        top: 70px;
-        z-index: 100;
+    .search-section {
         background: var(--card-bg);
         padding: 1.25rem;
         margin-bottom: 1.5rem;
@@ -298,69 +295,8 @@
         </div>
     </div>
 
-    <!-- Statistiques rapides -->
-    <div class="stats-row">
-        <div class="row g-3">
-            <div class="col-6 col-md">
-                <div class="stat-card critique">
-                    <div class="stat-number text-danger">
-                        <div class="stat-icon">
-                            <i class="bi bi-exclamation-triangle"></i>
-                        </div>
-                        {{ stats.stock_critique }}
-                    </div>
-                    <p class="stat-label">Stock critique</p>
-                </div>
-            </div>
-            <div class="col-6 col-md">
-                <div class="stat-card faible">
-                    <div class="stat-number text-warning">
-                        <div class="stat-icon">
-                            <i class="bi bi-exclamation-circle"></i>
-                        </div>
-                        {{ stats.stock_faible }}
-                    </div>
-                    <p class="stat-label">Bientôt rupture</p>
-                </div>
-            </div>
-            <div class="col-6 col-md">
-                <div class="stat-card surstock">
-                    <div class="stat-number" style="color: #fd7e14">
-                        <div class="stat-icon">
-                            <i class="bi bi-archive"></i>
-                        </div>
-                        {{ stats.surstock }}
-                    </div>
-                    <p class="stat-label">Surstock</p>
-                </div>
-            </div>
-            <div class="col-6 col-md">
-                <div class="stat-card normal">
-                    <div class="stat-number text-success">
-                        <div class="stat-icon">
-                            <i class="bi bi-check-circle"></i>
-                        </div>
-                        {{ stats.stock_normal }}
-                    </div>
-                    <p class="stat-label">Stock normal</p>
-                </div>
-            </div>
-            <div class="col-12 col-md">
-                <div class="stat-card valeur">
-                    <div class="stat-number text-primary">
-                        <div class="stat-icon">
-                            <i class="bi bi-currency-euro"></i>
-                        </div>
-                        {{ "%.2f"|format(stats.valeur_totale) }}€
-                    </div>
-                    <p class="stat-label">Valeur totale</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Barre de recherche et filtres -->
-    <div class="search-sticky">
+    <div class="search-section">
         <div class="row g-2">
             <div class="col-12 col-md-8">
                 <div class="input-group">
@@ -419,6 +355,67 @@
                 <i class="bi bi-archive-fill"></i> Surstock ({{ stats.surstock
                 }})
             </button>
+        </div>
+    </div>
+
+    <!-- Statistiques rapides -->
+    <div class="stats-row">
+        <div class="row g-3">
+            <div class="col-6 col-md">
+                <div class="stat-card critique">
+                    <div class="stat-number text-danger">
+                        <div class="stat-icon">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        {{ stats.stock_critique }}
+                    </div>
+                    <p class="stat-label">Stock critique</p>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="stat-card faible">
+                    <div class="stat-number text-warning">
+                        <div class="stat-icon">
+                            <i class="bi bi-exclamation-circle"></i>
+                        </div>
+                        {{ stats.stock_faible }}
+                    </div>
+                    <p class="stat-label">Bientôt rupture</p>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="stat-card surstock">
+                    <div class="stat-number" style="color: #fd7e14">
+                        <div class="stat-icon">
+                            <i class="bi bi-archive"></i>
+                        </div>
+                        {{ stats.surstock }}
+                    </div>
+                    <p class="stat-label">Surstock</p>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="stat-card normal">
+                    <div class="stat-number text-success">
+                        <div class="stat-icon">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        {{ stats.stock_normal }}
+                    </div>
+                    <p class="stat-label">Stock normal</p>
+                </div>
+            </div>
+            <div class="col-12 col-md">
+                <div class="stat-card valeur">
+                    <div class="stat-number text-primary">
+                        <div class="stat-icon">
+                            <i class="bi bi-currency-euro"></i>
+                        </div>
+                        {{ "%.2f"|format(stats.valeur_totale) }}€
+                    </div>
+                    <p class="stat-label">Valeur totale</p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -488,17 +485,36 @@
                             produit.unite_stockage }}</span
                         >
                         <span
+                            ><i
+                                class="bi bi-arrow-down-circle text-success"
+                            ></i>
+                            {{ produit.stock_min or produit.seuil_alerte or 0 }}
+                            /
+                            <i class="bi bi-arrow-up-circle text-warning"></i>
+                            {{ produit.stock_max or 100 }}</span
+                        >
+                        <span
                             ><i class="bi bi-currency-euro"></i> {{
                             "%.2f"|format(produit.prix_unitaire|float) }}€</span
                         >
                     </div>
 
                     <div class="text-muted mb-3">
+                        {% if produit.site %}
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="bi bi-building-gear me-1"></i> {{
+                            produit.site }}
+                        </div>
+                        {% endif %} {% if produit.lieu %}
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="bi bi-geo me-1"></i> {{ produit.lieu }}
+                        </div>
+                        {% endif %} {% if produit.emplacement %}
                         <div class="d-flex align-items-center mb-1">
                             <i class="bi bi-geo-alt me-1"></i> {{
                             produit.emplacement }}
                         </div>
-                        {% if produit.fournisseur %}
+                        {% endif %} {% if produit.fournisseur %}
                         <div class="d-flex align-items-center">
                             <i class="bi bi-building me-1"></i> {{
                             produit.fournisseur }}
@@ -550,7 +566,10 @@
                                 <th>Réf. Fournisseur</th>
                                 <th>Fournisseur</th>
                                 <th>Stock</th>
+                                <th>Min/Max</th>
                                 <th>Statut</th>
+                                <th>Site</th>
+                                <th>Lieu</th>
                                 <th>Emplacement</th>
                                 <th>Prix</th>
                                 <th>Actions</th>
@@ -627,6 +646,23 @@
                                     {% endif %}
                                 </td>
                                 <td>
+                                    <div class="d-flex flex-column">
+                                        <small class="text-success">
+                                            <i
+                                                class="bi bi-arrow-down-circle me-1"
+                                            ></i
+                                            >{{ produit.stock_min or
+                                            produit.seuil_alerte or 0 }}
+                                        </small>
+                                        <small class="text-warning">
+                                            <i
+                                                class="bi bi-arrow-up-circle me-1"
+                                            ></i
+                                            >{{ produit.stock_max or 100 }}
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>
                                     <span
                                         class="stock-status {{ get_status_class(produit) }}"
                                     >
@@ -635,8 +671,25 @@
                                     </span>
                                 </td>
                                 <td>
+                                    {% if produit.site %}
+                                    <i class="bi bi-building-gear me-1"></i>{{
+                                    produit.site }} {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if produit.lieu %}
+                                    <i class="bi bi-geo me-1"></i>{{
+                                    produit.lieu }} {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if produit.emplacement %}
                                     <i class="bi bi-geo-alt me-1"></i>{{
-                                    produit.emplacement }}
+                                    produit.emplacement }} {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <span class="fw-medium"
@@ -839,13 +892,17 @@
             const reference = row.cells[1].textContent.toLowerCase();
             const refFournisseur = row.cells[2].textContent.toLowerCase();
             const fournisseur = row.cells[3].textContent.toLowerCase();
-            const emplacement = row.cells[6].textContent.toLowerCase();
+            const site = row.cells[7].textContent.toLowerCase();
+            const lieu = row.cells[8].textContent.toLowerCase();
+            const emplacement = row.cells[9].textContent.toLowerCase();
 
             if (
                 productName.includes(query.toLowerCase()) ||
                 reference.includes(query.toLowerCase()) ||
                 refFournisseur.includes(query.toLowerCase()) ||
                 fournisseur.includes(query.toLowerCase()) ||
+                site.includes(query.toLowerCase()) ||
+                lieu.includes(query.toLowerCase()) ||
                 emplacement.includes(query.toLowerCase())
             ) {
                 row.style.display = "";
