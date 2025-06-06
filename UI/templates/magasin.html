@@ -269,9 +269,33 @@
     <!-- En-tête -->
     <div class="page-header">
         <h4><i class="bi bi-shop"></i> Magasin</h4>
-        <button class="refresh-btn" onclick="refreshData()" title="Actualiser">
-            <i class="bi bi-arrow-clockwise"></i>
-        </button>
+        <div class="d-flex align-items-center gap-3">
+            <!-- Switch vue tuiles/tableau -->
+            <div class="d-flex align-items-center">
+                <span class="me-2 text-muted">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                </span>
+                <div class="form-check form-switch">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="viewToggle"
+                        onchange="toggleView()"
+                    />
+                    <label class="form-check-label" for="viewToggle"></label>
+                </div>
+                <span class="ms-2 text-muted">
+                    <i class="bi bi-table"></i>
+                </span>
+            </div>
+            <button
+                class="refresh-btn"
+                onclick="refreshData()"
+                title="Actualiser"
+            >
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
     </div>
 
     <!-- Statistiques rapides -->
@@ -398,8 +422,8 @@
         </div>
     </div>
 
-    <!-- Liste des produits -->
-    <div id="productsList" class="row g-3">
+    <!-- Vue en tuiles -->
+    <div id="tilesView" class="row g-3">
         {% if produits %} {% for produit in produits %}
         <div class="col-12 col-md-6 col-lg-4">
             <div
@@ -483,33 +507,13 @@
                     </div>
 
                     <!-- Actions rapides -->
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-center">
                         <a
                             href="{{ url_for('produit_detail', reference=produit.reference) }}"
                             class="btn btn-outline-primary btn-sm"
                         >
                             <i class="bi bi-eye"></i> Détails
                         </a>
-                        <div>
-                            <button
-                                class="btn btn-outline-success btn-sm me-1"
-                                onclick="quickMovement('{{ produit.reference }}', 'entree')"
-                            >
-                                <i class="bi bi-plus-circle"></i>
-                            </button>
-                            <button
-                                class="btn btn-outline-danger btn-sm me-1"
-                                onclick="quickMovement('{{ produit.reference }}', 'sortie')"
-                            >
-                                <i class="bi bi-dash-circle"></i>
-                            </button>
-                            <button
-                                class="btn btn-outline-secondary btn-sm"
-                                onclick="quickMovement('{{ produit.reference }}')"
-                            >
-                                <i class="bi bi-arrow-left-right"></i>
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -518,6 +522,156 @@
         <div class="col-12">
             <div class="no-products">
                 <i class="bi bi-search"></i>
+                <h4>Aucun produit trouvé</h4>
+                <p class="text-muted">
+                    L'inventaire est vide ou aucun produit ne correspond à votre
+                    recherche.
+                </p>
+                <button class="btn btn-primary" onclick="clearSearch()">
+                    <i class="bi bi-arrow-clockwise"></i> Réinitialiser la
+                    recherche
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Vue en tableau -->
+    <div id="tableView" class="d-none">
+        {% if produits %}
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="productsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Produit</th>
+                                <th>Référence</th>
+                                <th>Réf. Fournisseur</th>
+                                <th>Fournisseur</th>
+                                <th>Stock</th>
+                                <th>Statut</th>
+                                <th>Emplacement</th>
+                                <th>Prix</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for produit in produits %}
+                            <tr
+                                data-product-id="{{ produit.id }}"
+                                data-status="{{ get_stock_status(produit) }}"
+                            >
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if produit.image_url %}
+                                        <img
+                                            src="{{ produit.image_url }}"
+                                            class="me-2 rounded"
+                                            width="40"
+                                            height="40"
+                                            alt="{{ produit.produits }}"
+                                        />
+                                        {% else %}
+                                        <div
+                                            class="me-2 rounded bg-light d-flex align-items-center justify-content-center"
+                                            style="width: 40px; height: 40px"
+                                        >
+                                            <i
+                                                class="bi bi-box text-secondary"
+                                            ></i>
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <div class="fw-medium">
+                                                {{ produit.produits }}
+                                            </div>
+                                            {% if produit.categorie %}
+                                            <small class="text-muted"
+                                                >{{ produit.categorie }}</small
+                                            >
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary"
+                                        >{{ produit.reference }}</span
+                                    >
+                                </td>
+                                <td>
+                                    {% if produit.reference_fournisseur %}
+                                    <span class="badge bg-secondary"
+                                        >{{ produit.reference_fournisseur
+                                        }}</span
+                                    >
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if produit.fournisseur %}
+                                    <i class="bi bi-building me-1"></i>{{
+                                    produit.fournisseur }} {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="fw-medium"
+                                        >{{ produit.quantite }}</span
+                                    >
+                                    {% if produit.unite_stockage %}
+                                    <small class="text-muted"
+                                        >{{ produit.unite_stockage }}</small
+                                    >
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span
+                                        class="stock-status {{ get_status_class(produit) }}"
+                                    >
+                                        <i class="bi bi-box-seam"></i> {{
+                                        get_stock_status_text(produit) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <i class="bi bi-geo-alt me-1"></i>{{
+                                    produit.emplacement }}
+                                </td>
+                                <td>
+                                    <span class="fw-medium"
+                                        >{{
+                                        "%.2f"|format(produit.prix_unitaire|float)
+                                        }}€</span
+                                    >
+                                </td>
+                                <td>
+                                    <a
+                                        href="{{ url_for('produit_detail', reference=produit.reference) }}"
+                                        class="btn btn-outline-primary btn-sm"
+                                        title="Détails"
+                                    >
+                                        <i class="bi bi-eye"></i> Détails
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center">
+                <i
+                    class="bi bi-search"
+                    style="
+                        font-size: 3rem;
+                        color: var(--secondary-color);
+                        opacity: 0.5;
+                    "
+                ></i>
                 <h4>Aucun produit trouvé</h4>
                 <p class="text-muted">
                     L'inventaire est vide ou aucun produit ne correspond à votre
@@ -568,111 +722,18 @@
     </div>
 </div>
 
-<!-- Modal de mouvement rapide -->
-<div class="modal fade" id="quickMovementModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div
-            class="modal-content"
-            style="border-radius: var(--border-radius); overflow: hidden"
-        >
-            <div
-                class="modal-header"
-                style="border-bottom: 2px solid var(--border-color)"
-            >
-                <h5 class="modal-title">
-                    <i class="bi bi-arrow-left-right me-2 text-primary"></i
-                    >Mouvement rapide
-                </h5>
-                <button
-                    type="button"
-                    class="btn-close"
-                    data-bs-dismiss="modal"
-                ></button>
-            </div>
-            <div class="modal-body p-4">
-                <div
-                    id="productInfo"
-                    class="mb-4 p-3 rounded"
-                    style="background-color: var(--primary-light)"
-                ></div>
-
-                <div class="mb-4">
-                    <label class="form-label fw-medium"
-                        >Type de mouvement</label
-                    >
-                    <div class="input-group">
-                        <span class="input-group-text"
-                            ><i class="bi bi-arrow-down-up"></i
-                        ></span>
-                        <select class="form-select" id="movementType">
-                            <option value="entree">Entrée de stock</option>
-                            <option value="sortie">Sortie de stock</option>
-                            <option value="inventaire">
-                                Ajustement inventaire
-                            </option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label fw-medium">Quantité</label>
-                    <div class="input-group">
-                        <span class="input-group-text"
-                            ><i class="bi bi-123"></i
-                        ></span>
-                        <input
-                            type="number"
-                            class="form-control"
-                            id="movementQuantity"
-                            min="1"
-                        />
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-medium"
-                        >Commentaires (optionnel)</label
-                    >
-                    <div class="input-group">
-                        <span class="input-group-text"
-                            ><i class="bi bi-chat-text"></i
-                        ></span>
-                        <textarea
-                            class="form-control"
-                            id="movementComments"
-                            rows="2"
-                            placeholder="Indiquez un motif ou des informations complémentaires..."
-                        ></textarea>
-                    </div>
-                </div>
-            </div>
-            <div
-                class="modal-footer"
-                style="border-top: 2px solid var(--border-color)"
-            >
-                <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    data-bs-dismiss="modal"
-                >
-                    <i class="bi bi-x"></i> Annuler
-                </button>
-                <button
-                    type="button"
-                    class="btn btn-primary"
-                    onclick="submitMovement()"
-                >
-                    <i class="bi bi-check2"></i> Valider
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %} {% block extra_js %}
 <script>
-    let currentProductRef = null;
-
     document.addEventListener("DOMContentLoaded", function () {
+        // Restaurer la vue préférée
+        const savedView = localStorage.getItem("magasinView");
+        const viewToggle = document.getElementById("viewToggle");
+
+        if (savedView === "table") {
+            viewToggle.checked = true;
+            toggleView();
+        }
+
         // Recherche en temps réel
         document
             .getElementById("searchInput")
@@ -702,8 +763,9 @@
             });
         });
 
-        // Ajouter des animations d'entrée pour les cartes
+        // Ajouter des animations d'entrée pour les cartes et lignes
         animateProductCards();
+        animateTableRows();
     });
 
     function debounce(func, wait) {
@@ -718,18 +780,41 @@
         };
     }
 
+    function toggleView() {
+        const tilesView = document.getElementById("tilesView");
+        const tableView = document.getElementById("tableView");
+        const viewToggle = document.getElementById("viewToggle");
+
+        if (viewToggle.checked) {
+            // Basculer vers la vue tableau
+            tilesView.classList.add("d-none");
+            tableView.classList.remove("d-none");
+            localStorage.setItem("magasinView", "table");
+        } else {
+            // Basculer vers la vue tuiles
+            tilesView.classList.remove("d-none");
+            tableView.classList.add("d-none");
+            localStorage.setItem("magasinView", "tiles");
+        }
+    }
+
     function performSearch() {
         const query = document.getElementById("searchInput").value.trim();
 
         if (query.length === 0) {
-            // Afficher tous les produits
+            // Afficher tous les produits dans les deux vues
             document.querySelectorAll(".product-card").forEach((card) => {
                 card.style.display = "block";
             });
+            document
+                .querySelectorAll("#productsTable tbody tr")
+                .forEach((row) => {
+                    row.style.display = "";
+                });
             return;
         }
 
-        // Filtrer les produits affichés
+        // Filtrer les produits dans la vue tuiles
         document.querySelectorAll(".product-card").forEach((card) => {
             const title = card
                 .querySelector(".card-title")
@@ -747,9 +832,31 @@
                 card.style.display = "none";
             }
         });
+
+        // Filtrer les produits dans la vue tableau
+        document.querySelectorAll("#productsTable tbody tr").forEach((row) => {
+            const productName = row.cells[0].textContent.toLowerCase();
+            const reference = row.cells[1].textContent.toLowerCase();
+            const refFournisseur = row.cells[2].textContent.toLowerCase();
+            const fournisseur = row.cells[3].textContent.toLowerCase();
+            const emplacement = row.cells[6].textContent.toLowerCase();
+
+            if (
+                productName.includes(query.toLowerCase()) ||
+                reference.includes(query.toLowerCase()) ||
+                refFournisseur.includes(query.toLowerCase()) ||
+                fournisseur.includes(query.toLowerCase()) ||
+                emplacement.includes(query.toLowerCase())
+            ) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
     }
 
     function filterProducts(status) {
+        // Filtrer les tuiles
         document.querySelectorAll(".product-card").forEach((card) => {
             if (status === "all") {
                 card.style.display = "block";
@@ -762,101 +869,20 @@
                 }
             }
         });
-    }
 
-    function quickMovement(reference, type = null) {
-        currentProductRef = reference;
-
-        // Charger les informations du produit
-        makeRequest(`/api/produit/${reference}`)
-            .then((produit) => {
-                if (produit) {
-                    document.getElementById("productInfo").innerHTML = `
-                    <div class="d-flex align-items-center">
-                        <div>
-                            <h6 class="mb-1">${produit.designation}</h6>
-                            <div class="d-flex align-items-center">
-                                <span class="badge bg-primary me-2">Réf: ${produit.reference}</span>
-                                <span><i class="bi bi-box me-1"></i>${produit.quantite} ${produit.unite_stockage}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                    // Préselectionner le type de mouvement si spécifié
-                    if (type) {
-                        document.getElementById("movementType").value = type;
-                    }
-
-                    const modal = new bootstrap.Modal(
-                        document.getElementById("quickMovementModal")
-                    );
-                    modal.show();
-                }
-            })
-            .catch((error) => {
-                showAlert("Erreur lors du chargement du produit", "error");
-            });
-    }
-
-    function submitMovement() {
-        const type = document.getElementById("movementType").value;
-        const quantity = parseInt(
-            document.getElementById("movementQuantity").value
-        );
-        const comments = document.getElementById("movementComments").value;
-
-        if (!quantity || quantity <= 0) {
-            showAlert("Veuillez saisir une quantité valide", "error");
-            return;
-        }
-
-        const data = {
-            reference: currentProductRef,
-            nature: type,
-            quantite: quantity,
-            commentaires: comments,
-        };
-
-        // Déterminer l'endpoint selon le type
-        let endpoint;
-        switch (type) {
-            case "entree":
-                endpoint = "/entree-stock";
-                break;
-            case "sortie":
-                endpoint = "/sortie-stock";
-                break;
-            case "inventaire":
-                endpoint = "/regule-stock";
-                break;
-            default:
-                endpoint = "/entree-stock";
-        }
-
-        fetch(endpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-        })
-            .then((response) => response.json())
-            .then((result) => {
-                if (result.success) {
-                    showAlert(result.message, "success");
-                    bootstrap.Modal.getInstance(
-                        document.getElementById("quickMovementModal")
-                    ).hide();
-                    // Recharger la page pour mettre à jour les données
-                    setTimeout(() => location.reload(), 1000);
+        // Filtrer les lignes du tableau
+        document.querySelectorAll("#productsTable tbody tr").forEach((row) => {
+            if (status === "all") {
+                row.style.display = "";
+            } else {
+                const rowStatus = row.dataset.status;
+                if (rowStatus === status) {
+                    row.style.display = "";
                 } else {
-                    showAlert(result.message, "error");
+                    row.style.display = "none";
                 }
-            })
-            .catch((error) => {
-                showAlert("Erreur lors de l'enregistrement", "error");
-            });
+            }
+        });
     }
 
     function refreshData() {
@@ -881,7 +907,21 @@
                 card.style.transition = "all 0.5s ease";
                 card.style.opacity = "1";
                 card.style.transform = "translateY(0)";
-            }, index * 80);
+            }, index * 50);
+        });
+    }
+
+    function animateTableRows() {
+        const rows = document.querySelectorAll("#productsTable tbody tr");
+        rows.forEach((row, index) => {
+            row.style.opacity = "0";
+            row.style.transform = "translateX(-20px)";
+
+            setTimeout(() => {
+                row.style.transition = "all 0.3s ease";
+                row.style.opacity = "1";
+                row.style.transform = "translateX(0)";
+            }, index * 30);
         });
     }
 </script>
