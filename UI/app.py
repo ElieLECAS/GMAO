@@ -85,11 +85,14 @@ def index():
 @app.route('/magasin')
 def magasin():
     """Page Magasin - Vue d'ensemble du stock"""
-    produits = api_client.get('/inventaire/')
+    produits_raw = api_client.get('/inventaire/')
     
-    if produits is None:
+    if produits_raw is None:
         produits = []
         flash('Erreur lors du chargement de l\'inventaire', 'error')
+    else:
+        # Normaliser les données des produits
+        produits = [normalize_produit(p.copy()) for p in produits_raw]
     
     # Calculer les statistiques comme dans Streamlit
     stats = {
@@ -1070,6 +1073,10 @@ def normalize_produit(produit):
             produit['nom'] = nom_complet.split(' - ')[0]
         else:
             produit['nom'] = nom_complet
+    
+    # Ajouter designation comme alias de produits pour compatibilité
+    if 'produits' in produit and 'designation' not in produit:
+        produit['designation'] = produit['produits']
     
     return produit
 
