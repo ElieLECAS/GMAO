@@ -880,6 +880,53 @@ block content %}
                             Formats acceptés : .xlsx, .xls (maximum 10 MB)
                         </div>
                     </div>
+
+                    <!-- Gestion des doublons -->
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="bi bi-arrow-repeat"></i>
+                            Gestion des produits existants
+                        </label>
+                        <div class="form-check">
+                            <input
+                                class="form-check-input"
+                                type="radio"
+                                name="gestion_doublons"
+                                id="ignorer_doublons"
+                                value="ignorer"
+                                checked
+                            />
+                            <label
+                                class="form-check-label"
+                                for="ignorer_doublons"
+                            >
+                                <strong>Ignorer</strong> - Les produits
+                                existants ne seront pas modifiés
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input
+                                class="form-check-input"
+                                type="radio"
+                                name="gestion_doublons"
+                                id="mettre_a_jour_doublons"
+                                value="mettre_a_jour"
+                            />
+                            <label
+                                class="form-check-label"
+                                for="mettre_a_jour_doublons"
+                            >
+                                <strong>Mettre à jour</strong> - Les
+                                informations des produits existants seront mises
+                                à jour (sauf quantité)
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i>
+                            L'unicité est basée sur la référence fournisseur et
+                            le fournisseur
+                        </div>
+                    </div>
                 </form>
 
                 <!-- Zone de progression -->
@@ -1382,9 +1429,13 @@ block content %}
         document.getElementById('importResults').style.display = 'none';
         document.getElementById('startImportBtn').disabled = true;
 
+        // Récupérer l'option de gestion des doublons
+        const gestionDoublons = document.querySelector('input[name="gestion_doublons"]:checked').value;
+
         // Préparer les données
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('gestion_doublons', gestionDoublons);
 
         // Envoyer le fichier
         fetch('/api/import-produits', {

@@ -477,6 +477,9 @@ def import_produits():
         if not file.filename.lower().endswith(('.xlsx', '.xls')):
             return jsonify({'success': False, 'message': 'Format de fichier non supporté. Utilisez Excel (.xlsx ou .xls)'})
         
+        # Récupérer l'option de gestion des doublons
+        gestion_doublons = request.form.get('gestion_doublons', 'ignorer')  # 'ignorer' ou 'mettre_a_jour'
+        
         # Lire le fichier Excel
         import pandas as pd
         import io
@@ -497,6 +500,8 @@ def import_produits():
         stats = {
             'total_lignes': len(df),
             'produits_crees': 0,
+            'produits_ignores': 0,  # Produits déjà existants
+            'produits_mis_a_jour': 0,  # Produits existants mis à jour
             'fournisseurs_crees': 0,
             'sites_crees': 0,
             'lieux_crees': 0,
@@ -525,10 +530,41 @@ def import_produits():
                     stats['erreurs'].append(f"Ligne {ligne_num}: Désignation manquante")
                     continue
                 
+                # Vérifier si le produit existe déjà avant de continuer le traitement
+                fournisseur_nom = str(row.get('Fournisseur Standard', '')).strip() if pd.notna(row.get('Fournisseur Standard')) else None
+                if fournisseur_nom and fournisseur_nom == 'nan':
+                    fournisseur_nom = None
+                
+                reference_fournisseur = str(row.get('Référence fournisseur', '')).strip() if pd.notna(row.get('Référence fournisseur')) else None
+                if reference_fournisseur and reference_fournisseur == 'nan':
+                    reference_fournisseur = None
+                
+                # Vérifier l'existence du produit par référence fournisseur
+                produit_existant = None
+                if reference_fournisseur:
+                    produit_existant = produit_existe_par_reference_fournisseur(reference_fournisseur, fournisseur_nom)
+                
+                if produit_existant:
+                    if gestion_doublons == 'ignorer':
+                        stats['produits_ignores'] += 1
+                        print(f"Ligne {ligne_num}: Produit avec référence fournisseur '{reference_fournisseur}' déjà existant - ignoré")
+                        continue
+                    elif gestion_doublons == 'mettre_a_jour':
+                        # On va mettre à jour le produit existant
+                        print(f"Ligne {ligne_num}: Produit avec référence fournisseur '{reference_fournisseur}' déjà existant - mise à jour")
+                        mode_mise_a_jour = True
+                        produit_id = produit_existant.get('id')
+                    else:
+                        stats['produits_ignores'] += 1
+                        continue
+                else:
+                    mode_mise_a_jour = False
+                    produit_id = None
+                
                 # Données du produit
                 produit_data = {
                     'designation': designation,
-                    'reference_fournisseur': str(row.get('Référence fournisseur', '')).strip() if pd.notna(row.get('Référence fournisseur')) else None,
+                    'reference_fournisseur': reference_fournisseur,
                     'unite_stockage': str(row.get('Unité de stockage', '')).strip() if pd.notna(row.get('Unité de stockage')) else None,
                     'unite_commande': str(row.get('Unité Commande', '')).strip() if pd.notna(row.get('Unité Commande')) else None,
                     'stock_min': int(row.get('Min', 0)) if pd.notna(row.get('Min')) else 0,
@@ -540,8 +576,7 @@ def import_produits():
                 }
                 
                 # Traiter le fournisseur
-                fournisseur_nom = str(row.get('Fournisseur Standard', '')).strip() if pd.notna(row.get('Fournisseur Standard')) else None
-                if fournisseur_nom and fournisseur_nom != 'nan':
+                if fournisseur_nom:
                     if fournisseur_nom not in fournisseurs_cache:
                         # Vérifier si le fournisseur existe
                         fournisseurs_existants = api_client.get('/fournisseurs/') or []
@@ -742,37 +777,76 @@ def import_produits():
                         # Si pas de lieu_id, on ne peut pas créer l'emplacement
                         stats['erreurs'].append(f"Ligne {ligne_num}: Impossible de créer l'emplacement {emplacement_nom} - lieu manquant")
                 
-                # Créer le produit
-                # Générer un code QR automatique
-                import random
-                import string
-                qr_code = ''.join(random.choices(string.digits, k=10))
-                
-                produit_final = {
-                    'code': qr_code,
-                    'reference': qr_code,
-                    'reference_fournisseur': produit_data.get('reference_fournisseur'),
-                    'produits': produit_data['designation'],
-                    'unite_stockage': produit_data.get('unite_stockage'),
-                    'unite_commande': produit_data.get('unite_commande'),
-                    'stock_min': produit_data.get('stock_min', 0),
-                    'stock_max': produit_data.get('stock_max', 100),
-                    'site': produit_data.get('site'),
-                    'lieu': produit_data.get('lieu'),
-                    'emplacement': produit_data.get('emplacement'),
-                    'fournisseur': produit_data.get('fournisseur'),
-                    'prix_unitaire': produit_data.get('prix_unitaire', 0.0),
-                    'categorie': produit_data.get('categorie'),
-                    'secteur': produit_data.get('secteur'),
-                    'quantite': produit_data.get('quantite', 0)
-                }
-                
-                result = api_client.post('/inventaire/', produit_final)
-                if result and 'id' in result:
-                    stats['produits_crees'] += 1
+                # Créer ou mettre à jour le produit
+                if mode_mise_a_jour and produit_id:
+                    # Mise à jour du produit existant
+                    produit_final = {}
+                    
+                    # Seulement mettre à jour les champs non vides
+                    if produit_data.get('reference_fournisseur'):
+                        produit_final['reference_fournisseur'] = produit_data.get('reference_fournisseur')
+                    if produit_data.get('unite_stockage'):
+                        produit_final['unite_stockage'] = produit_data.get('unite_stockage')
+                    if produit_data.get('unite_commande'):
+                        produit_final['unite_commande'] = produit_data.get('unite_commande')
+                    if produit_data.get('stock_min') is not None:
+                        produit_final['stock_min'] = produit_data.get('stock_min', 0)
+                    if produit_data.get('stock_max') is not None:
+                        produit_final['stock_max'] = produit_data.get('stock_max', 100)
+                    if produit_data.get('site'):
+                        produit_final['site'] = produit_data.get('site')
+                    if produit_data.get('lieu'):
+                        produit_final['lieu'] = produit_data.get('lieu')
+                    if produit_data.get('emplacement'):
+                        produit_final['emplacement'] = produit_data.get('emplacement')
+                    if produit_data.get('fournisseur'):
+                        produit_final['fournisseur'] = produit_data.get('fournisseur')
+                    if produit_data.get('prix_unitaire') is not None:
+                        produit_final['prix_unitaire'] = produit_data.get('prix_unitaire', 0.0)
+                    if produit_data.get('categorie'):
+                        produit_final['categorie'] = produit_data.get('categorie')
+                    if produit_data.get('secteur'):
+                        produit_final['secteur'] = produit_data.get('secteur')
+                    # Note: On ne met pas à jour la quantité lors de l'importation pour éviter d'écraser le stock
+                    
+                    result = api_client.put(f'/inventaire/{produit_id}', produit_final)
+                    if result:
+                        stats['produits_mis_a_jour'] += 1
+                    else:
+                        error_detail = result.get('message', 'Erreur inconnue') if result else 'Pas de réponse de l\'API'
+                        stats['erreurs'].append(f"Ligne {ligne_num}: Erreur mise à jour produit {designation} - {error_detail}")
                 else:
-                    error_detail = result.get('message', 'Erreur inconnue') if result else 'Pas de réponse de l\'API'
-                    stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création produit {designation} - {error_detail}")
+                    # Création d'un nouveau produit
+                    # Générer un code QR automatique
+                    import random
+                    import string
+                    qr_code = ''.join(random.choices(string.digits, k=10))
+                    
+                    produit_final = {
+                        'code': qr_code,
+                        'reference': qr_code,
+                        'reference_fournisseur': produit_data.get('reference_fournisseur'),
+                        'produits': produit_data['designation'],
+                        'unite_stockage': produit_data.get('unite_stockage'),
+                        'unite_commande': produit_data.get('unite_commande'),
+                        'stock_min': produit_data.get('stock_min', 0),
+                        'stock_max': produit_data.get('stock_max', 100),
+                        'site': produit_data.get('site'),
+                        'lieu': produit_data.get('lieu'),
+                        'emplacement': produit_data.get('emplacement'),
+                        'fournisseur': produit_data.get('fournisseur'),
+                        'prix_unitaire': produit_data.get('prix_unitaire', 0.0),
+                        'categorie': produit_data.get('categorie'),
+                        'secteur': produit_data.get('secteur'),
+                        'quantite': produit_data.get('quantite', 0)
+                    }
+                    
+                    result = api_client.post('/inventaire/', produit_final)
+                    if result and 'id' in result:
+                        stats['produits_crees'] += 1
+                    else:
+                        error_detail = result.get('message', 'Erreur inconnue') if result else 'Pas de réponse de l\'API'
+                        stats['erreurs'].append(f"Ligne {ligne_num}: Erreur création produit {designation} - {error_detail}")
                     
             except Exception as e:
                 stats['erreurs'].append(f"Ligne {ligne_num}: Erreur - {str(e)}")
@@ -780,6 +854,10 @@ def import_produits():
         # Préparer le message de résultat
         message = f"Importation terminée:\n"
         message += f"• {stats['produits_crees']} produits créés\n"
+        if stats['produits_mis_a_jour'] > 0:
+            message += f"• {stats['produits_mis_a_jour']} produits mis à jour\n"
+        if stats['produits_ignores'] > 0:
+            message += f"• {stats['produits_ignores']} produits ignorés (déjà existants)\n"
         message += f"• {stats['fournisseurs_crees']} fournisseurs créés\n"
         message += f"• {stats['sites_crees']} sites créés\n"
         message += f"• {stats['lieux_crees']} lieux créés\n"
@@ -810,6 +888,20 @@ def creer_produit():
         # Validation des champs requis
         if not data.get('designation'):
             return jsonify({'success': False, 'message': 'La désignation est requise'})
+        
+        # Vérifier si un produit avec cette référence fournisseur existe déjà
+        reference_fournisseur = data.get('reference_fournisseur')
+        fournisseur = data.get('fournisseur')
+        
+        # Seulement vérifier si une référence fournisseur est fournie
+        if reference_fournisseur and reference_fournisseur.strip():
+            produit_existant = produit_existe_par_reference_fournisseur(reference_fournisseur, fournisseur)
+            if produit_existant:
+                if fournisseur:
+                    message = f"Un produit avec la référence fournisseur '{reference_fournisseur}' existe déjà chez le fournisseur '{fournisseur}'"
+                else:
+                    message = f"Un produit avec la référence fournisseur '{reference_fournisseur}' existe déjà"
+                return jsonify({'success': False, 'message': message})
         
         # Générer un code QR automatique à 10 chiffres
         import random
@@ -1619,6 +1711,38 @@ def get_emplacements_by_lieu(lieu_id):
             
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+# =====================================================
+# FONCTIONS HELPER POUR ÉVITER LES DOUBLONS
+# =====================================================
+
+def produit_existe_par_reference_fournisseur(reference_fournisseur, fournisseur=None):
+    """Vérifier si un produit existe déjà par référence fournisseur et fournisseur"""
+    try:
+        # Si pas de référence fournisseur, on ne peut pas vérifier l'unicité
+        if not reference_fournisseur or reference_fournisseur.strip() == '':
+            return None
+            
+        produits_existants = api_client.get('/inventaire/') or []
+        
+        for produit in produits_existants:
+            produit_ref_fournisseur = produit.get('reference_fournisseur', '').strip()
+            
+            # Comparer les références fournisseur (insensible à la casse)
+            if produit_ref_fournisseur.lower() == reference_fournisseur.strip().lower():
+                # Si un fournisseur est spécifié, vérifier aussi le fournisseur
+                if fournisseur:
+                    produit_fournisseur = produit.get('fournisseur', '').strip().lower()
+                    if produit_fournisseur == fournisseur.strip().lower():
+                        return produit
+                else:
+                    # Si pas de fournisseur spécifié, considérer comme doublon
+                    return produit
+        
+        return None
+    except Exception as e:
+        print(f"Erreur lors de la vérification d'existence du produit: {e}")
+        return None
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) 
