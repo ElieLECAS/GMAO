@@ -103,22 +103,15 @@ endblock %} {% block extra_css %}
                         <label for="reference" class="form-label"
                             >Référence produit *</label
                         >
-                        <div class="input-group">
-                            <input
-                                type="text"
-                                class="form-control"
-                                id="reference"
-                                name="reference"
-                                required
-                            />
-                            <button
-                                type="button"
-                                class="btn scanner-btn"
-                                onclick="openScanner()"
-                            >
-                                <i class="bi bi-qr-code-scan"></i> Scanner
-                            </button>
-                        </div>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="reference"
+                            name="reference"
+                            placeholder="Scannez ou saisissez la référence"
+                            required
+                            autocomplete="off"
+                        />
                     </div>
 
                     <div class="col-md-6">
@@ -194,66 +187,71 @@ endblock %} {% block extra_css %}
     </div>
 </div>
 
-<!-- Modal Scanner -->
-<div class="modal fade" id="scannerModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Scanner QR Code</h5>
-                <button
-                    type="button"
-                    class="btn-close"
-                    data-bs-dismiss="modal"
-                ></button>
-            </div>
-            <div class="modal-body">
-                <div id="qr-reader" style="width: 100%"></div>
-                <div class="mt-3">
-                    <label for="manualInput" class="form-label"
-                        >Ou saisir manuellement :</label
-                    >
-                    <div class="input-group">
-                        <input
-                            type="text"
-                            class="form-control"
-                            id="manualInput"
-                            placeholder="Référence produit"
-                        />
-                        <button
-                            type="button"
-                            class="btn btn-primary"
-                            onclick="useManualInput()"
-                        >
-                            Utiliser
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %} {% block extra_js %}
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
-    let html5QrcodeScanner = null;
     let currentProduct = null;
 
-    // Gestion du changement de référence
-    document.getElementById("reference").addEventListener("blur", function () {
-        const reference = this.value.trim();
-        if (reference) {
-            loadProductInfo(reference);
-        }
-    });
+    // Focus automatique sur le champ référence au chargement de la page
+    document.addEventListener("DOMContentLoaded", function () {
+        const referenceInput = document.getElementById("reference");
+        const quantiteInput = document.getElementById("quantite");
 
-    // Gestion du changement de quantité
-    document.getElementById("quantite").addEventListener("input", function () {
-        checkStock();
+        // Focus immédiat sur le champ référence
+        setTimeout(() => {
+            referenceInput.focus();
+        }, 100);
+
+        // Gestion de la touche Entrée pour passer au champ suivant
+        referenceInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                const reference = this.value.trim();
+                if (reference) {
+                    loadProductInfo(reference);
+                    // Focus sur le champ quantité
+                    setTimeout(() => {
+                        quantiteInput.focus();
+                        quantiteInput.select();
+                    }, 100);
+                }
+            }
+        });
+
+        // Gestion du changement de référence (pour scanner QR)
+        referenceInput.addEventListener("input", function () {
+            const reference = this.value.trim();
+            if (reference && reference.length >= 8) {
+                loadProductInfo(reference);
+                // Auto-focus sur quantité après scan
+                setTimeout(() => {
+                    quantiteInput.focus();
+                    quantiteInput.select();
+                }, 300);
+            }
+        });
+
+        // Gestion de la touche Entrée sur le champ quantité pour soumettre
+        quantiteInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                document
+                    .getElementById("sortieForm")
+                    .dispatchEvent(new Event("submit"));
+            }
+        });
+
+        // Gestion du changement de quantité
+        quantiteInput.addEventListener("input", function () {
+            checkStock();
+        });
     });
 
     // Fonction pour définir une quantité rapide
     function setQuantity(qty) {
-        document.getElementById("quantite").value = qty;
+        const quantiteInput = document.getElementById("quantite");
+        quantiteInput.value = qty;
+        quantiteInput.focus();
+        quantiteInput.select();
         checkStock();
     }
 
@@ -269,23 +267,35 @@ endblock %} {% block extra_css %}
                                 <p><strong>Nom:</strong> ${
                                     response.produits || "Non spécifié"
                                 }</p>
-                                <p><strong>Stock actuel:</strong> <span class="badge bg-primary">${
-                                    response.quantite || 0
-                                }</span></p>
-                                <p><strong>Emplacement:</strong> ${
-                                    response.emplacement || "Non spécifié"
-                                }</p>
-                            </div>
-                            <div class="col-md-6">
                                 <p><strong>Code:</strong> ${
                                     response.code || "Non spécifié"
                                 }</p>
-                                <p><strong>Seuil d'alerte:</strong> ${
+                                <p><strong>Stock actuel:</strong> <span class="badge bg-primary">${
+                                    response.quantite || 0
+                                }</span></p>
+                                <p><strong>Référence fournisseur:</strong> ${
+                                    response.reference_fournisseur ||
+                                    "Non spécifiée"
+                                }</p>
+                                <p><strong>Fournisseur:</strong> ${
+                                    response.fournisseur || "Non spécifié"
+                                }</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Site:</strong> ${
+                                    response.site || "Non spécifié"
+                                }</p>
+                                <p><strong>Lieu:</strong> ${
+                                    response.lieu || "Non spécifié"
+                                }</p>
+                                <p><strong>Emplacement:</strong> ${
+                                    response.emplacement || "Non spécifié"
+                                }</p>
+                                <p><strong>Stock min:</strong> ${
                                     response.stock_min || 0
-                                }</p>
-                                <p><strong>Stock max:</strong> ${
-                                    response.stock_max || "Non défini"
-                                }</p>
+                                } | <strong>Stock max:</strong> ${
+                        response.stock_max || "Non défini"
+                    }</p>
                             </div>
                         </div>
                     `;
@@ -363,67 +373,6 @@ endblock %} {% block extra_css %}
         }
     }
 
-    // Scanner QR Code
-    function openScanner() {
-        const modal = new bootstrap.Modal(
-            document.getElementById("scannerModal")
-        );
-        modal.show();
-
-        modal._element.addEventListener("shown.bs.modal", function () {
-            startScanner();
-        });
-
-        modal._element.addEventListener("hidden.bs.modal", function () {
-            stopScanner();
-        });
-    }
-
-    function startScanner() {
-        html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-reader",
-            {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-            },
-            false
-        );
-
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-    }
-
-    function stopScanner() {
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.clear();
-            html5QrcodeScanner = null;
-        }
-    }
-
-    function onScanSuccess(decodedText, decodedResult) {
-        document.getElementById("reference").value = decodedText;
-        loadProductInfo(decodedText);
-        bootstrap.Modal.getInstance(
-            document.getElementById("scannerModal")
-        ).hide();
-        showNotification("QR Code scanné avec succès", "success");
-    }
-
-    function onScanFailure(error) {
-        // Ne pas afficher les erreurs de scan en continu
-    }
-
-    function useManualInput() {
-        const manualValue = document.getElementById("manualInput").value.trim();
-        if (manualValue) {
-            document.getElementById("reference").value = manualValue;
-            loadProductInfo(manualValue);
-            bootstrap.Modal.getInstance(
-                document.getElementById("scannerModal")
-            ).hide();
-        }
-    }
-
     // Soumission du formulaire
     document
         .getElementById("sortieForm")
@@ -491,6 +440,10 @@ endblock %} {% block extra_css %}
         document.getElementById("utilisateur").value = "Mobile User";
         document.getElementById("submitBtn").disabled = false;
         currentProduct = null;
+        // Remettre le focus sur le champ référence
+        setTimeout(() => {
+            document.getElementById("reference").focus();
+        }, 100);
     }
 </script>
 {% endblock %}
