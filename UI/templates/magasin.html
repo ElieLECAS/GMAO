@@ -295,6 +295,67 @@
         </div>
     </div>
 
+    <!-- Statistiques rapides -->
+    <div class="stats-row">
+        <div class="row g-3">
+            <div class="col-6 col-md">
+                <div class="stat-card critique">
+                    <div class="stat-number text-danger">
+                        <div class="stat-icon">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        {{ stats.stock_critique }}
+                    </div>
+                    <p class="stat-label">Stock critique</p>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="stat-card faible">
+                    <div class="stat-number text-warning">
+                        <div class="stat-icon">
+                            <i class="bi bi-exclamation-circle"></i>
+                        </div>
+                        {{ stats.stock_faible }}
+                    </div>
+                    <p class="stat-label">Bientôt rupture</p>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="stat-card surstock">
+                    <div class="stat-number" style="color: #fd7e14">
+                        <div class="stat-icon">
+                            <i class="bi bi-archive"></i>
+                        </div>
+                        {{ stats.surstock }}
+                    </div>
+                    <p class="stat-label">Surstock</p>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="stat-card normal">
+                    <div class="stat-number text-success">
+                        <div class="stat-icon">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        {{ stats.stock_normal }}
+                    </div>
+                    <p class="stat-label">Stock normal</p>
+                </div>
+            </div>
+            <div class="col-12 col-md">
+                <div class="stat-card valeur">
+                    <div class="stat-number text-primary">
+                        <div class="stat-icon">
+                            <i class="bi bi-currency-euro"></i>
+                        </div>
+                        {{ "%.2f"|format(stats.valeur_totale) }}€
+                    </div>
+                    <p class="stat-label">Valeur totale</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Barre de recherche et filtres -->
     <div class="search-section">
         <div class="row g-2">
@@ -372,67 +433,6 @@
                 <i class="bi bi-archive-fill"></i> Surstock ({{ stats.surstock
                 }})
             </button>
-        </div>
-    </div>
-
-    <!-- Statistiques rapides -->
-    <div class="stats-row">
-        <div class="row g-3">
-            <div class="col-6 col-md">
-                <div class="stat-card critique">
-                    <div class="stat-number text-danger">
-                        <div class="stat-icon">
-                            <i class="bi bi-exclamation-triangle"></i>
-                        </div>
-                        {{ stats.stock_critique }}
-                    </div>
-                    <p class="stat-label">Stock critique</p>
-                </div>
-            </div>
-            <div class="col-6 col-md">
-                <div class="stat-card faible">
-                    <div class="stat-number text-warning">
-                        <div class="stat-icon">
-                            <i class="bi bi-exclamation-circle"></i>
-                        </div>
-                        {{ stats.stock_faible }}
-                    </div>
-                    <p class="stat-label">Bientôt rupture</p>
-                </div>
-            </div>
-            <div class="col-6 col-md">
-                <div class="stat-card surstock">
-                    <div class="stat-number" style="color: #fd7e14">
-                        <div class="stat-icon">
-                            <i class="bi bi-archive"></i>
-                        </div>
-                        {{ stats.surstock }}
-                    </div>
-                    <p class="stat-label">Surstock</p>
-                </div>
-            </div>
-            <div class="col-6 col-md">
-                <div class="stat-card normal">
-                    <div class="stat-number text-success">
-                        <div class="stat-icon">
-                            <i class="bi bi-check-circle"></i>
-                        </div>
-                        {{ stats.stock_normal }}
-                    </div>
-                    <p class="stat-label">Stock normal</p>
-                </div>
-            </div>
-            <div class="col-12 col-md">
-                <div class="stat-card valeur">
-                    <div class="stat-number text-primary">
-                        <div class="stat-icon">
-                            <i class="bi bi-currency-euro"></i>
-                        </div>
-                        {{ "%.2f"|format(stats.valeur_totale) }}€
-                    </div>
-                    <p class="stat-label">Valeur totale</p>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -960,15 +960,15 @@
     }
 
     function filterByFournisseur() {
-        const fournisseur = document.getElementById('fournisseurFilter').value;
+        const fournisseur = document.getElementById("fournisseurFilter").value;
         const currentUrl = new URL(window.location);
-        
-        if (fournisseur === 'tous') {
-            currentUrl.searchParams.delete('fournisseur');
+
+        if (fournisseur === "tous") {
+            currentUrl.searchParams.delete("fournisseur");
         } else {
-            currentUrl.searchParams.set('fournisseur', fournisseur);
+            currentUrl.searchParams.set("fournisseur", fournisseur);
         }
-        
+
         window.location.href = currentUrl.toString();
     }
 
