@@ -165,6 +165,7 @@ def historique_mouvements():
     """Page Historique des mouvements"""
     historique = api_client.get('/historique/')
     fournisseurs_raw = api_client.get('/fournisseurs/')
+    produits_raw = api_client.get('/inventaire/')  # Récupérer les produits pour le lien référence → fournisseur
     
     if historique is None:
         historique = []
@@ -176,6 +177,15 @@ def historique_mouvements():
         # L'API retourne un objet avec une propriété 'value' contenant le tableau
         fournisseurs = fournisseurs_raw.get('value', []) if isinstance(fournisseurs_raw, dict) else fournisseurs_raw
     
+    # Créer un dictionnaire de référence → fournisseur pour le filtrage
+    reference_to_fournisseur = {}
+    if produits_raw:
+        for produit in produits_raw:
+            reference = produit.get('reference')
+            fournisseur = produit.get('fournisseur')
+            if reference and fournisseur:
+                reference_to_fournisseur[reference] = fournisseur
+    
     # Traiter les données pour l'affichage
     for mouvement in historique:
         # S'assurer que les champs nécessaires existent
@@ -183,6 +193,13 @@ def historique_mouvements():
             mouvement['date'] = mouvement['date_mouvement']
         elif 'date' not in mouvement:
             mouvement['date'] = datetime.now().strftime('%Y-%m-%d')
+        
+        # Ajouter le fournisseur basé sur la référence
+        reference = mouvement.get('reference')
+        if reference and reference in reference_to_fournisseur:
+            mouvement['fournisseur'] = reference_to_fournisseur[reference]
+        else:
+            mouvement['fournisseur'] = 'Non défini'
         
         # Normaliser la nature pour l'affichage
         if 'nature' not in mouvement:
