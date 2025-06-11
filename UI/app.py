@@ -807,6 +807,8 @@ def import_produits():
                         produit_final['categorie'] = produit_data.get('categorie')
                     if produit_data.get('secteur'):
                         produit_final['secteur'] = produit_data.get('secteur')
+                    if produit_data.get('quantite') is not None:
+                        produit_final['quantite'] = produit_data.get('quantite', 0)
                     # Note: On ne met pas à jour la quantité lors de l'importation pour éviter d'écraser le stock
                     
                     result = api_client.put(f'/inventaire/{produit_id}', produit_final)
