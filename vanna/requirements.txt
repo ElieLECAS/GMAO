@@ -1,2 +1,0 @@
-vanna[chromadb,openai,postgres]
-python-dotenv
